@@ -8,7 +8,9 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "env:check": "tsx scripts/check-env-declarations.ts"
+    "env:check": "tsx --conditions=react-server scripts/check-env-declarations.ts",
+    "conditions:check": "tsx --conditions=react-server scripts/check-server-conditions.ts",
+    "check": "pnpm env:check && pnpm conditions:check"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

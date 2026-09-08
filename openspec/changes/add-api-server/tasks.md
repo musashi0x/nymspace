@@ -2,10 +2,10 @@
 
 Do this before moving any code. It is the constraint that already broke the ENSv2 spike script once, and a move made without it will be debugged as a bundling problem.
 
-- [ ] 1.1 Add `scripts/check-server-conditions.ts` beside `scripts/check-env-declarations.ts`. It reads every workspace `package.json`, finds scripts invoking `tsx` or `node` against a source entrypoint, and fails naming any that omits `--conditions=react-server`
-- [ ] 1.2 Expose it as a root `conditions:check` script, and run both checks from one `check` script so neither is remembered separately
-- [ ] 1.3 Confirm it passes on `apps/api`'s `dev` and `start`, and confirm it fails when the flag is removed. A check that has never failed has not been tested
-- [ ] 1.4 Add the spike script's future entrypoint to the rule's coverage, or note explicitly why `packages/ens` needs no change until the script exists
+- [x] 1.1 Add `scripts/check-server-conditions.ts` beside `scripts/check-env-declarations.ts`. It reads every workspace `package.json`, finds scripts invoking `tsx` or `node` against a source entrypoint, and fails naming any that omits `--conditions=react-server`
+- [x] 1.2 Expose it as a root `conditions:check` script, and run both checks from one `check` script so neither is remembered separately
+- [x] 1.3 Confirm it passes on `apps/api`'s `dev` and `start`, and confirm it fails when the flag is removed. A check that has never failed has not been tested
+- [x] 1.4 Add the spike script's future entrypoint to the rule's coverage, or note explicitly why `packages/ens` needs no change until the script exists
 
 ## 2. Move the activity endpoint
 
