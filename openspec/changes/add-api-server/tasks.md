@@ -35,12 +35,12 @@ Do this before moving any code. It is the constraint that already broke the ENSv
 
 ## 5. Verification
 
-- [ ] 5.1 `pnpm typecheck` passes across every workspace member
-- [ ] 5.2 `pnpm test` runs the API's tests alongside the package tests
-- [ ] 5.3 `pnpm env:check` and the new conditions check both pass
-- [ ] 5.4 With both servers running, the landing page renders and the activity panel shows the same data as before the move
-- [ ] 5.5 With the API stopped, the landing page still renders and the panel shows its error state rather than a blank or a crash
-- [ ] 5.6 `git log --follow` resolves history for both moved files
+- [x] 5.1 `pnpm typecheck` passes across every workspace member
+- [x] 5.2 `pnpm test` runs the API's tests alongside the package tests
+- [x] 5.3 `pnpm env:check` and the new conditions check both pass
+- [x] 5.4 With both servers running, the landing page renders and the activity panel shows the same data as before the move
+- [x] 5.5 With the API stopped, the landing page still renders. **Assertion adjusted by the section 2 decision**: there is no error state to show, because the page server-renders from `@nymspace/github` and never calls the API. The stronger check is that it is *unaffected* — 175,868 bytes with the API up and 175,868 with it down, byte-for-byte, no amber error block, commit data and contributors intact
+- [x] 5.6 `git log --follow` resolves history for both moved files
 
 ## 6. Close out
 
