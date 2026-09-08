@@ -63,7 +63,9 @@ export function CommitActivity({ data }: { data: ActivityPayload }) {
             accent="#39d353"
             cellSize={12}
             showMonths
-            defaultOpen
+            // Deliberately NOT defaultOpen: the contributors panel is an
+            // overlay that covers the whole calendar, and the calendar is the
+            // point of this card.
             selectedDate={selected}
             onDaySelect={(day) => setSelected(day.date)}
             // dark:bg-card is required as well as bg-card: the component ships

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getActivity, REVALIDATE_SECONDS } from "@/lib/github";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 /**
  * The same payload the landing page renders, exposed as raw JSON so anyone can

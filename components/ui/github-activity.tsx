@@ -507,7 +507,10 @@ const Chevron = ({
     aria-hidden
     className="size-7 text-[#C4C9CC] dark:text-[#3E4346]"
     initial={false}
-    animate={{ rotate: open ? 180 : 0 }}
+    // The panel expands UPWARD over the card, so the closed state must point
+    // up ("opens this way") and the open state down ("collapses this way").
+    // The stock rotation was the other way round and read as inverted.
+    animate={{ rotate: open ? 0 : 180 }}
     transition={transition}
   >
     <circle cx="12" cy="12" r="10" />

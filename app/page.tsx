@@ -3,7 +3,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { WordTiles } from "@/components/word-tiles";
 import { getActivity } from "@/lib/github";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 export default async function Home() {
   const data = await getActivity();

@@ -16,7 +16,7 @@ export const REPO_BRANCH = process.env.GITHUB_BRANCH ?? "";
 const MAX_PAGES = 5;
 const PER_PAGE = 100;
 /** Seconds before the route re-fetches from GitHub. */
-export const REVALIDATE_SECONDS = 300;
+export const REVALIDATE_SECONDS = 60;
 
 export type ContributionLevel = 0 | 1 | 2 | 3 | 4;
 
