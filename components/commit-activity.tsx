@@ -66,7 +66,11 @@ export function CommitActivity({ data }: { data: ActivityPayload }) {
             defaultOpen
             selectedDate={selected}
             onDaySelect={(day) => setSelected(day.date)}
-            className="border border-border/60 bg-card"
+            // dark:bg-card is required as well as bg-card: the component ships
+            // `bg-white dark:bg-black`, and tailwind-merge treats the dark:
+            // variant as a separate group, so bg-card alone leaves the card
+            // pure black — darker than the page — in dark mode.
+            className="border border-border/60 bg-card dark:bg-card"
           />
           <p className="mt-3 px-1 text-xs text-muted-foreground">
             {data.totalCommits} commit{data.totalCommits === 1 ? "" : "s"} on{" "}

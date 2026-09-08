@@ -66,7 +66,12 @@ export type ActivityPayload = {
   /** True when we hit MAX_PAGES — older commits exist beyond what's shown. */
   truncated: boolean;
   fetchedAt: string;
-  rateLimited: boolean;
+  /**
+   * Non-null when GitHub did not answer. This must never be collapsed into
+   * "0 commits": a silent zero is a fabricated number, and this page's whole
+   * claim is that its numbers are real.
+   */
+  error: { kind: "rate_limited" | "unavailable"; message: string } | null;
 };
 
 function headers(): HeadersInit {
@@ -79,13 +84,37 @@ function headers(): HeadersInit {
   };
 }
 
-async function gh<T>(path: string): Promise<T | null> {
-  const res = await fetch(`https://api.github.com${path}`, {
-    headers: headers(),
-    next: { revalidate: REVALIDATE_SECONDS },
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as T;
+type GhResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; status: number; rateLimited: boolean };
+
+/**
+ * A failed request is reported as a failure, never as empty data. Failures are
+ * also fetched with `no-store` so a transient 403 does not get cached and
+ * served as though the repo genuinely had no commits.
+ */
+async function gh<T>(path: string): Promise<GhResult<T>> {
+  let res: Response;
+  try {
+    res = await fetch(`https://api.github.com${path}`, {
+      headers: headers(),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+  } catch {
+    return { ok: false, status: 0, rateLimited: false };
+  }
+
+  if (!res.ok) {
+    const remaining = res.headers.get("x-ratelimit-remaining");
+    return {
+      ok: false,
+      status: res.status,
+      rateLimited:
+        (res.status === 403 || res.status === 429) && remaining === "0",
+    };
+  }
+
+  return { ok: true, data: (await res.json()) as T };
 }
 
 /** YYYY-MM-DD in UTC, so the grid doesn't shift with the viewer's timezone. */
@@ -171,26 +200,52 @@ export async function getActivity(
   const fullName = `${REPO_OWNER}/${REPO_NAME}`;
   const since = addDays(new Date(), -(weeks * 7)).toISOString();
 
-  const repo = await gh<RawRepo>(`/repos/${fullName}`);
+  const repoRes = await gh<RawRepo>(`/repos/${fullName}`);
+  const repo = repoRes.ok ? repoRes.data : null;
 
   const branchQuery = REPO_BRANCH ? `&sha=${encodeURIComponent(REPO_BRANCH)}` : "";
   const pages: RawCommit[][] = [];
   let truncated = false;
+  let failure: { status: number; rateLimited: boolean } | null = repoRes.ok
+    ? null
+    : repoRes;
 
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const batch = await gh<RawCommit[]>(
+    const res = await gh<RawCommit[]>(
       `/repos/${fullName}/commits?per_page=${PER_PAGE}&page=${page}&since=${since}${branchQuery}`,
     );
-    if (!batch || batch.length === 0) break;
-    pages.push(batch);
-    if (batch.length < PER_PAGE) break;
+    if (!res.ok) {
+      // Record it and stop. Reporting the pages we did get as the whole
+      // truth would understate the count without saying so.
+      failure = res;
+      break;
+    }
+    if (res.data.length === 0) break;
+    pages.push(res.data);
+    if (res.data.length < PER_PAGE) break;
     if (page === MAX_PAGES) truncated = true;
   }
 
   const rawCommits = pages.flat();
-  const contributors =
-    (await gh<RawContributor[]>(`/repos/${fullName}/contributors?per_page=20`)) ??
-    [];
+  const contributorsRes = await gh<RawContributor[]>(
+    `/repos/${fullName}/contributors?per_page=20`,
+  );
+  const contributors = contributorsRes.ok ? contributorsRes.data : [];
+
+  // A 204/empty contributors list is normal for a brand-new repo, so only a
+  // hard failure on the commits call is worth surfacing as an error.
+  const error: ActivityPayload["error"] = failure
+    ? failure.rateLimited
+      ? {
+          kind: "rate_limited",
+          message:
+            "GitHub's API rate limit was reached, so commit data could not be read. Numbers are withheld rather than shown as zero.",
+        }
+      : {
+          kind: "unavailable",
+          message: `GitHub's API returned ${failure.status || "no response"}, so commit data could not be read. Numbers are withheld rather than shown as zero.`,
+        }
+    : null;
 
   const counts = new Map<string, number>();
   const commitsByDate: Record<string, Commit[]> = {};
@@ -251,6 +306,6 @@ export async function getActivity(
     windowDays,
     truncated,
     fetchedAt: new Date().toISOString(),
-    rateLimited: repo === null && rawCommits.length === 0,
+    error,
   };
 }
