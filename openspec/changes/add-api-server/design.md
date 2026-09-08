@@ -74,7 +74,19 @@ The check reads every workspace `package.json`, finds scripts that invoke `tsx` 
 
 Rollback is `git revert`. Nothing is deployed, and the payload shape is unchanged, so a revert restores a working page with no data migration.
 
-## Open Questions
+## Resolved Questions
 
-- **Whether the API should proxy or the browser should call it directly.** Direct is simpler and the CORS scenarios assume it. A proxy through Next would avoid CORS entirely and keep one public origin, at the cost of a hop and of making the second server invisible — which would raise the question of why it exists.
-- **Whether the activity endpoint's five environment variables should be required or stay optional.** `lib/github.ts` reads `GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` and `GITHUB_BRANCH`, all with fallbacks, and none of the five appears in `turbo.json` or `.env.example` — so a token change today does not invalidate the build cache. They must be declared as part of the move. Whether the token becomes required, rather than an optional path out of GitHub's anonymous rate limit, is a product call the move should not make silently.
+- **Whether the API should proxy or the browser should call it directly — resolved: directly.** A Next proxy would remove CORS and keep one public origin, at the cost of re-introducing the coupling this split exists to break: every API call would depend on the Next process, and the second server would be invisible to anything but Next. Direct also turned out cheaper than the design assumed, because the section 2 decision took CORS off the critical render path — the landing page server-renders from `@nymspace/github` and makes no browser call at all. A CORS misconfiguration therefore degrades an interactive feature rather than the page, which lowers the risk this design flagged. Both directions are tested.
+
+- **Whether the activity endpoint's five environment variables should be required — resolved: all five stay optional, and all five are now declared.** `GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` and `GITHUB_BRANCH` are in `turbo.json` and `.env.example`, so changing one invalidates the build cache; before this change they were in neither. The token stays optional because it lifts GitHub's anonymous rate limit rather than authorising anything, and the payload already reports upstream failure explicitly instead of returning empty data. `.env.example` says so, so the next reader does not have to infer it.
+
+## Outcome
+
+Sections 1 through 4 landed, so the deferral in task 6.3 was not needed and the typed client was not dropped.
+
+Two things came out differently from the plan, both recorded against their tasks:
+
+- **`lib/github.ts` went to a package, not to `apps/api`.** Applying section 2 showed the page calls `getActivity()` directly server-side and the component imports its types, so the file was never API-only — and app-owned domain logic would have violated this change's own new requirement. `packages/github` is the correction, and it made task 4.3 moot exactly as predicted.
+- **Hono's RPC types needed the routes rewritten.** Route modules built with `new Hono()` then a separate `.get()` discard their types, and query parameters read inside a handler are invisible to the client. Chaining plus a `hono/validator` fixed both, and moved validation to the edge where the spec wanted it anyway.
+
+One risk in this document became an incident rather than a hypothetical, though not the one expected. Not the `--conditions` flag — that check was written first and has held. A second agent working concurrently in the same repository reset the shared git index between an `add` and a `commit`, and later amended one of this change's commits out of existence. Recovered from the reflog and re-committed with `git commit --only`, which does not depend on the shared index. Worth a line in the risk list of anything that assumes one writer per working tree.

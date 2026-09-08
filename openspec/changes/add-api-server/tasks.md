@@ -44,6 +44,6 @@ Do this before moving any code. It is the constraint that already broke the ENSv
 
 ## 6. Close out
 
-- [ ] 6.1 Resolve the open question on whether the browser calls the API directly or Next proxies it. The CORS scenarios assume direct; if that flips, those scenarios change with it
-- [ ] 6.2 Update `docs/04_SYSTEM_ARCHITECTURE.md`, which still says not to introduce a separate backend. It is not wrong, it is superseded, and leaving it unamended means the next reader finds two documents disagreeing
-- [ ] 6.3 If this change runs long, land sections 1 through 3 and defer section 4. The move and the check are what unblock parallel work; the typed client is what makes it pleasant
+- [x] 6.1 Resolve the open question on whether the browser calls the API directly or Next proxies it. The CORS scenarios assume direct; if that flips, those scenarios change with it
+- [x] 6.2 Update `docs/04_SYSTEM_ARCHITECTURE.md`, which still says not to introduce a separate backend. It is not wrong, it is superseded, and leaving it unamended means the next reader finds two documents disagreeing
+- [x] 6.3 ~~If this change runs long, land sections 1 through 3 and defer section 4.~~ **Not needed**: sections 1 through 4 all landed, so the typed client was not deferred
