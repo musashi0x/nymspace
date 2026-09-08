@@ -61,4 +61,4 @@ Packages that read secrets or sign transactions SHALL be prevented at build time
 #### Scenario: The condition is enforced, not remembered
 
 - **WHEN** a non-Next entrypoint is declared in a `package.json` script
-- **THEN** a check MUST fail if it does not enable the `react-server` condition, so the constraint is caught before the confusing error is
+- **THEN** a check MUST fail if it does not enable the `react-server` condition, so the constraint is caught before the confusing error is hit

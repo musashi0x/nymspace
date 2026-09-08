@@ -25,23 +25,33 @@ The repository SHALL be a pnpm workspace containing applications under `apps/` a
 - **WHEN** any `package.json` in the workspace is inspected
 - **THEN** it MUST be marked private, because nothing here is intended for a registry
 
-### Requirement: The web application is the only server
+### Requirement: Domain logic has one implementation across servers
 
-The Next.js application SHALL provide the HTTP surface for the product. No second HTTP server or backend framework SHALL be introduced by this change.
+The repository MAY contain more than one server application. Every integration SHALL have exactly one implementation, living in a package, and each server SHALL consume it rather than reimplement it.
 
-#### Scenario: Server logic is reachable without a separate service
+#### Scenario: A secret-bearing operation goes through a package
 
-- **WHEN** a secret-bearing operation such as an ENS write, a Graph query, or a Privy payment is exposed
-- **THEN** it MUST be served by a Next.js route handler that imports a domain package
+- **WHEN** an ENS write, a Graph query, or a Privy payment is exposed over HTTP
+- **THEN** the handler MUST import a domain package, and MUST NOT reimplement the call inline
+
+#### Scenario: The same integration is not written twice
+
+- **WHEN** two servers expose the same integration
+- **THEN** both MUST reach it through the same package export, so that ENSv2 beta churn has one blast radius
 
 #### Scenario: Packages remain process-agnostic
 
 - **WHEN** a domain package is written
-- **THEN** it MUST NOT depend on Next.js request or response types, so that a future standalone service could import it unchanged
+- **THEN** it MUST NOT depend on the request or response types of any framework, so that a Next route handler, a standalone server, and a script can all import it unchanged
+
+#### Scenario: A server application owns no domain logic
+
+- **WHEN** a server application is inspected
+- **THEN** it MUST contain only transport concerns — routing, validation, serialisation, and configuration of its own process
 
 ### Requirement: Server-only code cannot reach the browser
 
-Packages that read secrets or sign transactions SHALL be prevented at build time from being imported into client code.
+Packages that read secrets or sign transactions SHALL be prevented at build time from being imported into client code, and SHALL remain importable by every server process.
 
 #### Scenario: Entrypoints are guarded
 
@@ -57,6 +67,16 @@ Packages that read secrets or sign transactions SHALL be prevented at build time
 
 - **WHEN** a value is read in code that runs in the browser
 - **THEN** it MUST come from the public environment surface, and a secret MUST NOT be readable from any client-reachable module
+
+#### Scenario: The guard does not lock out non-Next consumers
+
+- **WHEN** a guarded package is imported by a process that is not Next.js — a standalone server, or a script run through `tsx`
+- **THEN** that entrypoint MUST run with the `react-server` export condition enabled, because `server-only` resolves its throwing module under every other condition and the resulting error names Client Components, which is misleading in a process that has none
+
+#### Scenario: The condition is enforced, not remembered
+
+- **WHEN** a non-Next entrypoint is declared in a `package.json` script
+- **THEN** a check MUST fail if it does not enable the `react-server` condition, so the constraint is caught before the confusing error is hit
 
 ### Requirement: Environment configuration is validated and separated
 
