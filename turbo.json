@@ -1,0 +1,53 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env.example", "tsconfig.base.json"],
+  "globalEnv": [
+    "NEXT_PUBLIC_APP_NAME",
+    "NEXT_PUBLIC_PARENT_ENS_NAME",
+    "NEXT_PUBLIC_CHAIN_ID",
+    "SEPOLIA_RPC_URL",
+    "NEXT_PUBLIC_SEPOLIA_RPC_URL",
+    "ENSV2_ROOT_REGISTRY_ADDRESS",
+    "ENSV2_ETH_REGISTRY_ADDRESS",
+    "ENSV2_PARENT_REGISTRY_ADDRESS",
+    "ENSV2_PERMISSIONED_RESOLVER_ADDRESS",
+    "ENSV2_UNIVERSAL_RESOLVER_ADDRESS",
+    "ENSV2_VERIFIABLE_FACTORY_ADDRESS",
+    "ERC8004_IDENTITY_REGISTRY_ADDRESS",
+    "ERC8004_REPUTATION_REGISTRY_ADDRESS",
+    "ERC8004_VALIDATION_REGISTRY_ADDRESS",
+    "GRAPH_API_KEY",
+    "GRAPH_AGENT0_SEPOLIA_SUBGRAPH_ID",
+    "GRAPH_AGENT0_BASE_SEPOLIA_SUBGRAPH_ID",
+    "NEXT_PUBLIC_PRIVY_APP_ID",
+    "PRIVY_APP_SECRET",
+    "PRIVY_AUTHORIZATION_KEY_ID",
+    "PRIVY_AUTHORIZATION_PRIVATE_KEY",
+    "PRIVY_POLICY_ID",
+    "DEMO_ALLOWED_PAYMENT_AMOUNT",
+    "DEMO_DENIED_PAYMENT_AMOUNT",
+    "DEMO_PAYMENT_TOKEN_ADDRESS",
+    "DEMO_PAYMENT_RECIPIENT"
+  ],
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": []
+    }
+  }
+}

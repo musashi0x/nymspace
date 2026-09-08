@@ -1,4 +1,4 @@
-@AGENTS.md
+@apps/web/AGENTS.md
 
 ## Push access — hien-p only
 
