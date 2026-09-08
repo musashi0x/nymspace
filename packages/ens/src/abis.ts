@@ -18,6 +18,7 @@
  * PermissionedResolverImpl   0x9eae5c2730a7dd16bdd1dee6421a1b91e3b0365e
  * VerifiableFactory          0x10dc6333cdfe1fcef624c6e0a8221b91804cd7ef
  * ETHRegistrar               0xa88553f454b77203b0d036a05c894d555eaaa2cc
+ * UniversalResolverV2        0x4a1817d13e9cf196f471725176355c1234b63c70
  * MockUSDC                   0x768f42455a2d082e23ceef7d51e5787c82d67a39
  * ETHRegistry                0xbdc85dd5b15d7ecb354cd7cb6f2c50b4f2c4f0e2
  *
@@ -1251,6 +1252,86 @@ export const ethRegistrarAbi = [
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;
+
+export const universalResolverAbi = [
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "name",
+        "type": "bytes"
+      }
+    ],
+    "name": "findOwner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "name",
+        "type": "bytes"
+      }
+    ],
+    "name": "findResolver",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "resolver",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "node",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "offset",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "name",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "resolve",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ] as const;

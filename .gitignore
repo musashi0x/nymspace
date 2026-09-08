@@ -46,3 +46,7 @@ next-env.d.ts
 
 .claude/
 .githooks/
+
+# Day 1 spike output — carries transaction hashes and addresses, not secrets,
+# but it is a run artifact rather than source.
+packages/ens/spike-evidence.json

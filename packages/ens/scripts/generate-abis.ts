@@ -101,6 +101,10 @@ const WANTED: Record<string, { exportName: string; members: string[] }> = {
       "NameRegistered",
     ],
   },
+  UniversalResolverV2: {
+    exportName: "universalResolverAbi",
+    members: ["findResolver", "findOwner", "resolve"],
+  },
   MockUSDC: {
     exportName: "erc20Abi",
     members: ["allowance", "approve", "balanceOf", "decimals", "mint", "symbol"],

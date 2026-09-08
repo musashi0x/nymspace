@@ -20,7 +20,7 @@ The scaffold deliberately implemented no contract call it could not verify. Ever
 - [x] 1.4 Replace the placeholder fragments in `packages/ens/src/abis.ts` with real ABIs (`.eth` registry, PermissionedRegistry, PermissionedResolver, VerifiableFactory, ETHRegistrar), sourced from the deployment artifacts. What the scaffold left is hand-written from the docs and is explicitly marked unverified
 - [x] 1.4a Reconcile the addresses in section 2 against the canonical ENS Deployments page before sending any transaction, and record which source won. The `namechain` repository carries three Sepolia-ish deployment sets and the docs treat the Deployments page as authoritative
 - [ ] 1.5 Fund both the organization and controller addresses with Sepolia ETH, and confirm balances before writing any code that spends
-- [ ] 1.6 Create `packages/ens/scripts/spike-ensv2.ts`, runnable as `pnpm --filter @nymspace/ens spike`, with an assertion helper that prints one pass/fail line per check and records every transaction hash. It imports `EnsService` from the package it sits in, so the spike and the route handlers share one implementation. Declare it as `tsx --conditions=react-server ...`; `pnpm conditions:check` fails the moment the script exists without the flag, and without it the spike dies at import on `server-only` with a message about Client Components
+- [x] 1.6 Create `packages/ens/scripts/spike-ensv2.ts`, runnable as `pnpm --filter @nymspace/ens spike`, with an assertion helper that prints one pass/fail line per check and records every transaction hash. It imports `EnsService` from the package it sits in, so the spike and the route handlers share one implementation. Declare it as `tsx --conditions=react-server ...`; `pnpm conditions:check` fails the moment the script exists without the flag, and without it the spike dies at import on `server-only` with a message about Client Components
 - [x] 1.7 Implement the `ResourceDeriver` port in `packages/ens/src/eac.ts` against the deployed contract helper. The scaffold left it injected rather than guessed, because a wrong derivation returns `false` from every role check with nothing in the logs to explain it
 
 ## 2. Namespace prerequisites (U1–U3)
@@ -62,6 +62,14 @@ contracts, and the tasks below are corrected accordingly:
 - `setSubregistry(uint256 tokenId, address)` and `setResolver(uint256 tokenId,
   address)` take a token id, from `findTokenId(label)`. Token ids change when
   roles change, so read it immediately before use.
+
+Each corrected shape is confirmed against the live contracts, not just against
+the artifact JSON: `ROOT_RESOURCE()` returns `0`, `getSubregistry`/`findOwner`/
+`findTokenId`/`getResolver` accept a label string, `hasRoles` takes a `uint256`
+resource, `getRegisterPrice` returns `(base, premium)`, and `findResolver`
+returns `(resolver, node, offset)`. `MIN_COMMITMENT_AGE` is 60s and
+`MAX_COMMITMENT_AGE` is 86400s, so the commit-reveal wait in 2.1 is a minute
+rather than the multi-step stall the risk register assumed.
 
 - [ ] 2.1 **U1** Decide the parent label, then choose how to obtain it. Acquiring a fresh name is not a lookup: `ETHRegistrar` is commit-reveal, so `commit(bytes32)` must land, then age past `MIN_COMMITMENT_AGE` and be consumed before `MAX_COMMITMENT_AGE`. Read both immutables from the contract and plan around the wait
 - [ ] 2.1a **U1** Registration is priced in an ERC 20, not ETH: `getRegisterPrice(label, duration, paymentToken)` returns `(base, premium)` — two values, not one. The accepted tokens are resolved: MockUSDC and MockDAI ship in the same deployment and both expose `mint(address,uint256)`, so they are the faucet. Mint, then `approve` the registrar for `base + premium` before the reveal
@@ -121,9 +129,9 @@ U4 is a deployment decision, not a discovery. `PermissionedResolver.sol` require
 - [ ] 7.1 Print the three-line Day 1 deliverable from `docs/14_EXECUTION_PLAN.md`: MCP write success, protected write denied, resolver change denied
 - [ ] 7.2 Emit a JSON evidence file with every transaction hash, resolved address, and assertion result
 - [ ] 7.3 Re-run the spike's read path in a fresh process and confirm identical permission state, proving nothing depends on in-memory state
-- [ ] 7.4 Decide and record idempotency: timestamped labels or unregister-first. Do this before the second run, not during it
+- [x] 7.4 Decide and record idempotency: timestamped labels or unregister-first. Do this before the second run, not during it
 - [ ] 7.5 Write the answers to U1–U8 back into `docs/05_ENSV2_IMPLEMENTATION.md`, replacing its "Conceptual TypeScript" sections with verified calls
-- [ ] 7.6 Confirm no key material or RPC credential is committed
+- [x] 7.6 Confirm no key material or RPC credential is committed
 
 ## 8. ENSIP 25 key construction (U8)
 

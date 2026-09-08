@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "generate:abis": "tsx --conditions=react-server scripts/generate-abis.ts",
-    "spike": "tsx --conditions=react-server scripts/spike-ensv2.ts"
+    "spike": "tsx --env-file-if-exists=../../.env --conditions=react-server scripts/spike-ensv2.ts"
   },
   "dependencies": {
     "@nymspace/core": "workspace:*",
