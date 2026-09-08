@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "ens_project",
+      "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--port", "3111"],
+      "runtimeArgs": ["--filter", "@nymspace/web", "dev", "--port", "3111"],
       "port": 3111
     }
   ]

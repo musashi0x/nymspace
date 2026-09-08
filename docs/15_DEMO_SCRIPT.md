@@ -39,6 +39,13 @@ Explain:
 
 Show live permission read.
 
+The controller is a server-held key, not a second browser wallet. Nothing on
+stage switches accounts: the agent's write happens without a human clicking
+anything, which is the claim the product is actually making. If someone asks
+who signed it, the answer is a second key in the server's environment, distinct
+from the organization's, and the contract is what refuses everything it was not
+granted.
+
 Action:
 
 Update `agent-endpoint[mcp]`.
@@ -60,6 +67,24 @@ Say:
 > The same key can update its MCP endpoint but cannot rewrite the higher authority identity binding.
 
 This is the ENS hero moment.
+
+### Say the registry is unemancipated, before you are asked
+
+The organization keeps root roles on its own UserRegistry, so it can
+`setResolver`, `setSubregistry`, or `unregister` any agent subname regardless
+of what `register()` granted the owner. ENSv2 calls the opposite state
+emancipation, reached by revoking those roles on `ROOT_RESOURCE`.
+
+Nymspace is deliberately unemancipated. State it rather than let it be
+discovered:
+
+> The organization can still reclaim any of these agents. That is the product,
+> not an oversight — an organization that could not revoke a compromised
+> agent's identity would be a worse product, not a purer one. What the agent
+> controller cannot do is act outside the one record it was granted.
+
+A judge who knows ENSv2 will ask whether the registry is emancipated. Having
+the answer ready turns the question from a gap into a design decision.
 
 ## Scene 2: Discovery and trust
 

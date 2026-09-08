@@ -1,0 +1,31 @@
+{
+  "name": "@nymspace/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch --conditions=react-server src/index.ts",
+    "start": "tsx --conditions=react-server src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@nymspace/core": "workspace:*",
+    "@nymspace/ens": "workspace:*",
+    "@nymspace/github": "workspace:*",
+    "@nymspace/graph": "workspace:*",
+    "@nymspace/privy": "workspace:*",
+    "hono": "^4.11.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "tsx": "^4.20.6",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  }
+}

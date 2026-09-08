@@ -54,6 +54,28 @@ The Graph Gateway
 
 Do not introduce a separate backend framework unless required.
 
+**Amended 2026-09-08 by the `add-api-server` change.** It was required, and a
+Hono service now runs at `apps/api`. Note the allowance above already covered
+it: "Next.js route handlers **or a small Node service**". What changed is which
+half of that sentence the product uses.
+
+The caution still holds for the next framework, so here is the reasoning that
+cleared this one:
+
+* Hono is web-standard `Request`/`Response`, the same primitives Next route
+  handlers use, so a handler moves between the two without a rewrite. It is not
+  a second programming model.
+* No domain logic lives in either server. Every integration sits in a package
+  both import, so collapsing back to one server is deleting `apps/api` and
+  restoring one route file — not a migration.
+* The cost is real and was accepted, not argued away: two deploy targets and two
+  environment surfaces.
+
+The `monorepo-workspace` capability was amended in step. Its requirement "The
+web application is the only server" is replaced by "Domain logic has one
+implementation across servers", which keeps the constraint that mattered and
+drops the server count, which never did.
+
 ## Service boundaries
 
 ### ENS service

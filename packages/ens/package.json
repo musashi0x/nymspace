@@ -1,0 +1,25 @@
+{
+  "name": "@nymspace/ens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "generate:abis": "tsx --conditions=react-server scripts/generate-abis.ts",
+    "spike": "tsx --env-file-if-exists=../../.env --conditions=react-server scripts/spike-ensv2.ts"
+  },
+  "dependencies": {
+    "@nymspace/core": "workspace:*",
+    "server-only": "^0.0.1",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  }
+}
