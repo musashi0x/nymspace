@@ -96,7 +96,7 @@ U4 is a deployment decision, not a discovery. `PermissionedResolver.sol` require
 
 ## 5. Record-level delegation (U7)
 
-- [ ] 5.1 DNS-encode the agent subname for the `toName` parameter and unit-test the encoder against a known vector
+- [x] 5.1 DNS-encode the agent subname for the `toName` parameter and unit-test the encoder against a known vector
 - [ ] 5.2 Call `authorizeTextRoles(dnsName, "agent-endpoint[mcp]", controller, true)` from the organization and confirm success
 - [ ] 5.3 **U7 — resolved from source.** `PermissionedResolverLib.resource` stores `node` at offset 0 and `part` at offset 32 and hashes 64 bytes, documented in-source as `uint256(keccak256(abi.encode(node, part)))`. For two `bytes32` values packed and non-packed encoding are identical, so either viem helper is correct. Implement it with `partHash(key) = keccak256(bytes(key))` and note that `resource(0, 0)` is `ROOT_RESOURCE`
 - [ ] 5.4 **U7** Positive control: assert `hasRoles(derivedResource, ROLE_SET_TEXT, controller)` is true for the key just granted. A false here means the derivation is wrong, not that permission is missing
@@ -129,11 +129,11 @@ U4 is a deployment decision, not a discovery. `PermissionedResolver.sol` require
 
 U8 is resolved by specification, not deferred. ENSIP 25 defines the key as `agent-registration[<registry>][<agentId>]`, where `<registry>` is an ERC 7930 interoperable address as a `0x`-prefixed hex string and `<agentId>` is a registry-defined string that must not contain `[` or `]`. The record value must be non-empty and should be `"1"`. The remaining work is a converter and a set of canonicalization rules, because every failure mode here is a silent empty read that looks identical to "not verified".
 
-- [ ] 8.1 Implement an ERC 7930 v1 encoder: `Version(0x0001) ‖ ChainType(0x0000 for eip155) ‖ ChainReferenceLength(1 byte) ‖ ChainReference ‖ AddressLength(0x14) ‖ Address`
-- [ ] 8.2 Encode `ChainReference` as **minimal** big-endian bytes, not zero-padded. Chain 1 is `0x01` (length 1); Sepolia 11155111 is `0xaa36a7` (length 3). Zero-padding produces a valid-looking, wrong key
-- [ ] 8.3 Lowercase the registry address in the encoded output. viem's `getAddress()` returns an EIP-55 checksummed string; interpolating it yields a key that resolves to empty
-- [ ] 8.4 Unit-test the encoder against the ENSIP 25 worked example: registry `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` on chain 1 must encode to `0x000100000101148004a169fb4a3325136eb29fa0ceb6d2e539a432`
-- [ ] 8.5 Use the resolved Ethereum Sepolia registry component, verified against `agent0lab/subgraph` `config/networks/eth-sepolia.json`:
+- [x] 8.1 Implement an ERC 7930 v1 encoder: `Version(0x0001) ‖ ChainType(0x0000 for eip155) ‖ ChainReferenceLength(1 byte) ‖ ChainReference ‖ AddressLength(0x14) ‖ Address`
+- [x] 8.2 Encode `ChainReference` as **minimal** big-endian bytes, not zero-padded. Chain 1 is `0x01` (length 1); Sepolia 11155111 is `0xaa36a7` (length 3). Zero-padding produces a valid-looking, wrong key
+- [x] 8.3 Lowercase the registry address in the encoded output. viem's `getAddress()` returns an EIP-55 checksummed string; interpolating it yields a key that resolves to empty
+- [x] 8.4 Unit-test the encoder against the ENSIP 25 worked example: registry `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` on chain 1 must encode to `0x000100000101148004a169fb4a3325136eb29fa0ceb6d2e539a432`
+- [x] 8.5 Use the resolved Ethereum Sepolia registry component, verified against `agent0lab/subgraph` `config/networks/eth-sepolia.json`:
 
   ```
   IdentityRegistry    0x8004A818BFB912233c491871b3d84c89A494BD9e  (startBlock 9980000)
@@ -145,13 +145,13 @@ U8 is resolved by specification, not deferred. ENSIP 25 defines the key as `agen
   ```
 
 - [ ] 8.5a Before writing any ENSIP 25 record against it, call `getCode` on `0x8004A818BFB912233c491871b3d84c89A494BD9e` on Sepolia and assert non-empty. These addresses were read from a repository, not from chain
-- [ ] 8.5b Note that Base Sepolia (84532) uses the identical registry addresses, so the ADR 009 cross-chain stretch changes only the chain reference, from `03aa36a7` to `03014a34`. Encode and unit-test both
-- [ ] 8.6 Bridge the identifier gap between the discovery source and the verification key. Agent0 returns `Agent.id` as `chainId:agentId` (e.g. `11155111:7`) plus separate `chainId` and `agentId` fields; it does not return the registry address at all. ERC 8004 names a registry as `{namespace}:{chainId}:{identityRegistry}`. ENSIP 25 needs ERC 7930 hex. So the converter maps `chainId` to a configured registry address, then encodes. Keep the chainId-to-registry table in configuration, since it is the trusted input the subgraph never supplies
-- [ ] 8.7 Canonicalize `agentId` as a minimal decimal string with no leading zeros and no `0x` prefix. `167` and `0167` hash to different resource ids
-- [ ] 8.8 Assert the constructed key contains no whitespace. The rendered ENSIP 25 page displays the example as `[ 0x... ][ 167 ]`; those spaces are an HTML artifact and would corrupt a copy-pasted key
+- [x] 8.5b Note that Base Sepolia (84532) uses the identical registry addresses, so the ADR 009 cross-chain stretch changes only the chain reference, from `03aa36a7` to `03014a34`. Encode and unit-test both
+- [x] 8.6 Bridge the identifier gap between the discovery source and the verification key. Agent0 returns `Agent.id` as `chainId:agentId` (e.g. `11155111:7`) plus separate `chainId` and `agentId` fields; it does not return the registry address at all. ERC 8004 names a registry as `{namespace}:{chainId}:{identityRegistry}`. ENSIP 25 needs ERC 7930 hex. So the converter maps `chainId` to a configured registry address, then encodes. Keep the chainId-to-registry table in configuration, since it is the trusted input the subgraph never supplies
+- [x] 8.7 Canonicalize `agentId` as a minimal decimal string with no leading zeros and no `0x` prefix. `167` and `0167` hash to different resource ids
+- [x] 8.8 Assert the constructed key contains no whitespace. The rendered ENSIP 25 page displays the example as `[ 0x... ][ 167 ]`; those spaces are an HTML artifact and would corrupt a copy-pasted key
 - [ ] 8.9 Write the key from the organization key only, with value `"1"`, and confirm the agent controller was never granted this key. Protection is by construction: grants are per-record resources, so ADR 003 needs no additional enforcement
-- [ ] 8.10 Implement runtime verification in the registry-to-ENS direction: take the claimed ENS name, agentId, and registry from the registry entry, construct the key, resolve it, and treat any non-empty value as verified
-- [ ] 8.11 Negative test: verification against a wrong agentId, a checksummed registry address, and a zero-padded chain reference must each fail, proving the failure is the key and not the resolver
+- [x] 8.10 Implement runtime verification in the registry-to-ENS direction: take the claimed ENS name, agentId, and registry from the registry entry, construct the key, resolve it, and treat any non-empty value as verified
+- [x] 8.11 Negative test: verification against a wrong agentId, a checksummed registry address, and a zero-padded chain reference must each fail, proving the failure is the key and not the resolver
 
 ## 9. Handoff
 
