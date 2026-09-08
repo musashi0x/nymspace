@@ -186,13 +186,6 @@ type RawCommit = {
   author: { login: string; avatar_url: string } | null;
 };
 
-type RawContributor = {
-  login: string;
-  avatar_url: string;
-  html_url: string;
-  contributions: number;
-  type: string;
-};
 
 export async function getActivity(
   weeks = 53,
@@ -227,13 +220,13 @@ export async function getActivity(
   }
 
   const rawCommits = pages.flat();
-  const contributorsRes = await gh<RawContributor[]>(
-    `/repos/${fullName}/contributors?per_page=20`,
-  );
-  const contributors = contributorsRes.ok ? contributorsRes.data : [];
 
-  // A 204/empty contributors list is normal for a brand-new repo, so only a
-  // hard failure on the commits call is worth surfacing as an error.
+  // Contributors are counted from the commits above, NOT from
+  // /repos/:owner/:repo/contributors. That endpoint is a cached aggregate that
+  // lags pushes by minutes-to-hours and is invalidated by a history rewrite,
+  // so it happily reports one contributor next to a list of commits by three.
+  // Deriving them here keeps the two panels consistent by construction, and
+  // saves an API call against the rate limit.
   const error: ActivityPayload["error"] = failure
     ? failure.rateLimited
       ? {
@@ -249,6 +242,7 @@ export async function getActivity(
 
   const counts = new Map<string, number>();
   const commitsByDate: Record<string, Commit[]> = {};
+  const byAuthor = new Map<string, Contributor>();
 
   for (const raw of rawCommits) {
     const authored = raw.commit.author?.date;
@@ -272,6 +266,24 @@ export async function getActivity(
     };
 
     (commitsByDate[date] ??= []).push(commit);
+
+    // Key on the GitHub login where there is one; fall back to the raw git
+    // author name so commits from an unlinked email still get attributed
+    // instead of silently vanishing from the tally.
+    const key = commit.authorLogin ?? `name:${commit.authorName}`;
+    const existing = byAuthor.get(key);
+    if (existing) {
+      existing.contributions += 1;
+    } else {
+      byAuthor.set(key, {
+        login: commit.authorLogin ?? commit.authorName,
+        avatar: commit.authorAvatar ?? "",
+        url: commit.authorLogin
+          ? `https://github.com/${commit.authorLogin}`
+          : commit.url,
+        contributions: 1,
+      });
+    }
   }
 
   // newest first within each day
@@ -294,14 +306,9 @@ export async function getActivity(
     },
     contributions,
     commitsByDate,
-    contributors: contributors
-      .filter((c) => c.type !== "Bot")
-      .map((c) => ({
-        login: c.login,
-        avatar: c.avatar_url,
-        url: c.html_url,
-        contributions: c.contributions,
-      })),
+    contributors: [...byAuthor.values()].sort(
+      (a, b) => b.contributions - a.contributions || a.login.localeCompare(b.login),
+    ),
     totalCommits: rawCommits.length,
     windowDays,
     truncated,

@@ -95,7 +95,7 @@ None of these are settled yet.
 
 The site is a Next.js app whose main job, besides stating the thesis, is to be
 auditable. The build log on the page is not a graphic — it is the GitHub REST
-API read at request time and re-validated every five minutes.
+API read at request time and re-validated every 60 seconds.
 
 ```bash
 pnpm install
@@ -124,11 +124,25 @@ Copy `.env.example` to `.env.local` and set:
 | `GITHUB_OWNER` | `musashi0x` | Repo owner |
 | `GITHUB_REPO` | `nymspace` | Repo name |
 | `GITHUB_BRANCH` | default branch | Optional branch pin |
-| `GITHUB_TOKEN` | — | Optional; raises the API limit from 60 to 5,000 req/hr |
+| `GITHUB_TOKEN` | — | **Required in production.** Raises the API limit from 60 to 5,000 req/hr |
+
+**Deployment**
+
+The site is deployed on Railway and redeploys automatically on every push to
+`main`. Commit data refreshes on its own too: the page re-reads the GitHub API
+60 seconds after the last read, so new commits appear without a redeploy or any
+manual step.
+
+One thing that does need setting up by hand: `GITHUB_TOKEN` must be set in the
+Railway environment. Unauthenticated GitHub API access is 60 requests/hour for
+the whole server — shared across every visitor — which a public page will
+exhaust quickly. With a token it is 5,000/hour. A classic token with **no
+scopes** is enough for a public repo. Without one, the page will intermittently
+show "Commit data unavailable" instead of the graph.
 
 It tracks this project's own repo,
 [`musashi0x/nymspace`](https://github.com/musashi0x/nymspace), so every commit
-pushed to `main` shows up in the calendar within five minutes. Override the two
+pushed to `main` shows up in the calendar within a minute. Override the two
 variables to point it elsewhere.
 
 ## Push access

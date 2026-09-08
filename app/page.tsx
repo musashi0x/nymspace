@@ -1,7 +1,7 @@
 import { CommitActivity } from "@/components/commit-activity";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WordTiles } from "@/components/word-tiles";
-import { getActivity } from "@/lib/github";
+import { getActivity, REVALIDATE_SECONDS } from "@/lib/github";
 
 export const revalidate = 60;
 
@@ -85,7 +85,11 @@ export default async function Home() {
           {" · "}
           data fetched {new Date(data.fetchedAt).toISOString().slice(0, 19)}Z
           {" · "}
-          revalidates every 5 min
+          auto-refreshes every {REVALIDATE_SECONDS}s
+        </p>
+        <p>
+          New commits appear here on their own — the page re-reads GitHub on the
+          next request after {REVALIDATE_SECONDS}s. No redeploy, no manual step.
         </p>
       </footer>
     </main>

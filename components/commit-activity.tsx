@@ -200,10 +200,16 @@ function Contributors({ data }: { data: ActivityPayload }) {
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card p-5">
-      <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="text-sm font-medium">Contributors</h3>
-        <span className="font-mono text-xs text-muted-foreground">
-          {data.contributors.length} people
+      <header className="mb-4 flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-medium">
+          Contributors
+          <span className="ml-2 font-normal text-muted-foreground">
+            counted from the commits above
+          </span>
+        </h3>
+        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+          {data.contributors.length}{" "}
+          {data.contributors.length === 1 ? "person" : "people"}
         </span>
       </header>
 
