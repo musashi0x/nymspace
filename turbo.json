@@ -1,6 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [".env.example", "tsconfig.base.json"],
+  "globalDependencies": [
+    ".env.example",
+    "tsconfig.base.json"
+  ],
   "ui": "tui",
   "globalEnv": [
     "NEXT_PUBLIC_APP_NAME",
@@ -28,7 +31,10 @@
     "DEMO_ALLOWED_PAYMENT_AMOUNT",
     "DEMO_DENIED_PAYMENT_AMOUNT",
     "DEMO_PAYMENT_TOKEN_ADDRESS",
-    "DEMO_PAYMENT_RECIPIENT"
+    "DEMO_PAYMENT_RECIPIENT",
+    "API_PORT",
+    "WEB_ORIGIN",
+    "NEXT_PUBLIC_API_URL"
   ],
   "tasks": {
     "dev": {
@@ -36,18 +42,27 @@
       "persistent": true
     },
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": [
+        "^typecheck"
+      ],
       "outputs": []
     },
     "lint": {
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": [
+        "^test"
+      ],
       "outputs": []
     }
   }
