@@ -1,14 +1,27 @@
 ## 1. Setup
 
-Depends on the `scaffold-monorepo` change, which lands first and creates the pnpm workspace, `turbo.json`, `.env.example`, `tsx`, and the four domain packages. This section assumes that layout rather than building a flat one.
+Depends on the `scaffold-monorepo` change, which has landed. The workspace, `turbo.json`, `.env.example`, `tsx`, and the four domain packages all exist, so this section extends them rather than creating them.
+
+What the scaffold already left in `@nymspace/ens`, and what remains for the spike:
+
+| Already there | State | What the spike does |
+| --- | --- | --- |
+| `src/chain.ts` | Reads validated addresses from `@nymspace/core`'s `serverEnv` | Extend with any address section 2 adds |
+| `src/abis.ts` | Hand-written from `docs/05_ENSV2_IMPLEMENTATION.md`, unverified | Replace from deployment artifacts — task 1.4 |
+| `src/eac.ts` | Role bitmap helpers, plus a `ResourceDeriver` port left unimplemented | Implement the deriver against the deployed helper |
+| `src/ens-service.ts` | `EnsService` over a structural `ChainClient` port | Supply the viem-backed client — task 1.1 |
+| `src/keys.ts` | ENSIP 25 and 26 key construction, DNS wire encoding | Confirm the ENSIP 25 registry form against the resolver |
+
+The scaffold deliberately implemented no contract call it could not verify. Every shape above marked unverified is a shape the spike settles on Sepolia.
 
 - [ ] 1.1 Add `viem` to `@nymspace/ens`. The repository has no web3 dependency at all yet
-- [ ] 1.2 Extend the `.env.example` created by `scaffold-monorepo` with the ENSv2 block from `docs/19_ENV_AND_CONFIG.md`, plus the two keys the spike needs — organization and agent controller. The docs list neither key, and `scaffold-monorepo` task 4.6 will report the mismatch if a variable is added here and not declared in `turbo.json`
-- [ ] 1.3 Add the ENSv2 chain configuration to `@nymspace/ens`, reading validated values from `@nymspace/core`'s `serverEnv` so a missing variable fails on load rather than mid-transaction
-- [ ] 1.4 Pin ENSv2 ABIs inside `@nymspace/ens` (`.eth` registry, PermissionedRegistry, PermissionedResolver, VerifiableFactory, ETHRegistrar), sourced from the deployment artifacts, not hand-written
+- [ ] 1.2 Add the two keys the spike needs — organization and agent controller — to `.env.example`. The ENSv2 block from `docs/19_ENV_AND_CONFIG.md` is already there; `docs/19` lists neither key. Declare both in `turbo.json` in the same edit, or `pnpm env:check` fails
+- [ ] 1.3 Extend `packages/ens/src/chain.ts` with any address section 2 introduces. It already reads validated values from `@nymspace/core`'s `serverEnv`, so a missing variable fails on load rather than mid-transaction
+- [ ] 1.4 Replace the placeholder fragments in `packages/ens/src/abis.ts` with real ABIs (`.eth` registry, PermissionedRegistry, PermissionedResolver, VerifiableFactory, ETHRegistrar), sourced from the deployment artifacts. What the scaffold left is hand-written from the docs and is explicitly marked unverified
 - [ ] 1.4a Reconcile the addresses in section 2 against the canonical ENS Deployments page before sending any transaction, and record which source won. The `namechain` repository carries three Sepolia-ish deployment sets and the docs treat the Deployments page as authoritative
 - [ ] 1.5 Fund both the organization and controller addresses with Sepolia ETH, and confirm balances before writing any code that spends
 - [ ] 1.6 Create `packages/ens/scripts/spike-ensv2.ts`, runnable as `pnpm --filter @nymspace/ens spike`, with an assertion helper that prints one pass/fail line per check and records every transaction hash. It imports `EnsService` from the package it sits in, so the spike and the route handlers share one implementation
+- [ ] 1.7 Implement the `ResourceDeriver` port in `packages/ens/src/eac.ts` against the deployed contract helper. The scaffold left it injected rather than guessed, because a wrong derivation returns `false` from every role check with nothing in the logs to explain it
 
 ## 2. Namespace prerequisites (U1–U3)
 

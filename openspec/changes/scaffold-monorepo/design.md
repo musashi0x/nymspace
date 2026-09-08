@@ -71,8 +71,19 @@ It is ENS-domain code that imports `EnsService` from the package it sits in, and
 
 Rollback is `git revert` of a single commit. No published artifacts, no external state, nothing deployed.
 
+## Resolved Questions
+
+- **Where the ERC 7930 encoder belongs — resolved: `@nymspace/core`.** The open question's criterion was consumption: only `@nymspace/ens` builds ENSIP 25 keys, so the encoder should move there. That criterion misses the guard. `@nymspace/ens` is behind `server-only`, so moving a pure, secret-free helper into it would make it unreachable from any client-side manifest rendering — and `docs/06_AGENT_IDENTITY_STANDARDS.md` describes the Manifest as a UX surface over exactly these keys. The cost of leaving it in `core` is one small module in a package that already exists; the cost of moving it is a second copy the first time the browser needs to parse a registration key. It stays in `core`, and `packages/ens/src/keys.ts` imports it by package name.
+
+- **Whether `@nymspace/graph` and `@nymspace/privy` should exist yet — resolved: yes, with real boundaries rather than empty shells.** Each holds the types and the client boundary its day of work needs, and neither implements a call it could not verify. The `server-only` guard on both is the load-bearing part and is proven: importing `@nymspace/privy` from a client component fails the build with the import trace running through `packages/core/src/env.ts`.
+
+- **Test runner — resolved: Vitest.** Chosen over `node:test` for its assertion surface and watch mode, and over Jest because nothing here needs Jest's ecosystem and Vitest reads TypeScript source without a transform step, which is the same property that lets these packages ship source. Wired at the workspace root, with `test` scripts in `@nymspace/core` and `@nymspace/ens`. The `test` task in `turbo.json` now runs fourteen tests over the pure helpers `docs/13_TEST_PLAN.md` names — ERC 7930 round-trips, DNS wire encoding, and ENSIP 25 key construction, negative cases included.
+
 ## Open Questions
 
-- **Where the ERC 7930 encoder belongs.** It is pure and needs no secrets, so `@nymspace/core` is the natural home, but it is only ever used to build an ENSIP 25 key. If nothing outside `@nymspace/ens` consumes it, it should move there and `core` should shrink.
-- **Whether `@nymspace/graph` and `@nymspace/privy` should exist yet.** Creating them empty now is what "full scaffold" means, but an empty package invites premature structure. They may be better as a single file inside `apps/web` until Day 2 and Day 3 give them real shape.
-- **Test runner.** `docs/13_TEST_PLAN.md` asks for unit, integration, and negative tests, but names no runner. The `test` task in `turbo.json` needs one before it means anything.
+- **The ENSIP 25 registry form.** `agentRegistrationKey` takes a `registryForm` argument because the draft does not pin whether the registry component is the binary interoperable address or its text form. The Day 1 spike resolves it against the deployed resolver, and the argument collapses to a constant once it does.
+- **The EAC resource derivation.** Left as an injected `ResourceDeriver` port rather than guessed. `docs/05_ENSV2_IMPLEMENTATION.md` says to compute the record resource through the current contract helper path, and a wrong derivation returns `false` from every role check with nothing in the logs to explain why.
+
+## Timebox Outcome
+
+The scaffold was to stop and land what existed if it exceeded half a day. It did not: the move, the shared configuration, the Turborepo pipeline, the four packages, and every acceptance check in section 6 landed well inside that budget, so the Day 1 ENSv2 gate is not delayed. `packages/ens` is a real boundary rather than an empty directory, which is the part the spike immediately builds on.

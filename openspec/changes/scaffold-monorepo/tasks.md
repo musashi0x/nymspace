@@ -52,7 +52,7 @@
 
 ## 7. Handoff
 
-- [ ] 7.1 Rewrite section 1 of the `ensv2-authority-spike` change to assume this workspace exists: the spike becomes `packages/ens/scripts/spike-ensv2.ts`, the typed chain config becomes part of `@nymspace/core` and `@nymspace/ens`, and `.env.example` is created here rather than there
-- [ ] 7.2 Resolve the open question on whether the ERC 7930 encoder belongs in `@nymspace/core` or `@nymspace/ens`. If nothing outside `ens` consumes it, move it and shrink `core`
-- [ ] 7.3 Choose a test runner so the `test` task means something, per `docs/13_TEST_PLAN.md`, which asks for unit, integration, and negative tests but names no runner
-- [ ] 7.4 If this scaffold exceeds half a day, stop and land what exists. The workspace is useful half-built; the Day 1 ENSv2 gate is not
+- [x] 7.1 Rewrite section 1 of the `ensv2-authority-spike` change to assume this workspace exists: the spike becomes `packages/ens/scripts/spike-ensv2.ts`, the typed chain config becomes part of `@nymspace/core` and `@nymspace/ens`, and `.env.example` is created here rather than there
+- [x] 7.2 Resolve the open question on whether the ERC 7930 encoder belongs in `@nymspace/core` or `@nymspace/ens`. If nothing outside `ens` consumes it, move it and shrink `core`
+- [x] 7.3 Choose a test runner so the `test` task means something, per `docs/13_TEST_PLAN.md`, which asks for unit, integration, and negative tests but names no runner
+- [x] 7.4 If this scaffold exceeds half a day, stop and land what exists. The workspace is useful half-built; the Day 1 ENSv2 gate is not
