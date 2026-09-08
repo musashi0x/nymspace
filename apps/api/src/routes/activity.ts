@@ -14,7 +14,6 @@ import { getActivity, REVALIDATE_SECONDS } from "@nymspace/github";
  * error. The memo below is that replacement, deliberately in-process and
  * deliberately dumb: one entry, cleared by time, no invalidation to get wrong.
  */
-export const activity = new Hono();
 
 type Activity = Awaited<ReturnType<typeof getActivity>>;
 
@@ -38,7 +37,7 @@ async function getActivityCached(): Promise<Activity> {
   return inflight;
 }
 
-activity.get("/", async (c) => {
+export const activity = new Hono().get("/", async (c) => {
   const data = await getActivityCached();
 
   c.header(

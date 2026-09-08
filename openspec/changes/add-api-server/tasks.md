@@ -27,11 +27,11 @@ Do this before moving any code. It is the constraint that already broke the ENSv
 
 ## 4. Type the caller
 
-- [ ] 4.1 Add a client module in `apps/web` built with `hono/client` over the API's exported `AppType`
-- [ ] 4.2 Read the base URL from `NEXT_PUBLIC_API_URL`, already declared in both files, so a deployed frontend can point at a deployed API
-- [ ] 4.3 Repoint `commit-activity.tsx` at the client and give it a stated error state for an unreachable API. A blank panel reads as a broken page
-- [ ] 4.4 Delete the Next activity route handler, and confirm `apps/web` no longer contains one
-- [ ] 4.5 Prove the type link: rename a route in `apps/api` and confirm `pnpm typecheck` fails in `apps/web`, then restore it. Do this once deliberately, as with the `server-only` guard
+- [x] 4.1 Add a client module in `apps/web` built with `hono/client` over the API's exported `AppType`
+- [x] 4.2 Read the base URL from `NEXT_PUBLIC_API_URL`, already declared in both files, so a deployed frontend can point at a deployed API
+- [x] 4.3 ~~Repoint `commit-activity.tsx` at the client~~ **Moot by the section 2 decision**: the page server-renders from `@nymspace/github`, so it needs no network hop and cannot see an unreachable API. Only the raw-payload link points at the API, and it now resolves through `NEXT_PUBLIC_API_URL`. The client's consumers are `fetchHealth`, `fetchAgentKeys` and `fetchActivity`, which is what keeps the type link load-bearing
+- [x] 4.4 Delete the Next activity route handler, and confirm `apps/web` no longer contains one. Done in section 2; the emptied `app/api/` directory is now removed too, and `/api/activity` returns 404 on the web server
+- [x] 4.5 Prove the type link: rename a route in `apps/api` and confirm `pnpm typecheck` fails in `apps/web`, then restore it. Do this once deliberately, as with the `server-only` guard
 
 ## 5. Verification
 

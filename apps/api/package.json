@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app": "./src/app.ts"
+  },
   "scripts": {
     "dev": "tsx watch --conditions=react-server src/index.ts",
     "start": "tsx --conditions=react-server src/index.ts",
