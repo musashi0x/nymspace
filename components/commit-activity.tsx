@@ -69,7 +69,7 @@ export function CommitActivity({ data }: { data: ActivityPayload }) {
             className="border border-border/60 bg-card"
           />
           <p className="mt-3 px-1 text-xs text-muted-foreground">
-            {data.totalCommits} commits on{" "}
+            {data.totalCommits} commit{data.totalCommits === 1 ? "" : "s"} on{" "}
             <a
               className="underline underline-offset-2 hover:text-foreground"
               href={`${data.repo.url}/commits/${data.repo.defaultBranch}`}

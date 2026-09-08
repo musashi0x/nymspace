@@ -31,7 +31,7 @@ export default async function Home() {
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-20 px-6 py-16 sm:py-24">
       <header className="flex flex-col gap-8">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          ens_project
+          nymspace
         </p>
 
         <blockquote className="max-w-3xl border-l-2 border-[#39d353] pl-5 text-2xl font-medium leading-snug tracking-tight text-foreground sm:text-3xl">

@@ -1,6 +1,12 @@
-# ens_project
+# Nymspace
 
 > I would make ENS the identity layer, then choose partners that naturally become the data and execution layers.
+
+Programmable identity and permission infrastructure for autonomous agent
+organizations. Full product and architecture specs live in [`docs/`](./docs) —
+start with [`docs/README.md`](./docs/README.md), then
+[`01_PRD.md`](./docs/01_PRD.md) and
+[`04_SYSTEM_ARCHITECTURE.md`](./docs/04_SYSTEM_ARCHITECTURE.md).
 
 ## The idea
 
@@ -115,22 +121,46 @@ Copy `.env.example` to `.env.local` and set:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GITHUB_OWNER` | `hien-p` | Repo owner |
-| `GITHUB_REPO` | `Skillname` | Repo name |
+| `GITHUB_OWNER` | `musashi0x` | Repo owner |
+| `GITHUB_REPO` | `nymspace` | Repo name |
 | `GITHUB_BRANCH` | default branch | Optional branch pin |
 | `GITHUB_TOKEN` | — | Optional; raises the API limit from 60 to 5,000 req/hr |
 
-It currently tracks `hien-p/Skillname` because that repo has real history to
-show. Once `ens_project` is pushed to GitHub, change the two variables and the
-page tracks this project instead — every commit you make from then on appears in
-the calendar.
+It tracks this project's own repo,
+[`musashi0x/nymspace`](https://github.com/musashi0x/nymspace), so every commit
+pushed to `main` shows up in the calendar within five minutes. Override the two
+variables to point it elsewhere.
+
+## Push access
+
+This repository is pushed **only** by the `hien-p` GitHub account. Several
+accounts are authenticated on the primary dev machine and only `hien-p` has
+write access here, so the rule is enforced in config rather than left to memory:
+
+| Setting | Value |
+|---|---|
+| `user.name` | `hien-p` |
+| `user.email` | `70145901+hien-p@users.noreply.github.com` |
+| `origin` | `https://hien-p@github.com/musashi0x/nymspace.git` |
+| `core.hooksPath` | `.githooks` |
+
+The username in the remote URL is what makes the `gh` credential helper hand
+back `hien-p`'s token instead of whichever account happens to be active.
+[`.githooks/pre-push`](./.githooks/pre-push) then refuses the push if the
+identity, the remote, or any outgoing commit's author is not `hien-p`.
+
+After cloning, run:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ## Status
 
 Early. The README states the architectural position and the site makes the work
 on it verifiable; the stack itself is not built yet.
 
-The prior work this generalizes from is [`skillname`](../skillname) — ENS names as the import statement for AI skills, where one name resolved to one callable function. That project made the specific case. This one is the general form of the same bet.
+The prior work this generalizes from is [`skillname`](https://github.com/hien-p/Skillname) — ENS names as the import statement for AI skills, where one name resolved to one callable function. That project made the specific case. This one is the general form of the same bet.
 
 ## License
 

@@ -8,8 +8,8 @@ import "server-only";
  * Nothing here is seeded, sampled, or synthesised.
  */
 
-export const REPO_OWNER = process.env.GITHUB_OWNER ?? "hien-p";
-export const REPO_NAME = process.env.GITHUB_REPO ?? "Skillname";
+export const REPO_OWNER = process.env.GITHUB_OWNER ?? "musashi0x";
+export const REPO_NAME = process.env.GITHUB_REPO ?? "nymspace";
 export const REPO_BRANCH = process.env.GITHUB_BRANCH ?? "";
 
 /** Cap on pages of 100 commits. Keeps us inside the unauthenticated rate limit. */

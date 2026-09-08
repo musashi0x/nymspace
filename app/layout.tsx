@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ens_project — ENS as the identity layer",
+  title: "Nymspace — ENS as the identity layer",
   description:
     "I would make ENS the identity layer, then choose partners that naturally become the data and execution layers.",
 };
