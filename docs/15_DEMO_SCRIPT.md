@@ -39,6 +39,13 @@ Explain:
 
 Show live permission read.
 
+The controller is a server-held key, not a second browser wallet. Nothing on
+stage switches accounts: the agent's write happens without a human clicking
+anything, which is the claim the product is actually making. If someone asks
+who signed it, the answer is a second key in the server's environment, distinct
+from the organization's, and the contract is what refuses everything it was not
+granted.
+
 Action:
 
 Update `agent-endpoint[mcp]`.
