@@ -23,7 +23,7 @@
     "hono": "^4.11.7"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^24",
     "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.0.18"
