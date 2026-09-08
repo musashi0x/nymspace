@@ -8,11 +8,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:abis": "tsx --conditions=react-server scripts/generate-abis.ts",
+    "spike": "tsx --conditions=react-server scripts/spike-ensv2.ts"
   },
   "dependencies": {
     "@nymspace/core": "workspace:*",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "viem": "^2.56.3"
   },
   "devDependencies": {
     "@types/node": "^20",

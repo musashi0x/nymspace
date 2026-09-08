@@ -14,39 +14,64 @@ What the scaffold already left in `@nymspace/ens`, and what remains for the spik
 
 The scaffold deliberately implemented no contract call it could not verify. Every shape above marked unverified is a shape the spike settles on Sepolia.
 
-- [ ] 1.1 Add `viem` to `@nymspace/ens`. The repository has no web3 dependency at all yet
-- [ ] 1.2 Add the two keys the spike needs — organization and agent controller — to `.env.example`. The ENSv2 block from `docs/19_ENV_AND_CONFIG.md` is already there; `docs/19` lists neither key. Declare both in `turbo.json` in the same edit, or `pnpm env:check` fails
-- [ ] 1.3 Extend `packages/ens/src/chain.ts` with any address section 2 introduces. It already reads validated values from `@nymspace/core`'s `serverEnv`, so a missing variable fails on load rather than mid-transaction
-- [ ] 1.4 Replace the placeholder fragments in `packages/ens/src/abis.ts` with real ABIs (`.eth` registry, PermissionedRegistry, PermissionedResolver, VerifiableFactory, ETHRegistrar), sourced from the deployment artifacts. What the scaffold left is hand-written from the docs and is explicitly marked unverified
-- [ ] 1.4a Reconcile the addresses in section 2 against the canonical ENS Deployments page before sending any transaction, and record which source won. The `namechain` repository carries three Sepolia-ish deployment sets and the docs treat the Deployments page as authoritative
+- [x] 1.1 Add `viem` to `@nymspace/ens`. The repository has no web3 dependency at all yet
+- [x] 1.2 Add the two keys the spike needs — organization and agent controller — to `.env.example`. The ENSv2 block from `docs/19_ENV_AND_CONFIG.md` is already there; `docs/19` lists neither key. Declare both in `turbo.json` in the same edit, or `pnpm env:check` fails
+- [x] 1.3 Extend `packages/ens/src/chain.ts` with any address section 2 introduces. It already reads validated values from `@nymspace/core`'s `serverEnv`, so a missing variable fails on load rather than mid-transaction
+- [x] 1.4 Replace the placeholder fragments in `packages/ens/src/abis.ts` with real ABIs (`.eth` registry, PermissionedRegistry, PermissionedResolver, VerifiableFactory, ETHRegistrar), sourced from the deployment artifacts. What the scaffold left is hand-written from the docs and is explicitly marked unverified
+- [x] 1.4a Reconcile the addresses in section 2 against the canonical ENS Deployments page before sending any transaction, and record which source won. The `namechain` repository carries three Sepolia-ish deployment sets and the docs treat the Deployments page as authoritative
 - [ ] 1.5 Fund both the organization and controller addresses with Sepolia ETH, and confirm balances before writing any code that spends
 - [ ] 1.6 Create `packages/ens/scripts/spike-ensv2.ts`, runnable as `pnpm --filter @nymspace/ens spike`, with an assertion helper that prints one pass/fail line per check and records every transaction hash. It imports `EnsService` from the package it sits in, so the spike and the route handlers share one implementation. Declare it as `tsx --conditions=react-server ...`; `pnpm conditions:check` fails the moment the script exists without the flag, and without it the spike dies at import on `server-only` with a message about Client Components
-- [ ] 1.7 Implement the `ResourceDeriver` port in `packages/ens/src/eac.ts` against the deployed contract helper. The scaffold left it injected rather than guessed, because a wrong derivation returns `false` from every role check with nothing in the logs to explain it
+- [x] 1.7 Implement the `ResourceDeriver` port in `packages/ens/src/eac.ts` against the deployed contract helper. The scaffold left it injected rather than guessed, because a wrong derivation returns `false` from every role check with nothing in the logs to explain it
 
 ## 2. Namespace prerequisites (U1–U3)
 
-ENSv2 Sepolia addresses, read from `ensdomains/namechain` `contracts/deployments/sepolia-official-v1-20260525-r2/`. The repository holds three deployment sets (`sepolia`, `v1`, and this one) and the ENSv2 overview names a canonical Deployments page as the authority, so task 1.4a reconciles these before any transaction:
+**Task 1.4a is resolved, and every address this section originally listed was stale.**
+
+The `ensdomains/namechain` addresses above were superseded twice. The canonical
+source is `ensdomains/contracts-v2` at commit
+`97a57293f3b4279d94b571e678edb53ce62638f4` — the commit `ensdomains/docs` itself
+pins in `scripts/ensv2-deployments.ts` to build the ENSv2 Deployments page, which
+`docs/20_SOURCES.md` treats as authoritative. `namechain` carries two Sepolia
+sets (`sepolia-official-v1-20260525-r2` and `sepolia`) and *every* address in
+both differs from the canonical set. Do not mix them.
+
+Live addresses (`contracts/docs/addresses/sepolia.md`, deployed 2026-07-30, each
+confirmed non-empty with `eth_getCode` on Sepolia). They live in `.env.example`,
+not in source:
 
 ```
-VerifiableFactory          0xd2a632d8a8b67c2c4398c255cbd7af8dd7236198
-RootRegistry               0xc960f7217d3643b525ef36bec8adf86953cd9ab8
-ETHRegistry                0xdedb92913a25abe1f7bcdd85d8a344a43b398b67
-ETHRegistrar               0x8c2e866b439358c41ae05de9cbe8a00bfefaffca
-UserRegistryImpl           0x0f99e7ea74903afcb7224d0354fd7428a6f92917
-PermissionedResolverImpl   0xdce5205a553573ffd47629327dddf36186022ffa
-UniversalResolverV2        0x2f8a180604c42457cb56c7c4f708748ff1f91df1
-StandardRentPriceOracle    0xe19d37839f42f7d2694d8c5712f412c66a218161
+VerifiableFactory          0x10dc6333cdfe1fcef624c6e0a8221b91804cd7ef
+RootRegistry               0x8115186e8f2e0b0281e86ab91f0f48ba90364354
+ETHRegistry                0xbdc85dd5b15d7ecb354cd7cb6f2c50b4f2c4f0e2
+ETHRegistrar               0xa88553f454b77203b0d036a05c894d555eaaa2cc
+UserRegistryImpl           0x624a25d67b59d587752ebec8dded8827dae52050
+PermissionedResolverImpl   0x9eae5c2730a7dd16bdd1dee6421a1b91e3b0365e
+UniversalResolverV2        0x4a1817d13e9cf196f471725176355c1234b63c70
+StandardRentPriceOracle    0x8914b66260eb8c4fff795650c3ae8cd335958987
+MockUSDC (payment token)   0x768f42455a2d082e23ceef7d51e5787c82d67a39
+MockDAI  (payment token)   0x5472c5725a00b7ba11f0794a79d08ade6f4683bd
 ```
+
+Three ABI shapes this section assumed are also wrong against the deployed
+contracts, and the tasks below are corrected accordingly:
+
+- `hasRoles(uint256 resource, ...)` and `roles(uint256 resource, ...)` — the
+  resource is a `uint256`, not a `bytes32`.
+- `getSubregistry(string label)` and `getResolver(string label)` take the label
+  string, not a labelhash.
+- `setSubregistry(uint256 tokenId, address)` and `setResolver(uint256 tokenId,
+  address)` take a token id, from `findTokenId(label)`. Token ids change when
+  roles change, so read it immediately before use.
 
 - [ ] 2.1 **U1** Decide the parent label, then choose how to obtain it. Acquiring a fresh name is not a lookup: `ETHRegistrar` is commit-reveal, so `commit(bytes32)` must land, then age past `MIN_COMMITMENT_AGE` and be consumed before `MAX_COMMITMENT_AGE`. Read both immutables from the contract and plan around the wait
-- [ ] 2.1a **U1** Registration is priced in an ERC 20, not ETH: `getRegisterPrice(label, duration, IERC20 paymentToken)`. Identify the accepted token on Sepolia, obtain a balance, and `approve` the registrar before the reveal. `MockTokens` in the deploy scripts suggests a test token is provided
+- [ ] 2.1a **U1** Registration is priced in an ERC 20, not ETH: `getRegisterPrice(label, duration, paymentToken)` returns `(base, premium)` — two values, not one. The accepted tokens are resolved: MockUSDC and MockDAI ship in the same deployment and both expose `mint(address,uint256)`, so they are the faucet. Mint, then `approve` the registrar for `base + premium` before the reveal
 - [ ] 2.1b **U1** Evaluate the migration path first. `LockedMigrationController`, `UnlockedMigrationController`, and `MigrationHelper` exist in the same deployment, so an ENSv1 Sepolia name already held may be migrated instead of purchased. This is the concrete answer to Risk 2 in `docs/17_RISKS_AND_FALLBACKS.md`, which only says the two are not the same thing
 - [ ] 2.1c **U1** Confirm ownership of the chosen parent label on the ENSv2 `.eth` registry, or on explorer.ens.dev. Blocks everything below
-- [ ] 2.2 **U2** Read `getSubregistry(labelhash(parentLabel))` on the `.eth` registry. If non-zero, skip 2.3–2.5 and record the existing UserRegistry address
+- [ ] 2.2 **U2** Read `getSubregistry(parentLabel)` on the `.eth` registry — the label string, not a labelhash. If non-zero, skip 2.3–2.5 and record the existing UserRegistry address
 - [ ] 2.3 **U3** Use `deployProxy(address implementation, uint256 salt, bytes data)` on the VerifiableFactory with `UserRegistryImpl` as the implementation. The address arrives in the `ProxyDeployed(sender, proxyAddress, salt, implementation)` event. The init data encodes `initialize(address rootAccount, uint256 roleBitmap)` — **two** parameters. Do not reuse the resolver's three-parameter `initialize(admin, roleBitmap, bytes[] setters)` shape from task 4.1; they are different contracts with different signatures
 - [ ] 2.4 **U3** Compose the UserRegistry `initialize()` role bitmap as a reviewed constant with a per-bit justification comment. It MUST include `ROLE_REGISTRAR_ADMIN` and `ROLE_RENEW_ADMIN` so roles can be granted later, and — because an admin role confers only grant and revoke authority, never the action itself — it MUST also include `ROLE_REGISTRAR` for the organization to call `register()` directly under D1. From `RegistryRolesLib.sol`: `ROLE_REGISTRAR = 1 << 0`, `ROLE_RENEW = 1 << 16`, `ROLE_SET_SUBREGISTRY = 1 << 20`, `ROLE_SET_RESOLVER = 1 << 24`, `ROLE_SET_PARENT = 1 << 8`, each admin at `role << 128`. A wrong bitmap costs a redeploy
 - [ ] 2.5 **U3** Deploy the UserRegistry proxy via the VerifiableFactory and capture the address from the `ProxyDeployed` event
-- [ ] 2.6 Call `setSubregistry(labelhash(parentLabel), userRegistryAddress)` on the `.eth` registry and confirm `getSubregistry()` now returns it
+- [ ] 2.6 Call `setSubregistry(findTokenId(parentLabel), userRegistryAddress)` on the `.eth` registry and confirm `getSubregistry(parentLabel)` now returns it. The first argument is a token id, not a labelhash, and it changes whenever roles change — read it immediately before the call
 - [ ] 2.7 Record the resulting addresses into local env and `.env.example` as documented outputs, not as blanks to guess
 
 ## 3. Subname registration (U6)

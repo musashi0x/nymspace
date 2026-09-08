@@ -12,21 +12,37 @@ import { optional, requireAll } from "./env.shared";
  * the demo.
  */
 
+/**
+ * `ENSV2_PARENT_REGISTRY_ADDRESS` and `ENSV2_PERMISSIONED_RESOLVER_ADDRESS`
+ * are deliberately not here. Both are proxies the Day 1 spike deploys, so they
+ * are legitimately empty until it runs and requiring them would make the spike
+ * unable to bootstrap the very values it produces. `@nymspace/ens`'s
+ * `requireDeployed()` fails on them at the top of a route instead, which keeps
+ * the "never discovered mid-transaction" rule without the ordering problem.
+ */
 const REQUIRED = [
   "SEPOLIA_RPC_URL",
-  "ENSV2_PARENT_REGISTRY_ADDRESS",
-  "ENSV2_PERMISSIONED_RESOLVER_ADDRESS",
+  "ENSV2_ETH_REGISTRY_ADDRESS",
+  "ENSV2_VERIFIABLE_FACTORY_ADDRESS",
 ] as const;
 
 export interface ServerEnv {
   sepoliaRpcUrl: string;
   ensv2: {
     rootRegistry?: string;
-    ethRegistry?: string;
-    parentRegistry: string;
-    permissionedResolver: string;
+    ethRegistry: string;
+    ethRegistrar?: string;
+    verifiableFactory: string;
+    userRegistryImpl?: string;
+    permissionedResolverImpl?: string;
+    paymentToken?: string;
     universalResolver?: string;
-    verifiableFactory?: string;
+    /** Deployed by the spike. Empty until it has run. */
+    parentLabel?: string;
+    /** Deployed by the spike. Empty until it has run. */
+    parentRegistry?: string;
+    /** Deployed by the spike. Empty until it has run. */
+    permissionedResolver?: string;
   };
   erc8004: {
     identityRegistry?: string;
@@ -68,11 +84,22 @@ export function serverEnv(): ServerEnv {
     sepoliaRpcUrl: required.SEPOLIA_RPC_URL,
     ensv2: {
       rootRegistry: optional(source, "ENSV2_ROOT_REGISTRY_ADDRESS"),
-      ethRegistry: optional(source, "ENSV2_ETH_REGISTRY_ADDRESS"),
-      parentRegistry: required.ENSV2_PARENT_REGISTRY_ADDRESS,
-      permissionedResolver: required.ENSV2_PERMISSIONED_RESOLVER_ADDRESS,
+      ethRegistry: required.ENSV2_ETH_REGISTRY_ADDRESS,
+      ethRegistrar: optional(source, "ENSV2_ETH_REGISTRAR_ADDRESS"),
+      verifiableFactory: required.ENSV2_VERIFIABLE_FACTORY_ADDRESS,
+      userRegistryImpl: optional(source, "ENSV2_USER_REGISTRY_IMPL_ADDRESS"),
+      permissionedResolverImpl: optional(
+        source,
+        "ENSV2_PERMISSIONED_RESOLVER_IMPL_ADDRESS",
+      ),
+      paymentToken: optional(source, "ENSV2_PAYMENT_TOKEN_ADDRESS"),
       universalResolver: optional(source, "ENSV2_UNIVERSAL_RESOLVER_ADDRESS"),
-      verifiableFactory: optional(source, "ENSV2_VERIFIABLE_FACTORY_ADDRESS"),
+      parentLabel: optional(source, "ENSV2_PARENT_LABEL"),
+      parentRegistry: optional(source, "ENSV2_PARENT_REGISTRY_ADDRESS"),
+      permissionedResolver: optional(
+        source,
+        "ENSV2_PERMISSIONED_RESOLVER_ADDRESS",
+      ),
     },
     erc8004: {
       identityRegistry: optional(source, "ERC8004_IDENTITY_REGISTRY_ADDRESS"),
