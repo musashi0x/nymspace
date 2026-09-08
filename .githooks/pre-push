@@ -66,9 +66,14 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
     range="${remote_sha}..${local_sha}"
   fi
 
-  pattern="$(printf '%s\n' "${ALLOWED_EMAILS[@]}" | sed 's/[].[^$\\*/]/\\&/g' | paste -sd'|' -)"
-  bad="$(git log --format='%H %ae' "$range" 2>/dev/null |
-         grep -Ev " (${pattern})$" || true)"
+  # Exact string comparison, not a regex: these addresses contain '+', which a
+  # regex would read as a quantifier and then fail to match its own author.
+  bad=""
+  while read -r commit_sha commit_email; do
+    [ -n "$commit_sha" ] || continue
+    is_allowed_email "$commit_email" ||
+      bad="${bad}${commit_sha} ${commit_email}"$'\n'
+  done < <(git log --format='%H %ae' "$range" 2>/dev/null)
 
   if [ -n "$bad" ]; then
     echo "" >&2
