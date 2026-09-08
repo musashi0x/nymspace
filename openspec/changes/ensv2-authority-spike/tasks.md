@@ -130,7 +130,7 @@ U4 is a deployment decision, not a discovery. `PermissionedResolver.sol` require
 - [ ] 7.2 Emit a JSON evidence file with every transaction hash, resolved address, and assertion result
 - [x] 7.3 Re-run the spike's read path in a fresh process and confirm identical permission state, proving nothing depends on in-memory state
 - [x] 7.4 Decide and record idempotency: timestamped labels or unregister-first. Do this before the second run, not during it
-- [ ] 7.5 Write the answers to U1–U8 back into `docs/05_ENSV2_IMPLEMENTATION.md`, replacing its "Conceptual TypeScript" sections with verified calls
+- [x] 7.5 Write the answers to U1–U8 back into `docs/05_ENSV2_IMPLEMENTATION.md`, replacing its "Conceptual TypeScript" sections with verified calls
 - [x] 7.6 Confirm no key material or RPC credential is committed
 
 ## 8. ENSIP 25 key construction (U8)
@@ -163,10 +163,10 @@ U8 is resolved by specification, not deferred. ENSIP 25 defines the key as `agen
 
 ## 9. Handoff
 
-- [ ] 9.1 Extract the spike's call sites into the `EnsService` interface from `docs/04_SYSTEM_ARCHITECTURE.md`, keeping ENSv2 churn behind one boundary
+- [x] 9.1 Extract the spike's call sites into the `EnsService` interface from `docs/04_SYSTEM_ARCHITECTURE.md`, keeping ENSv2 churn behind one boundary
 - [ ] 9.2 Resolve the agent controller key custody question from `design.md` (server-held key versus second browser wallet) and reconcile `docs/15_DEMO_SCRIPT.md` with the answer
-- [ ] 9.3 Add the ENS-name-transfer staleness caveat to `docs/12_SECURITY_MODEL.md`, which does not currently mention it
-- [ ] 9.4 Record in `docs/07_THE_GRAPH_INTEGRATION.md` and `docs/01_PRD.md` that no ValidationRegistry is deployed on Ethereum Sepolia or Base Sepolia, so validation is an optional ranking dimension on testnet and must never be rendered as a zero score
-- [ ] 9.4a Add the emancipation point to `docs/15_DEMO_SCRIPT.md` per D7: the organization retains root roles on its own registry and can reclaim any agent subname, which is the product rather than an oversight. A judge familiar with ENSv2 will ask whether the registry is emancipated, and the answer should be deliberate
-- [ ] 9.5 Fill the blank Graph variables in `docs/19_ENV_AND_CONFIG.md`: Ethereum Sepolia subgraph `6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT`, Base Sepolia subgraph `4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u`
+- [x] 9.3 Add the ENS-name-transfer staleness caveat to `docs/12_SECURITY_MODEL.md`, which does not currently mention it
+- [x] 9.4 Record in `docs/07_THE_GRAPH_INTEGRATION.md` and `docs/01_PRD.md` that no ValidationRegistry is deployed on Ethereum Sepolia or Base Sepolia, so validation is an optional ranking dimension on testnet and must never be rendered as a zero score
+- [x] 9.4a Add the emancipation point to `docs/15_DEMO_SCRIPT.md` per D7: the organization retains root roles on its own registry and can reclaim any agent subname, which is the product rather than an oversight. A judge familiar with ENSv2 will ask whether the registry is emancipated, and the answer should be deliberate
+- [x] 9.5 Fill the blank Graph variables in `docs/19_ENV_AND_CONFIG.md`: Ethereum Sepolia subgraph `6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT`, Base Sepolia subgraph `4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u`
 - [ ] 9.6 Only after 7.1 passes, unblock Day 2 work: ENSIP 26 records, ERC 8004 registration, and The Graph

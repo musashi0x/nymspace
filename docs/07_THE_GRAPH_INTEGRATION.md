@@ -141,6 +141,23 @@ ens_binding_signal
 
 Do not invent a universal “reputation 92” unless the score can be derived from actual Graph fields.
 
+### Validation is unavailable on testnet
+
+There is no ValidationRegistry deployed on Ethereum Sepolia or Base Sepolia.
+The Agent0 network config (`agent0lab/subgraph`,
+`config/networks/eth-sepolia.json`) lists `identityRegistry` and
+`reputationRegistry` and leaves `validationRegistry` empty, so
+`validation_signal` will be absent for every agent the demo can reach.
+
+Treat validation as an optional ranking dimension from the start:
+
+* Omit the dimension, or render it as unavailable. Never render it as a zero.
+* A ranking that silently weights a missing dimension has invented reputation,
+  which `docs/04_SYSTEM_ARCHITECTURE.md` forbids. An agent with no validation
+  data is not an agent that failed validation.
+* If a trust-signals panel has no validation row to show, drop the row rather
+  than showing `Validation 0 completed`.
+
 A safer UI is:
 
 ```text

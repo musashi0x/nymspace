@@ -114,6 +114,11 @@ Backend queries live Agent0 data from The Graph.
 
 An AI ranking step evaluates candidates using real fields such as endpoint availability, feedback, validation, ENS claim, capability data, and supported trust model.
 
+Validation is the exception on testnet: no ValidationRegistry is deployed on
+Ethereum Sepolia or Base Sepolia, so that field will be empty for every agent
+in the demo. Rank without it, or show it as unavailable — never as a zero
+score. See `docs/07_THE_GRAPH_INTEGRATION.md`.
+
 UI displays the selected candidate and provenance.
 
 For the demo agent, the application additionally verifies the ENSIP 25 association.

@@ -111,13 +111,54 @@ The judge can see that ENSv2 can delegate one precise record without granting th
 
 ## Step 0: ENSv2 spike
 
-Do this before product UI.
+Do this before product UI. The script exists at
+`packages/ens/scripts/spike-ensv2.ts`; run it with
+`pnpm --filter @nymspace/ens spike`.
 
-Create a script such as:
+### What the spike already answered
 
-```text
-scripts/spike-ensv2.ts
-```
+Resolved from the deployed contracts and their source, before any transaction:
+
+* **U4 — does registry ownership confer resolver grant authority?** No. The
+  registry and the resolver are two EAC domains on two contracts, and
+  `PermissionedResolver` has no `_getRoles` override. Resolver authority exists
+  only as roles held on the resolver, which is why the organization deploys and
+  initializes its own resolver proxy. This is a deployment decision, not a
+  discovery.
+* **U5 — one resolver per name, or one shared?** Shared. Grants are keyed by
+  `resource(namehash, part)`, so a single organization-owned proxy serves every
+  agent and `toName` distinguishes them. The cost is that a wildcard grant would
+  reach every agent, so the wildcard resource is asserted empty.
+* **U6 — can the organization call `register()` directly?** Yes, provided the
+  UserRegistry's one-shot `initialize()` bitmap carried the `ROLE_REGISTRAR`
+  base bit. `_register` checks `ROLE_REGISTRAR` on `ROOT_RESOURCE` and
+  `hasRoles` ORs root roles in. No registrar contract and no payment token are
+  involved for subnames.
+* **U7 — how is the record resource derived?**
+  `keccak256(node ‖ part)` with `part = keccak256(bytes(key))`; `(0, 0)` is
+  `ROOT_RESOURCE`. Packed and non-packed encoding are identical for two
+  `bytes32` values.
+* **U8 — how is the ENSIP 25 key serialized?** `agent-registration[<registry>]
+  [<agentId>]`, registry as a lowercase ERC 7930 hex string, chain reference
+  minimal big-endian, agent id canonical decimal. Tested against the worked
+  example ENSIP 25 publishes.
+
+Still open until the spike runs against a funded key: **U1** (the parent label
+and its acquisition), **U2** and **U3** (the subregistry and the proxy).
+
+### Corrections to earlier assumptions
+
+* The addresses to use come from `ensdomains/contracts-v2` at the commit
+  `ensdomains/docs` pins for its Deployments page. `ensdomains/namechain`
+  publishes older Sepolia sets whose addresses all differ.
+* `hasRoles` and `roles` take a `uint256` resource, not a `bytes32`.
+* `getSubregistry` and `getResolver` take a label **string**; `setSubregistry`
+  and `setResolver` take a **token id** from `findTokenId(label)`, which changes
+  whenever roles change.
+* `ROLE_SET_TEXT` is `1 << 4`. Roles occupy nybbles, so the shifts step by four.
+* Acquiring the parent is cheap: `MockUSDC` has an ungated `mint`,
+  `getRegisterPrice` quotes about 8 USDC for a year, and `MIN_COMMITMENT_AGE`
+  is 60 seconds.
 
 The script should:
 
@@ -167,20 +208,35 @@ Do not assume ENSv1 Name Wrapper behavior.
 
 Use DNS encoded name input for `authorizeTextRoles`.
 
-Conceptual TypeScript:
+Verified against `PermissionedResolver.sol` and the deployed ABI. Every call
+goes through `EnsService` in `@nymspace/ens`, so the spike and the route
+handlers cannot drift:
 
 ```ts
-const dnsName = encodeDnsName(agentName)
-
-await resolver.write.authorizeTextRoles([
-  dnsName,
-  "agent-endpoint[mcp]",
-  controllerAddress,
-  true
-])
+await ens.authorizeTextRole({
+  dnsName: encodeDnsName(agentName),
+  key: agentEndpointKey("mcp"),
+  controller,
+  authorized: true,
+})
 ```
 
 Repeat only for keys you intentionally delegate.
+
+Three things this section previously left open, now settled:
+
+* **`authorize*` is the only grant path.** `grantRoles` and `revokeRoles` exist
+  on the resolver and are declared `pure`: a call site using them compiles,
+  succeeds on chain, and grants nothing. A static test in
+  `packages/ens/src/grant-path.test.ts` fails the build if one appears.
+* **The caller needs `ROLE_SET_TEXT_ADMIN` on `resource(namehash, 0)`.** That
+  authority comes only from roles held on the resolver; registry ownership
+  confers none. Check it with `hasRoles` before delegating, never with
+  `roles()`.
+* **Never grant on the wildcard resource.** `onlyPartRoles` accepts a grant on
+  `resource(0, part)` as an alternative, which authorizes that key on *every*
+  name the resolver serves. With one shared resolver across all agents, one
+  wildcard grant is a cross-agent breach.
 
 ## Writing ENSIP 26 records
 
@@ -204,9 +260,30 @@ Never derive permissions from local database flags.
 
 For each record key:
 
-1. Compute or use resolver record resource through the current contract helper path.
-2. Use resolver role checks or the documented `roles` / `hasRoles` read path.
-3. Map live result to UI.
+1. Compute the resolver record resource as
+   `keccak256(node ‖ part)` with `part = keccak256(bytes(key))`, and
+   `resource(0, 0)` short-circuiting to `ROOT_RESOURCE`. This is
+   `PermissionedResolverLib.resource`; the values are pinned in
+   `packages/ens/src/eac.test.ts`.
+2. Ask with **`hasRoles`, never `roles`**. `hasRoles(resource, bitmap, account)`
+   evaluates `_getRoles(ROOT_RESOURCE, account) | _getRoles(resource, account)`
+   and is what `_checkRoles` — the enforcement path — uses.
+   `roles(resource, account)` returns raw per-resource storage, so an
+   organization holding everything at root reads as zero and a permission
+   matrix built on it would show "denied" for actions that succeed. Use
+   `roles()` only to prove *where* a grant is stored, such as showing that a
+   grant is record-scoped rather than name-scoped.
+3. Evaluate the same three alternatives `onlyPartRoles` accepts, in order:
+   `resource(node, part)`, then `resource(0, part)`, then `resource(node, 0)`.
+   Anything narrower renders a name-level grant as an absence of permission
+   while the transaction succeeds.
+4. Trust a negative only after a positive control. A wrong derivation returns
+   `false` from every check and is indistinguishable from a genuine denial, so
+   assert a known grant reads `true` through the same code path first.
+5. Enumerate which keys carry delegations from the
+   `NamedTextResource(resource, name, keyHash, key)` event rather than probing
+   a hardcoded key list. It is the only source that carries the readable key.
+6. Map live result to UI, with the time it was read.
 
 If possible, wrap all checks in one backend endpoint:
 

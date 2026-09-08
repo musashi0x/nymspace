@@ -122,6 +122,26 @@ Verification should be performed live during important actions.
 
 Do not rely forever on cached verified state.
 
+ENSIP 25 states this in its own Security Considerations: when an ENS name is
+transferred to a new owner, existing verification text records may become
+stale, and clients should consider ownership changes when evaluating prior
+attestations. The record survives the transfer; the attestation it stood for
+does not, because the account that made it no longer controls the name.
+
+Two consequences the system must honour:
+
+* Every verification result and every permission read carries the time it was
+  read from chain. A result without a read time is not a result.
+* When the owner of an agent subname has changed since an attestation was
+  observed, re-verify before reporting the name as verified. Never present the
+  earlier result as current.
+
+Re-registration is the safer case and should not be confused with transfer. An
+expired name that is registered again increments the registry's version
+counters and burns the prior token, so previously granted permissions do not
+appear in a fresh permission read at all. Transfer is the dangerous one,
+because the records survive it untouched.
+
 ### Graph indexing delay
 
 A newly registered agent may not immediately appear.
