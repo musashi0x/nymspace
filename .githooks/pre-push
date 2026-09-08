@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Only hien-p may push this repository.
+#
+# There are several GitHub accounts authenticated on this machine
+# (harrymove-ctrl, Tinacooking, hien-p) and only hien-p has push rights on
+# musashi0x/nymspace. The globally-active `gh` account is NOT hien-p, so a
+# plain `git push` can silently pick the wrong identity. This hook fails loudly
+# instead.
+#
+# Enabled via: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+EXPECTED_LOGIN="hien-p"
+EXPECTED_EMAIL="70145901+hien-p@users.noreply.github.com"
+# Both of these are verified on the hien-p account and both attribute to it on
+# GitHub, so either is accepted as an author. Anything else is a wrong account.
+ALLOWED_EMAILS=(
+  "70145901+hien-p@users.noreply.github.com"
+  "phanhoangvinhhien@gmail.com"
+)
+
+is_allowed_email() {
+  local candidate="$1"
+  for allowed in "${ALLOWED_EMAILS[@]}"; do
+    [ "$candidate" = "$allowed" ] && return 0
+  done
+  return 1
+}
+
+remote_url="${2:-}"
+
+fail() {
+  echo "" >&2
+  echo "  push blocked: $1" >&2
+  echo "" >&2
+  echo "  This repo is configured to be pushed only by ${EXPECTED_LOGIN}." >&2
+  echo "  Fix with:" >&2
+  echo "    git config user.name  \"${EXPECTED_LOGIN}\"" >&2
+  echo "    git config user.email \"${EXPECTED_EMAIL}\"" >&2
+  echo "    git remote set-url origin https://${EXPECTED_LOGIN}@github.com/musashi0x/nymspace.git" >&2
+  echo "" >&2
+  exit 1
+}
+
+# 1. The configured commit identity must be hien-p.
+actual_email="$(git config user.email || true)"
+is_allowed_email "$actual_email" ||
+  fail "git user.email is '${actual_email:-unset}', which is not a ${EXPECTED_LOGIN} address"
+
+# 2. The remote must carry the hien-p username so the credential helper
+#    resolves hien-p's token rather than the active account's.
+case "$remote_url" in
+  *"${EXPECTED_LOGIN}@github.com"*) ;;
+  "") ;;  # no URL passed (e.g. manual invocation) — skip this check
+  *) fail "remote '${remote_url}' does not pin the ${EXPECTED_LOGIN} username" ;;
+esac
+
+# 3. Every commit about to be pushed must be authored by hien-p.
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    range="$local_sha"
+  else
+    range="${remote_sha}..${local_sha}"
+  fi
+
+  pattern="$(printf '%s\n' "${ALLOWED_EMAILS[@]}" | sed 's/[].[^$\\*/]/\\&/g' | paste -sd'|' -)"
+  bad="$(git log --format='%H %ae' "$range" 2>/dev/null |
+         grep -Ev " (${pattern})$" || true)"
+
+  if [ -n "$bad" ]; then
+    echo "" >&2
+    echo "  commits not authored by ${EXPECTED_LOGIN}:" >&2
+    echo "$bad" | sed 's/^/    /' >&2
+    fail "rewrite them with: git rebase --exec 'git commit --amend --no-edit --reset-author' <base>"
+  fi
+done
+
+exit 0
