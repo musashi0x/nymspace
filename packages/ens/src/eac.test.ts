@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { keccak256, namehash, toBytes } from "viem";
+import { resolverSalt, userRegistrySalt } from "./factory";
 import {
   ADMIN_ROLES,
   ALL_ROLES,
@@ -185,6 +186,42 @@ describe("the setText permission predicate", () => {
   it("distinguishes the same key under two names", () => {
     expect(textRecordResource(NAME, KEY)).not.toBe(
       textRecordResource("payments.nymspace.eth", KEY),
+    );
+  });
+});
+
+describe("factory salts", () => {
+  const OWNER = "0x1111111111111111111111111111111111111111" as const;
+  const OTHER = "0x2222222222222222222222222222222222222222" as const;
+
+  /**
+   * A random salt deploys a second proxy on every re-run, and the first one
+   * keeps the grants. Determinism is what makes a re-run a no-op instead of a
+   * fork.
+   */
+  it("is stable for the same owner", () => {
+    expect(resolverSalt(OWNER)).toBe(resolverSalt(OWNER));
+    expect(userRegistrySalt(namehash(NAME) as `0x${string}`)).toBe(
+      userRegistrySalt(namehash(NAME) as `0x${string}`),
+    );
+  });
+
+  it("ignores address casing, so a checksummed owner is the same owner", () => {
+    expect(resolverSalt(OWNER.toUpperCase().replace("0X", "0x") as typeof OWNER)).toBe(
+      resolverSalt(OWNER),
+    );
+  });
+
+  it("separates owners, names, versions, and the two kinds", () => {
+    expect(resolverSalt(OWNER)).not.toBe(resolverSalt(OTHER));
+    expect(resolverSalt(OWNER)).not.toBe(resolverSalt(OWNER, 1n));
+    expect(userRegistrySalt(namehash(NAME) as `0x${string}`)).not.toBe(
+      userRegistrySalt(namehash("other.eth") as `0x${string}`),
+    );
+    // The two schemes hash different kind strings, so a resolver salt and a
+    // registry salt can never collide for the same 32-byte subject.
+    expect(resolverSalt(OWNER)).not.toBe(
+      userRegistrySalt(`0x${OWNER.slice(2).padStart(64, "0")}` as `0x${string}`),
     );
   });
 });

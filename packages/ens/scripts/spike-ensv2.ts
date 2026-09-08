@@ -19,7 +19,7 @@
  * proxy, the resolver proxy — is reused when configuration already names it.
  */
 
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve as resolvePath } from "node:path";
 import {
@@ -49,8 +49,10 @@ import {
   ethRegistrarAbi,
   nameResource,
   registryAbi,
+  resolverSalt,
   textRecordResource,
   universalResolverAbi,
+  userRegistrySalt,
   verifiableFactoryAbi,
   wildcardTextResource,
   type ViemChainClient,
@@ -63,6 +65,12 @@ const ZERO_BYTES32 = `0x${"0".repeat(64)}` as Hex;
 const PARENT_DURATION = 365n * 24n * 60n * 60n;
 /** Ten years on the agent subname; it costs nothing and outlives the demo. */
 const SUBNAME_DURATION = 10n * 365n * 24n * 60n * 60n;
+
+const EVIDENCE_PATH = resolvePath(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "spike-evidence.json",
+);
 
 const DELEGATED_KEY = agentEndpointKey("mcp");
 const UNDELEGATED_KEY = agentEndpointKey("a2a");
@@ -447,7 +455,10 @@ async function ensureSubregistry(
 
   const userRegistry = await deployProxy(ens, {
     implementation,
-    salt: BigInt(Date.now()),
+    // Deterministic, per the factory's published convention: one subname
+    // registry per name. A random salt would deploy a second registry on every
+    // re-run and strand the grants held by the first.
+    salt: userRegistrySalt(namehash(`${label}.eth`) as Hex),
     // Two parameters. The resolver's initialize takes three; reusing that
     // shape here encodes call data the proxy cannot dispatch.
     initData: encodeFunctionData({
@@ -519,7 +530,9 @@ async function ensureResolver(
 
   const resolver = await deployProxy(ens, {
     implementation,
-    salt: BigInt(Date.now()),
+    // One resolver per owner, so the address is known before the transaction
+    // is sent and a re-run cannot fork the grants across two proxies.
+    salt: resolverSalt(client.organization),
     // Three parameters here, unlike the registry. The empty setters array is
     // the multicall the resolver runs at initialization; nothing to seed.
     initData: encodeFunctionData({
@@ -549,6 +562,86 @@ async function ensureResolver(
 //////////////////////////////////////////////////////////////////////////////
 // Main
 //////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Task 7.3 — re-read the permission state in a fresh process.
+ *
+ * Reads nothing but the evidence file and the chain. If this disagrees with
+ * what the run reported, some part of the permission surface was being served
+ * from memory rather than from chain, which is the failure the whole
+ * "never derive permissions from local flags" rule exists to catch.
+ *
+ * Run: pnpm --filter @nymspace/ens spike -- --verify-only
+ */
+async function verifyOnly(): Promise<void> {
+  const config = chainConfig();
+  const env = requireServerEnv([
+    "ENSV2_ORGANIZATION_PRIVATE_KEY",
+    "ENSV2_AGENT_CONTROLLER_PRIVATE_KEY",
+  ] as const);
+
+  const evidence = JSON.parse(readFileSync(EVIDENCE_PATH, "utf8")) as {
+    facts: { agentName?: string; userRegistry?: Address; resolver?: Address };
+  };
+  const agentName = must(
+    evidence.facts.agentName,
+    `${EVIDENCE_PATH} names no agent; run the spike first`,
+  );
+
+  const client = createViemChainClient({
+    rpcUrl: config.rpcUrl,
+    chainId: config.chainId,
+    organizationKey: env.ENSV2_ORGANIZATION_PRIVATE_KEY as Hex,
+    controllerKey: env.ENSV2_AGENT_CONTROLLER_PRIVATE_KEY as Hex,
+  });
+
+  const ens = new EnsService({
+    client,
+    config: {
+      ...config,
+      deployed: {
+        parentLabel: config.deployed.parentLabel,
+        parentRegistry: must(
+          evidence.facts.userRegistry ?? config.deployed.parentRegistry,
+          "no UserRegistry in the evidence file or the environment",
+        ),
+        permissionedResolver: must(
+          evidence.facts.resolver ?? config.deployed.permissionedResolver,
+          "no resolver in the evidence file or the environment",
+        ),
+      },
+    },
+  });
+
+  console.log(`\nre-reading ${agentName} in a fresh process\n`);
+
+  await check("delegated keys are enumerable from chain", async () => {
+    // From NamedTextResource events, not from a hardcoded key list: the UI
+    // must be able to discover a delegation nobody told it about.
+    const keys = await ens.delegatedKeys({
+      name: agentName,
+      controller: client.controller,
+    });
+    assert(keys.length > 0, "no NamedTextResource event names this name");
+    return keys
+      .map(({ key, granted }) => `${key}=${granted ? "granted" : "revoked"}`)
+      .join(", ");
+  });
+
+  await check("the organization still holds grant authority", async () => {
+    const allowed = await ens.canDelegateText(agentName, client.organization);
+    assert(allowed, "ROLE_SET_TEXT_ADMIN is absent");
+    return "hasRoles on resource(namehash, 0)";
+  });
+
+  await check("the endpoint record survives the process boundary", async () => {
+    const value = await ens.readText(agentName, DELEGATED_KEY);
+    assert(value.length > 0, "the record reads back empty");
+    return value;
+  });
+
+  finish(true);
+}
 
 async function main() {
   const config = chainConfig();
@@ -881,22 +974,21 @@ function finish(reachedTheEnd: boolean): void {
       `${go ? "GO" : "NO-GO"}\n`,
   );
 
-  const out = resolvePath(
-    dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "spike-evidence.json",
-  );
   writeFileSync(
-    out,
+    EVIDENCE_PATH,
     `${JSON.stringify(
       { ranAt: new Date().toISOString(), go, facts, assertions, transactions },
       null,
       2,
     )}\n`,
   );
-  console.log(`Evidence: ${out}`);
+  console.log(`Evidence: ${EVIDENCE_PATH}`);
 
   process.exitCode = go ? 0 : 1;
 }
 
-await main();
+if (process.argv.includes("--verify-only")) {
+  await verifyOnly();
+} else {
+  await main();
+}

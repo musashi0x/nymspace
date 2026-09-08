@@ -1,4 +1,4 @@
-import { namehash } from "viem";
+import { decodeEventLog, namehash } from "viem";
 import type { Address, AgentPermissions, Hex } from "@nymspace/core";
 import { permissionedResolverAbi, registryAbi, verifiableFactoryAbi } from "./abis";
 import { chainConfig, requireDeployed, type ChainConfig } from "./chain";
@@ -13,6 +13,7 @@ import {
   type EacResource,
   type ResourceDeriver,
 } from "./eac";
+import { encodeDnsName } from "./keys";
 
 /**
  * The single boundary through which every ENS read and write passes.
@@ -26,10 +27,16 @@ import {
  * `viem-client.ts` supplies the real one.
  */
 
-/** A log as the port returns it, narrow enough for any client to satisfy. */
+/**
+ * A log as the port returns it, narrow enough for any client to satisfy.
+ *
+ * `topics` is a tuple rather than an array because that is what a log is: an
+ * optional event signature followed by its indexed arguments. Typing it as
+ * `Hex[]` makes every `decodeEventLog` call site need a cast.
+ */
 export interface ChainLog {
   address: Address;
-  topics: Hex[];
+  topics: [signature: Hex, ...args: Hex[]] | [];
   data: Hex;
 }
 
@@ -58,6 +65,13 @@ export interface ChainClient {
   }): Promise<Hex>;
 
   waitForReceipt(hash: Hex): Promise<ChainReceipt>;
+
+  /** Historical logs for one contract. Used to enumerate what was delegated. */
+  getLogs(request: {
+    address: Address;
+    fromBlock?: bigint | "earliest";
+    toBlock?: bigint | "latest";
+  }): Promise<ChainLog[]>;
 }
 
 export interface EnsServiceOptions {
@@ -421,6 +435,57 @@ export class EnsService {
       // permission read is only true as of the moment it was taken.
       readAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Which record keys actually carry a delegation on this name.
+   *
+   * `authorizeTextRoles` emits `NamedTextResource(resource, name, keyHash,
+   * key)` the first time a key is granted, and it carries the human-readable
+   * key. That is the only way to enumerate delegations: the resource id is a
+   * hash, so without this event the UI could only probe a hardcoded key list
+   * and would silently miss anything granted outside it.
+   *
+   * The event records that a key was *ever* granted, not that it is granted
+   * now, so each candidate is re-checked with `hasRoles` before it is
+   * reported. A revoked key keeps its event forever.
+   */
+  async delegatedKeys(params: {
+    name: string;
+    controller: Address;
+    fromBlock?: bigint | "earliest";
+  }): Promise<{ key: string; granted: boolean }[]> {
+    const logs = await this.client.getLogs({
+      address: this.resolver,
+      fromBlock: params.fromBlock ?? "earliest",
+    });
+
+    const dnsName = encodeDnsName(params.name);
+    const keys = new Set<string>();
+
+    for (const log of logs) {
+      try {
+        const event = decodeEventLog({
+          abi: permissionedResolverAbi,
+          topics: log.topics,
+          data: log.data,
+        });
+        if (event.eventName !== "NamedTextResource") continue;
+        const args = event.args as unknown as { name: Hex; key: string };
+        if (args.name.toLowerCase() === dnsName.toLowerCase()) keys.add(args.key);
+      } catch {
+        // A log from another event on the same contract.
+      }
+    }
+
+    const out: { key: string; granted: boolean }[] = [];
+    for (const key of [...keys].sort()) {
+      out.push({
+        key,
+        granted: await this.canSetText(params.name, key, params.controller),
+      });
+    }
+    return out;
   }
 
   /** The registry's stable EAC resource for a token id. */

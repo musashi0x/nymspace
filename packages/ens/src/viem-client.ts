@@ -9,7 +9,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia, sepolia } from "viem/chains";
 import type { Address, Hex } from "@nymspace/core";
-import type { ChainClient, ChainReceipt } from "./ens-service";
+import type { ChainClient, ChainLog, ChainReceipt } from "./ens-service";
 
 /**
  * The viem-backed {@link ChainClient}.
@@ -128,10 +128,23 @@ export function createViemChainClient(
         status: receipt.status,
         logs: receipt.logs.map((log) => ({
           address: log.address,
-          topics: log.topics as Hex[],
+          topics: log.topics as ChainLog["topics"],
           data: log.data,
         })),
       };
+    },
+
+    async getLogs(request) {
+      const logs = await publicClient.getLogs({
+        address: request.address,
+        fromBlock: request.fromBlock ?? "earliest",
+        toBlock: request.toBlock ?? "latest",
+      });
+      return logs.map((log) => ({
+        address: log.address,
+        topics: log.topics as ChainLog["topics"],
+        data: log.data,
+      }));
     },
 
     async getCode(address) {
