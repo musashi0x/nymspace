@@ -18,12 +18,12 @@ Do this before moving any code. It is the constraint that already broke the ENSv
 
 ## 3. Test the API
 
-- [ ] 3.1 Add `vitest` to `apps/api` with a `test` script, matching how `@nymspace/core` and `@nymspace/ens` are wired, so `turbo run test` picks it up with no new task
-- [ ] 3.2 Test routing through `app.fetch` with a constructed `Request`. No port is bound, so tests cannot collide under Turborepo's parallelism
-- [ ] 3.3 Test the validation cases the spec names: a malformed registry address returns 400 naming the parameter, and `registry` without `agentId` returns 400 explaining they are required together
-- [ ] 3.4 Test that an unknown path returns 404 in the same JSON error shape every other failure uses
-- [ ] 3.5 Test CORS both ways — a configured origin comes back in the allow-origin header, and an unconfigured one does not. The negative case is the one that matters
-- [ ] 3.6 Test that a thrown handler returns a generic 500 and does not put the detail in the body
+- [x] 3.1 Add `vitest` to `apps/api` with a `test` script, matching how `@nymspace/core` and `@nymspace/ens` are wired, so `turbo run test` picks it up with no new task
+- [x] 3.2 Test routing through `app.fetch` with a constructed `Request`. No port is bound, so tests cannot collide under Turborepo's parallelism. Required splitting `createApp(config)` out of `index.ts`, which called `serve()` at module scope and so bound a socket on import
+- [x] 3.3 Test the validation cases the spec names: a malformed registry address returns 400 naming the parameter, and `registry` without `agentId` returns 400 explaining they are required together
+- [x] 3.4 Test that an unknown path returns 404 in the same JSON error shape every other failure uses
+- [x] 3.5 Test CORS both ways — a configured origin comes back in the allow-origin header, and an unconfigured one does not. The negative case is the one that matters
+- [x] 3.6 Test that a thrown handler returns a generic 500 and does not put the detail in the body
 
 ## 4. Type the caller
 

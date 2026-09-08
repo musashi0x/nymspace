@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch --conditions=react-server src/index.ts",
     "start": "tsx --conditions=react-server src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^20",
     "tsx": "^4.20.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }
