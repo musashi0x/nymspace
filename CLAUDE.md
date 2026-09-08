@@ -19,3 +19,10 @@ config, not by convention:
 Do **not** work around a blocked push with `gh auth switch` — that changes the
 active account for every other repo on the machine. Fix the local config
 instead.
+
+## Commit messages — no co-author trailer
+
+Do not add `Co-Authored-By: Claude ...` to commits in this repo. It makes
+GitHub render every commit as "hien-p and claude committed". The author and
+committer fields are already correct; the trailer was the only cause, and the
+four commits that carried it were rewritten and force-pushed on 2026-09-08.
