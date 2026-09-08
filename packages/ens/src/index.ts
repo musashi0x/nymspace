@@ -14,3 +14,4 @@ export * from "./chain";
 export * from "./eac";
 export * from "./ens-service";
 export * from "./keys";
+export * from "./viem-client";
