@@ -63,6 +63,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.8.0
         version: 1.8.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@nymspace/api':
+        specifier: workspace:*
+        version: link:../api
       '@nymspace/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -84,6 +87,9 @@ importers:
       cn:
         specifier: ^0.2.6
         version: 0.2.6
+      hono:
+        specifier: ^4.11.7
+        version: 4.13.7
       lucide-react:
         specifier: ^1.43.0
         version: 1.43.0(react@19.2.8)
