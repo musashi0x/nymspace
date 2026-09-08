@@ -1,7 +1,14 @@
 import { CommitActivity } from "@/components/commit-activity";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WordTiles } from "@/components/word-tiles";
-import { getActivity, REVALIDATE_SECONDS } from "@/lib/github";
+import { getActivity, REVALIDATE_SECONDS } from "@nymspace/github";
+
+/**
+ * The raw payload moved to the API when `getActivity` moved into a package.
+ * The page still server-renders from the package directly, so this link is the
+ * only place the browser needs to know where the API lives.
+ */
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3112";
 
 export const revalidate = 60;
 
@@ -35,10 +42,10 @@ export default async function Home() {
             to read that day&rsquo;s commits, then open any SHA to check it
             yourself. The raw payload is at{" "}
             <a
-              href="/api/activity"
+              href={`${apiBaseUrl}/v1/activity`}
               className="font-mono underline underline-offset-2 hover:text-foreground"
             >
-              /api/activity
+              /v1/activity
             </a>
             .
           </p>

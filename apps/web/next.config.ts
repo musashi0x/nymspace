@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@nymspace/core",
     "@nymspace/ens",
+    "@nymspace/github",
     "@nymspace/graph",
     "@nymspace/privy",
   ],

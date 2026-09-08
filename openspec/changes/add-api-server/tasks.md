@@ -9,12 +9,12 @@ Do this before moving any code. It is the constraint that already broke the ENSv
 
 ## 2. Move the activity endpoint
 
-- [ ] 2.1 `git mv apps/web/lib/github.ts apps/api/src/lib/github.ts`, preserving history. It is the only real dependency the route has
-- [ ] 2.2 `git mv` the activity route handler into `apps/api/src/routes/activity.ts` and adapt it to Hono. The logic must not be rewritten — the payload contract is the thing being preserved
-- [ ] 2.3 Mount it under the version prefix and confirm the JSON body carries the same fields it carried when Next served it. Capture the before payload first, or the comparison is a guess
-- [ ] 2.4 Declare `GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` and `GITHUB_BRANCH` in both `turbo.json` and `.env.example`. All five are read by `lib/github.ts` today and appear in neither file, so a token change currently does not invalidate the build cache
-- [ ] 2.5 Decide whether the GitHub token stays optional. It is an escape from the anonymous rate limit, not an auth requirement, so leaving it optional is defensible — but decide it rather than inherit it
-- [ ] 2.6 Do not delete the Next route handler yet. It comes out in section 4, once something else is serving the page
+- [x] 2.1 ~~`git mv apps/web/lib/github.ts apps/api/src/lib/github.ts`~~ → `packages/github/src/github.ts`. **Corrected during apply**: `page.tsx` calls `getActivity()` directly server-side and `commit-activity.tsx` imports its types, so the file was never API-only — and putting it in an app violates this change's own requirement "A server application owns no domain logic". Both apps now import `@nymspace/github`
+- [x] 2.2 `git mv` the activity route handler into `apps/api/src/routes/activity.ts` and adapt it to Hono. The logic must not be rewritten — the payload contract is the thing being preserved
+- [x] 2.3 Mount it under the version prefix and confirm the JSON body carries the same fields it carried when Next served it. Capture the before payload first, or the comparison is a guess
+- [x] 2.4 Declare `GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` and `GITHUB_BRANCH` in both `turbo.json` and `.env.example`. All five are read by `lib/github.ts` today and appear in neither file, so a token change currently does not invalidate the build cache
+- [x] 2.5 Decide whether the GitHub token stays optional. It is an escape from the anonymous rate limit, not an auth requirement, so leaving it optional is defensible — but decide it rather than inherit it
+- [x] 2.6 ~~Do not delete the Next route handler yet.~~ **Moot**: the handler was only a public JSON view, not the page's data source. The page server-renders from the package and never regressed, so the handler moved in 2.2 with nothing to keep alive behind it
 
 ## 3. Test the API
 

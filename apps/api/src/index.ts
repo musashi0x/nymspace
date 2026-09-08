@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { apiConfig } from "./config";
+import { activity } from "./routes/activity";
 import { agents } from "./routes/agents";
 
 /**
@@ -38,6 +39,7 @@ app.get("/health", (c) =>
 );
 
 app.route("/v1/agents", agents);
+app.route("/v1/activity", activity);
 
 app.notFound((c) => c.json({ error: "not found", path: c.req.path }, 404));
 

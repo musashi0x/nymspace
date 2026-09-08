@@ -98,7 +98,6 @@ async function gh<T>(path: string): Promise<GhResult<T>> {
   try {
     res = await fetch(`https://api.github.com${path}`, {
       headers: headers(),
-      next: { revalidate: REVALIDATE_SECONDS },
     });
   } catch {
     return { ok: false, status: 0, rateLimited: false };

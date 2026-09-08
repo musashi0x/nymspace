@@ -12,6 +12,7 @@
     "@hono/node-server": "^1.19.6",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
+    "@nymspace/github": "workspace:*",
     "@nymspace/graph": "workspace:*",
     "@nymspace/privy": "workspace:*",
     "hono": "^4.11.7"

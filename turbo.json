@@ -34,7 +34,12 @@
     "DEMO_PAYMENT_RECIPIENT",
     "API_PORT",
     "WEB_ORIGIN",
-    "NEXT_PUBLIC_API_URL"
+    "NEXT_PUBLIC_API_URL",
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_OWNER",
+    "GITHUB_REPO",
+    "GITHUB_BRANCH"
   ],
   "tasks": {
     "dev": {

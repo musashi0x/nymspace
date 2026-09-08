@@ -13,6 +13,7 @@
     "@base-ui/react": "^1.8.0",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
+    "@nymspace/github": "workspace:*",
     "@nymspace/graph": "workspace:*",
     "@nymspace/privy": "workspace:*",
     "class-variance-authority": "^0.7.1",

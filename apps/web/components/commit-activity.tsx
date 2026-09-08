@@ -4,7 +4,7 @@ import * as React from "react";
 import GitHubActivity, {
   type Contribution as UIContribution,
 } from "@/components/ui/github-activity";
-import type { ActivityPayload, Commit } from "@/lib/github";
+import type { ActivityPayload, Commit } from "@nymspace/github";
 import { cn } from "@/lib/utils";
 
 const DAY_FORMAT = new Intl.DateTimeFormat("en-US", {
