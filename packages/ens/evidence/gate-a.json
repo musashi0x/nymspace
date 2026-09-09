@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-09T04:44:15.390Z",
+  "ranAt": "2026-09-09T05:56:03.837Z",
   "gate": "A",
   "go": true,
   "facts": {
@@ -23,7 +23,7 @@
       "status": "verified",
       "key": "agent-registration[0x0001000003014a34148004a818bfb912233c491871b3d84c89a494bd9e][9209]",
       "claimedEnsName": "research.nymspace.eth",
-      "readAt": "2026-09-09T04:44:07.340Z"
+      "readAt": "2026-09-09T05:55:27.087Z"
     },
     "manifest": {
       "name": "research.nymspace.eth",
@@ -32,15 +32,15 @@
         "source": "ens",
         "key": "agent-context",
         "chainId": 11155111,
-        "readAt": "2026-09-09T04:44:14.264Z"
+        "readAt": "2026-09-09T05:56:02.592Z"
       },
       "endpoints": {
         "mcp": {
-          "value": "https://mcp.nymspace.example/research?manifest=1788929048624",
+          "value": "https://mcp.nymspace.example/research?manifest=1788933352629",
           "source": "ens",
           "key": "agent-endpoint[mcp]",
           "chainId": 11155111,
-          "readAt": "2026-09-09T04:44:14.264Z"
+          "readAt": "2026-09-09T05:56:02.592Z"
         }
       },
       "verification": {
@@ -51,9 +51,9 @@
         "status": "verified",
         "key": "agent-registration[0x0001000003014a34148004a818bfb912233c491871b3d84c89a494bd9e][9209]",
         "claimedEnsName": "research.nymspace.eth",
-        "readAt": "2026-09-09T04:44:15.389Z"
+        "readAt": "2026-09-09T05:56:03.837Z"
       },
-      "assembledAt": "2026-09-09T04:44:14.264Z",
+      "assembledAt": "2026-09-09T05:56:02.592Z",
       "registration": {
         "agentId": "9209",
         "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
@@ -80,7 +80,7 @@
       "n": 2,
       "name": "the controller's permitted write confirms and changes the value",
       "passed": true,
-      "detail": "0xa97092c0f6303d63a981ab774c81ee67dcf2418ec373530c4ec8a7e3d0f7cfe5 — \"https://mcp.nymspace.example/research?manifest=1788928924824\" → \"https://mcp.nymspace.example/research?gate-a=1788929030694\""
+      "detail": "0x5cf1b408e93816c0486ebd51845c50096fc0542c63e0fd42908595a99307f110 — \"https://mcp.nymspace.example/research?manifest=1788933232930\" → \"https://mcp.nymspace.example/research?gate-a=1788933319216\""
     },
     {
       "n": 3,
@@ -110,23 +110,37 @@
       "n": 6,
       "name": "verification returns verified, carrying a read time",
       "passed": true,
-      "detail": "verified at 2026-09-09T04:44:07.340Z"
+      "detail": "verified at 2026-09-09T05:55:27.087Z"
+    },
+    {
+      "n": 9,
+      "name": "E6 — a revoked grant makes the next controller write revert",
+      "passed": true,
+      "detail": "reverted with EACUnauthorizedAccountRoles, grant restored: true"
     },
     {
       "n": 8,
       "name": "a record changed on chain changes the next manifest, with no invalidation",
       "passed": true,
-      "detail": "\"https://mcp.nymspace.example/research?gate-a=1788929030694\" → \"https://mcp.nymspace.example/research?manifest=1788929048624\""
+      "detail": "\"https://mcp.nymspace.example/research?gate-a=1788933319216\" → \"https://mcp.nymspace.example/research?manifest=1788933352629\""
     }
   ],
   "transactions": [
     {
       "what": "controller setText agent-endpoint[mcp]",
-      "hash": "0xa97092c0f6303d63a981ab774c81ee67dcf2418ec373530c4ec8a7e3d0f7cfe5"
+      "hash": "0x5cf1b408e93816c0486ebd51845c50096fc0542c63e0fd42908595a99307f110"
+    },
+    {
+      "what": "E6 revoke agent-endpoint[mcp]",
+      "hash": "0x233d55835745699439f87ba76e858f910755c2f9de970d96d2f55c7037845d37"
+    },
+    {
+      "what": "E6 re-grant agent-endpoint[mcp]",
+      "hash": "0x4189dc014c6ed660bc6f97f7190aa388774f4cc26ec21551fa130b40750a3e22"
     },
     {
       "what": "controller setText for the manifest mutation",
-      "hash": "0x3d5fcd158adb737b7d7281eaaf891b93ce12bf3a326ec57a7b8e89fce1d9376a"
+      "hash": "0x630518b25482e967205bcc47e4fdeab24a37baa942a91a6a5355d6b9d54766fc"
     }
   ]
 }

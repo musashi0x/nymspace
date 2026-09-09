@@ -15,7 +15,10 @@
     "provision:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-fleet.ts",
     "register:identity": "tsx --env-file-if-exists=.env --conditions=react-server scripts/register-identity.ts",
     "provision:wallet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-wallet.ts",
-    "test:matrix-live": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-matrix-live.ts"
+    "test:matrix-live": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-matrix-live.ts",
+    "verify:acceptance": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-acceptance.ts",
+    "audit:secrets": "tsx --env-file-if-exists=.env --conditions=react-server scripts/audit-secrets.ts",
+    "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts"
   },
   "devDependencies": {
     "@nymspace/core": "workspace:*",

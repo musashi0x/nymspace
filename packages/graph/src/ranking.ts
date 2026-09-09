@@ -22,13 +22,31 @@ import {
  */
 
 /**
- * Pinned rather than configurable.
+ * Pinned rather than configurable, and pinned on measurement rather than on
+ * "newest wins".
  *
  * An environment variable selecting the model would let a deploy change what
  * task 4.10's explanation validator is validating against, and the validator is
  * only meaningful against a known model. Bump this deliberately.
+ *
+ * The first choice here was `gemini-3.8-flash` because it was the newest stable
+ * flash, and Gate E caught what that cost: three of six acceptance runs failed
+ * on 429s and 503s from the ranking step alone. Three calls each, same request,
+ * same candidates:
+ *
+ *   gemini-3.8-flash          0/3   429 every time — quota exhausted on this key
+ *   gemini-3.7-flash          2/3   one 503
+ *   gemini-3.5-flash          3/3   15-18s
+ *   gemini-2.5-flash          3/3   5-13s
+ *   gemini-flash-lite-latest  3/3   ~1.8s
+ *
+ * `gemini-flash-lite-latest` was fastest and is disqualified anyway: a
+ * `-latest` alias moves, which is precisely what pinning exists to prevent.
+ * `gemini-2.5-flash` answered every time at a median around five seconds, so it
+ * is the one a demo can rely on. A model that is newer and refuses to answer
+ * ranks worse than an older one that does.
  */
-export const RANKING_MODEL = "gemini-3.8-flash";
+export const RANKING_MODEL = "gemini-2.5-flash";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 

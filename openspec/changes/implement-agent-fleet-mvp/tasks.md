@@ -226,21 +226,21 @@ The gate `docs/17` Risk 10 exists for, and the one guarding success metric one i
 
 ## 8. Hardening and submission (Day 5)
 
-- [ ] 8.1 ENS integration tests E1–E6 from `docs/13`, including E6: revoke a grant, assert the next controller write reverts
-- [ ] 8.2 ENSIP 25 tests I1–I4, including I4: after an ownership change, re-verify rather than reusing a cached result
-- [ ] 8.3 Graph tests G1–G4, including G4: with the provider disabled, assert a provider error and no fake score
-- [ ] 8.4 Discovery end-to-end test against live data
-- [ ] 8.5 Privy tests P1–P4
-- [ ] 8.6 Restart test: complete setup, stop, restart, inspect — ENS, Graph, and wallet state all reload
-- [ ] 8.7 Fresh-browser test: new session, no storage, discovery and inspection still work
-- [ ] 8.8 Rehearse the demo three times; record transaction confirmation delay, Graph query delay, and the failure points
-- [ ] 8.9 Write `pnpm verify:acceptance`, chaining Gates A through D, and run Gate E
-- [ ] 8.10 Secret audit: no key material, no provider secret, nothing in a client bundle or a response body
-- [ ] 8.11 README with the architecture, the sponsor mapping, and the transaction evidence
-- [ ] 8.12 Architecture diagram
+- [x] 8.1 ENS integration tests E1–E6 from `docs/13`, including E6: revoke a grant, assert the next controller write reverts
+- [x] 8.2 ENSIP 25 tests I1–I4, including I4: after an ownership change, re-verify rather than reusing a cached result
+- [x] 8.3 Graph tests G1–G4, including G4: with the provider disabled, assert a provider error and no fake score
+- [x] 8.4 Discovery end-to-end test against live data
+- [x] 8.5 Privy tests P1–P4
+- [x] 8.6 Restart test: complete setup, stop, restart, inspect — ENS, Graph, and wallet state all reload
+- [x] 8.7 Fresh-browser test: new session, no storage, discovery and inspection still work
+- [x] 8.8 Rehearse the demo three times; record transaction confirmation delay, Graph query delay, and the failure points
+- [x] 8.9 Write `pnpm verify:acceptance`, chaining Gates A through D, and run Gate E
+- [x] 8.10 Secret audit: no key material, no provider secret, nothing in a client bundle or a response body
+- [x] 8.11 README with the architecture, the sponsor mapping, and the transaction evidence
+- [x] 8.12 Architecture diagram
 - [ ] 8.13 Demo video
-- [ ] 8.14 Re-verify the ENSv2 addresses against the canonical Deployments page before submitting — the deployment is beta and `docs/20_SOURCES.md` requires the recheck
-- [ ] 8.15 State the unemancipation point in the demo narrative: the organization retains root roles and can reclaim any agent subname, deliberately
+- [x] 8.14 Re-verify the ENSv2 addresses against the canonical Deployments page before submitting — the deployment is beta and `docs/20_SOURCES.md` requires the recheck
+- [x] 8.15 State the unemancipation point in the demo narrative: the organization retains root roles and can reclaim any agent subname, deliberately
 - [ ] 8.16 Confirm the build pool and each partner's prize requirements
 - [ ] 8.17 Freeze contracts and integrations several hours before recording. After the freeze, fix only a broken demo, a security issue, or a submission requirement
 

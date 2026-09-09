@@ -335,6 +335,78 @@ async function main(): Promise<void> {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  // 9 — E6: a revoked grant makes the next controller write revert
+  ////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * `docs/13` E6, and the assertion that closes the loop on delegation.
+   *
+   * Assertion 2 showed the controller can write while granted. This revokes the
+   * grant, attempts the identical write, requires the resolver's own refusal,
+   * and re-grants. Without it the console could show a revoke succeeding while
+   * the controller kept writing — a permission model that reports changes it
+   * does not enforce, which is worse than one that never claimed to.
+   *
+   * Restoring the grant matters as much as the revoke: this gate is run
+   * repeatedly, and one that leaves the fleet in a different state than it
+   * found it makes its own next run a different test.
+   */
+  {
+    const dnsName = dnsEncode(ensName);
+    let restored = false;
+    try {
+      const revoke = await ens.authorizeTextRole({
+        dnsName,
+        key: mcpKey,
+        controller: ensClient.controller,
+        authorized: false,
+      });
+      transactions.push({ what: "E6 revoke agent-endpoint[mcp]", hash: revoke });
+      await ens.waitForReceipt(revoke);
+
+      let deniedAfterRevoke = false;
+      let detail = "the write succeeded while the grant was revoked";
+      try {
+        await ens.writeText({
+          name: ensName,
+          key: mcpKey,
+          value: `https://mcp.nymspace.example/research?e6=${Date.now()}`,
+          as: "controller",
+        });
+      } catch (error) {
+        detail = messageOf(error);
+        deniedAfterRevoke = detail.includes("EACUnauthorizedAccountRoles");
+      }
+
+      const regrant = await ens.authorizeTextRole({
+        dnsName,
+        key: mcpKey,
+        controller: ensClient.controller,
+        authorized: true,
+      });
+      transactions.push({ what: "E6 re-grant agent-endpoint[mcp]", hash: regrant });
+      await ens.waitForReceipt(regrant);
+      restored = await ens.canSetText(ensName, mcpKey, ensClient.controller);
+
+      assert(
+        9,
+        "E6 — a revoked grant makes the next controller write revert",
+        deniedAfterRevoke && restored,
+        deniedAfterRevoke
+          ? `reverted with EACUnauthorizedAccountRoles, grant restored: ${restored}`
+          : firstLine(detail),
+      );
+    } catch (error) {
+      assert(9, "E6 — a revoked grant makes the next controller write revert", false, firstLine(messageOf(error)));
+      if (!restored) {
+        console.error(
+          "WARNING: the grant may not have been restored. Run `pnpm provision:fleet` before the next gate run.",
+        );
+      }
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   // 8 — task 3.16: a record changed on chain changes the manifest
   ////////////////////////////////////////////////////////////////////////////
 
