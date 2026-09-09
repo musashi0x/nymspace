@@ -1,21 +1,21 @@
 {
-  "ranAt": "2026-09-09T13:45:19.482Z",
+  "ranAt": "2026-09-09T14:04:32.095Z",
   "gate": "E",
   "attempt": 2,
-  "clean": false,
-  "consecutiveAfter": 0,
-  "durationMs": 110362,
+  "clean": true,
+  "consecutiveAfter": 2,
+  "durationMs": 120123,
   "steps": [
     {
       "name": "top up the agent wallet",
       "passed": true,
-      "durationMs": 8041,
+      "durationMs": 7547,
       "setup": true
     },
     {
       "name": "Gate A — identity",
       "passed": true,
-      "durationMs": 77901,
+      "durationMs": 52392,
       "setup": false,
       "assertions": [
         {
@@ -73,7 +73,7 @@
     {
       "name": "Gate B — discovery",
       "passed": true,
-      "durationMs": 8683,
+      "durationMs": 14170,
       "setup": false,
       "assertions": [
         {
@@ -116,7 +116,7 @@
     {
       "name": "Gate C — financial",
       "passed": true,
-      "durationMs": 11285,
+      "durationMs": 12569,
       "setup": false,
       "assertions": [
         {
@@ -173,10 +173,9 @@
     },
     {
       "name": "Gate D — authority is contract-derived",
-      "passed": false,
-      "durationMs": 4449,
+      "passed": true,
+      "durationMs": 33442,
       "setup": false,
-      "failure": "Command failed: pnpm test:matrix-live\nGate D could not run: fetch failed\n",
       "assertions": [
         {
           "n": 1,

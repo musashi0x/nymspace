@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-09T13:54:01.063Z",
+  "ranAt": "2026-09-09T14:08:10.221Z",
   "gate": "B",
   "go": true,
   "facts": {
@@ -392,7 +392,7 @@
       "provider": "agent0",
       "chainId": 84532,
       "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-      "queriedAt": "2026-09-09T13:53:45.523Z"
+      "queriedAt": "2026-09-09T14:07:56.423Z"
     },
     "criteria": [
       "Agent can answer research questions",
@@ -465,8 +465,8 @@
       "endpoint": "agent0:4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
       "chainId": 84532,
       "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-      "queriedAt": "2026-09-09T13:53:45.523Z",
-      "durationMs": 15540,
+      "queriedAt": "2026-09-09T14:07:56.423Z",
+      "durationMs": 13798,
       "resultCount": 100,
       "filteredCount": 5,
       "selectedIds": [
@@ -486,7 +486,7 @@
       "n": 1,
       "name": "a live query returns at least three candidates",
       "passed": true,
-      "detail": "5 candidates from 100 raw results in 984ms"
+      "detail": "5 candidates from 100 raw results in 991ms"
     },
     {
       "n": 2,
@@ -498,7 +498,7 @@
       "n": 5,
       "name": "the response carries provider, chain, subgraph id and query time",
       "passed": true,
-      "detail": "agent0 chain 84532 subgraph 4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u at 2026-09-09T13:53:45.523Z"
+      "detail": "agent0 chain 84532 subgraph 4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u at 2026-09-09T14:07:56.423Z"
     },
     {
       "n": 3,
@@ -574,7 +574,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -619,7 +619,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -642,7 +642,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -687,7 +687,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -733,7 +733,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -755,7 +755,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -777,7 +777,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -799,7 +799,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -848,7 +848,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -897,7 +897,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -946,7 +946,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -995,7 +995,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1044,7 +1044,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1067,7 +1067,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1118,7 +1118,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1140,7 +1140,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1163,7 +1163,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1185,7 +1185,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1208,7 +1208,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1251,7 +1251,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1274,7 +1274,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1318,7 +1318,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1360,7 +1360,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1383,7 +1383,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1405,7 +1405,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1428,7 +1428,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1450,7 +1450,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1473,7 +1473,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1495,7 +1495,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1518,7 +1518,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1540,7 +1540,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1562,7 +1562,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1585,7 +1585,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1606,7 +1606,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1627,7 +1627,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1649,7 +1649,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1691,7 +1691,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1713,7 +1713,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1736,7 +1736,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1780,7 +1780,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1802,7 +1802,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1857,7 +1857,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1902,7 +1902,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1925,7 +1925,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1948,7 +1948,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1991,7 +1991,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2013,7 +2013,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2035,7 +2035,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2057,7 +2057,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2079,7 +2079,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2126,7 +2126,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2169,7 +2169,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2218,7 +2218,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2267,7 +2267,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2315,7 +2315,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2338,7 +2338,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2360,7 +2360,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2382,7 +2382,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2404,7 +2404,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2427,7 +2427,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2449,7 +2449,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2471,7 +2471,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2492,7 +2492,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2513,7 +2513,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2534,7 +2534,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2557,7 +2557,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2579,7 +2579,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2602,7 +2602,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2646,7 +2646,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2690,7 +2690,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2734,7 +2734,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2778,7 +2778,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2801,7 +2801,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2823,7 +2823,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2867,7 +2867,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2889,7 +2889,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2912,7 +2912,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2935,7 +2935,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2957,7 +2957,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2979,7 +2979,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3001,7 +3001,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3023,7 +3023,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3045,7 +3045,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3087,7 +3087,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3109,7 +3109,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3131,7 +3131,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3153,7 +3153,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3175,7 +3175,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3197,7 +3197,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3239,7 +3239,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3261,7 +3261,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3284,7 +3284,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3306,7 +3306,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3328,7 +3328,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3350,7 +3350,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3394,7 +3394,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3417,7 +3417,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3439,7 +3439,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3461,7 +3461,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3483,7 +3483,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     }
   ],
@@ -3536,7 +3536,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3582,7 +3582,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3633,7 +3633,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3688,7 +3688,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3735,7 +3735,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T13:53:45.523Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     }
   ]
