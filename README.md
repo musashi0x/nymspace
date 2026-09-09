@@ -145,37 +145,6 @@ It tracks this project's own repo,
 pushed to `main` shows up in the calendar within a minute. Override the two
 variables to point it elsewhere.
 
-## Push access
-
-This repository is pushed **only** by the `hien-p` GitHub account. Several
-accounts are authenticated on the primary dev machine and only `hien-p` has
-write access here, so the rule is enforced in config rather than left to memory:
-
-| Setting | Value |
-|---|---|
-| `user.name` | `hien-p` |
-| `user.email` | `70145901+hien-p@users.noreply.github.com` |
-| `origin` | `https://hien-p@github.com/musashi0x/nymspace.git` |
-| `core.hooksPath` | `.githooks` |
-
-The username in the remote URL is what makes the `gh` credential helper hand
-back `hien-p`'s token instead of whichever account happens to be active.
-[`.githooks/pre-push`](./.githooks/pre-push) then refuses the push if the
-identity, the remote, or any outgoing commit's author is not `hien-p`.
-
-After cloning, run:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-## Status
-
-Early. The README states the architectural position and the site makes the work
-on it verifiable; the stack itself is not built yet.
-
-The prior work this generalizes from is [`skillname`](https://github.com/hien-p/Skillname) — ENS names as the import statement for AI skills, where one name resolved to one callable function. That project made the specific case. This one is the general form of the same bet.
-
 ## License
 
 MIT
