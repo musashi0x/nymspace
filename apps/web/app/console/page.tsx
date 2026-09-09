@@ -67,7 +67,7 @@ export default async function FleetPage() {
       ) : (
         <Frame
           title="fleet"
-          subtitle="Five integration states per agent, kept separate. A single ready badge would hide the one an operator needs."
+          subtitle="Five integration states per agent, kept separate. A single ready badge would hide the one an operator needs. Forty rows at a time — scroll to load the rest."
         >
           <FleetTable agents={fleet.agents as unknown as FleetRow[]} />
         </Frame>

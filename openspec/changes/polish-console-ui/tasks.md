@@ -25,9 +25,9 @@
 
 ## 4. Fleet table
 
-- [ ] 4.1 Feed `FleetTable`'s `Table` from `useRowWindow(agents).visible` and render `RowWindowFooter` below it, preserving the existing `useTableStickyColumns` plugin.
-- [ ] 4.2 Wrap the table's existing horizontal scroll container in `ScrollRegion` so the bottom bar is concealed, the right/bottom edge fade appears, and keyboard scrolling still works with the sticky name column intact.
-- [ ] 4.3 Update `apps/web/app/console/page.tsx`'s header count and `Frame` subtitle to match what the window shows.
+- [x] 4.1 Feed `FleetTable`'s `Table` from `useRowWindow(agents).visible` and render `RowWindowFooter` below it, preserving the existing `useTableStickyColumns` plugin.
+- [x] 4.2 Wrap the table's existing horizontal scroll container in `ScrollRegion` so the bottom bar is concealed, the right/bottom edge fade appears, and keyboard scrolling still works with the sticky name column intact.
+- [x] 4.3 Update `apps/web/app/console/page.tsx`'s header count and `Frame` subtitle to match what the window shows.
 
 ## 5. Route transition
 

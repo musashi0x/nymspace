@@ -12,6 +12,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { Badge } from "./primitives";
+import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
 
 /**
  * The fleet as rows.
@@ -162,17 +163,41 @@ export function FleetTable({ agents }: { agents: FleetRow[] }) {
   // financial column with the name gone, every row looks the same and the five
   // states stop belonging to anyone.
   const sticky = useTableStickyColumns<FleetRow>({ startKeys: ["ensName"] });
+  const windowed = useRowWindow(agents);
 
   return (
-    <Table
-      data={agents}
-      columns={COLUMNS}
-      idKey="id"
-      density="compact"
-      dividers="none"
-      hasHover
-      verticalAlign="top"
-      plugins={{ sticky }}
-    />
+    <VStack gap={0} width="100%" className="min-w-0">
+      {/*
+        That horizontal scroll is the one place in the console a browser bar
+        used to be painted across the frame's dashed edge. `ScrollRegion`
+        conceals it and puts the fade in its place, measuring the table's own
+        wrapper rather than this shell — the shell does not scroll, so it has
+        no overflow to report.
+      */}
+      <ScrollRegion
+        scrollSelector=".astryx-table-scroll-wrapper"
+        className="row-window"
+      >
+        <Table
+          data={windowed.visible}
+          columns={COLUMNS}
+          idKey="id"
+          density="compact"
+          dividers="none"
+          hasHover
+          verticalAlign="top"
+          rowIndexStart={1}
+          rowCount={windowed.loaded}
+          plugins={{ sticky }}
+        />
+      </ScrollRegion>
+      <RowWindowFooter
+        shown={windowed.shown}
+        loaded={windowed.loaded}
+        hasMore={windowed.hasMore}
+        sentinelRef={windowed.sentinelRef}
+        noun="agent"
+      />
+    </VStack>
   );
 }
