@@ -30,7 +30,10 @@ const RPC_URL = process.env.SEPOLIA_RPC_URL;
 const ORGANIZATION = process.env.ENSV2_ORGANIZATION_ADDRESS as Address | undefined;
 const CONTROLLER = process.env.ENSV2_AGENT_CONTROLLER_ADDRESS as Address | undefined;
 const API = `http://localhost:${process.env.API_PORT ?? 3112}`;
-const AGENT = process.argv[2] ?? "research";
+// The store's agent id, which is `agent-<slug>` — not the slug. Passing the
+// slug 404s, which is the API behaving correctly and reads as the script
+// being broken.
+const AGENT = process.argv[2] ?? "agent-research";
 const RECORD_KEY = process.argv[3] ?? "agent-context";
 
 /**

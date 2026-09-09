@@ -1,9 +1,9 @@
 {
-  "ranAt": "2026-09-09T09:51:28.947Z",
+  "ranAt": "2026-09-09T13:05:50.714Z",
   "check": "prepared-organization-transaction",
   "go": true,
   "facts": {
-    "agent": "research",
+    "agent": "agent-research",
     "recordKey": "agent-context",
     "resolver": "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC",
     "chainId": 11155111,
