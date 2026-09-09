@@ -95,6 +95,26 @@ The order matters because two variables are resolved at different times.
    require them: the spike deploys the values, so requiring them up front would
    stop it bootstrapping its own outputs.
 
+## `NEXT_PUBLIC_PRIVY_APP_ID` is a server variable too
+
+The prefix says browser, and the guarded/unguarded split in CLAUDE.md trains you
+to read it that way, so this one is worth stating plainly: **`api` needs it as
+well.** `privyCredentials()` reads it straight off `process.env`
+(`packages/privy/src/wallet.ts`) because Privy's app id identifies the app to
+both halves of the integration, and it asserts the whole credential set at once
+so a financial route cannot discover a missing secret mid-request.
+
+Set it only on `web` and every wallet route on the API answers 500 with:
+
+```
+Error: Privy is not configured; missing: NEXT_PUBLIC_PRIVY_APP_ID
+    at privyCredentials (packages/privy/src/wallet.ts)
+    at buildDeps (apps/api/src/deps.ts)
+```
+
+That reads like a frontend misconfiguration and is not one. It is declared on
+both services in `.railway/railway.ts` for this reason.
+
 ## Migrations run as the pre-deploy command
 
 ```

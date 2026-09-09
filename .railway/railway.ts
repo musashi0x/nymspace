@@ -148,6 +148,17 @@ export default defineRailway(() => {
        * redeploy afterwards. docs/22_DEPLOYMENT.md sequences it.
        */
       WEB_ORIGIN: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
+      /**
+       * Yes, a `NEXT_PUBLIC_` variable on a server that ships no client
+       * bundle. `privyCredentials()` reads this one straight off
+       * `process.env` (packages/privy/src/wallet.ts:39) because Privy's app id
+       * identifies the app to both halves, and it asserts the full credential
+       * set together so a financial route cannot discover a missing secret
+       * mid-request. Leave it off `api` and every wallet route answers 500
+       * with `Privy is not configured; missing: NEXT_PUBLIC_PRIVY_APP_ID`,
+       * which reads like a frontend problem and is not one.
+       */
+      NEXT_PUBLIC_PRIVY_APP_ID: preserve(),
       ...chain,
       ...spikeOutputs,
       ...secrets,
