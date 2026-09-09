@@ -1,6 +1,7 @@
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { Suspense } from "react";
 import { CreateAgent } from "@/components/console/create-agent";
 
 /**
@@ -10,6 +11,13 @@ import { CreateAgent } from "@/components/console/create-agent";
  * existed the only way to walk it was a terminal. The form is a client
  * component because provisioning outlives the request that starts it; the copy
  * around it is static, the shape `discover/page.tsx` already uses.
+ *
+ * The form is behind `Suspense` because it reads the resumed run id with
+ * `useSearchParams()`, and a component that reads the query string cannot be
+ * prerendered — search params are not known until the request. Without the
+ * boundary `next build` fails the whole export on this page rather than
+ * degrading it, so the boundary is what lets the static shell around the form
+ * still be prerendered.
  */
 export default function NewAgentPage() {
   const parent = process.env.NEXT_PUBLIC_PARENT_ENS_NAME ?? "nymspace.eth";
@@ -30,7 +38,15 @@ export default function NewAgentPage() {
           rather than paying to create a second one.
         </Text>
       </VStack>
-      <CreateAgent parentName={parent} />
+      <Suspense
+        fallback={
+          <Text type="supporting" as="p">
+            Loading the provisioning form&hellip;
+          </Text>
+        }
+      >
+        <CreateAgent parentName={parent} />
+      </Suspense>
     </VStack>
   );
 }

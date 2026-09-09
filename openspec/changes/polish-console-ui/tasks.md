@@ -10,7 +10,7 @@
 
 - [x] 2.1 Export `ROW_WINDOW = 40` from `apps/web/components/console/primitives.tsx` as the single definition of the window size.
 - [x] 2.2 Implement `useRowWindow(rows)` in the same file, returning `{ visible, hasMore, shown, loaded, sentinelRef }`, backed by an `IntersectionObserver` that extends the count by `ROW_WINDOW`. Disconnect the observer on unmount and when `hasMore` goes false.
-- [ ] 2.3 Stagger arriving rows per batch. Astryx `Table` exposes no per-row `className` in data-driven mode, so the `--row-index` custom property cannot be set on a `<tr>`; instead add `.row-window tbody tr` rules to `globals.css` whose `animation-delay` is keyed on `nth-child(40n+k)`. The modulo is the batch, so the stagger resets every window for free, and a re-rendered `<tr>` that React reused does not re-animate because its `animation` property never changes.
+- [x] 2.3 Stagger arriving rows per batch. Astryx `Table` exposes no per-row `className` in data-driven mode, so the `--row-index` custom property cannot be set on a `<tr>`; instead add `.row-window tbody tr` rules to `globals.css` whose `animation-delay` is keyed on `nth-child(40n+k)`. The modulo is the batch, so the stagger resets every window for free, and a re-rendered `<tr>` that React reused does not re-animate because its `animation` property never changes.
 - [x] 2.4 Implement `RowWindowFooter` rendering the sentinel plus the shown/loaded count as Astryx `Text`, with copy that describes what was loaded and never asserts a total the server did not send.
 - [x] 2.5 Implement an `Evidence` primitive wrapping `CodeBlock` with `language="json"`, `container="section"`, `isWrapped`, `width="100%"`, and a `maxHeight`; do not nest it in a scroll container.
 - [x] 2.6 Guard serialization inside `Evidence`: `undefined`/`null` renders the existing `Absent` primitive; a `JSON.stringify` throw or an unrepresentable type renders a plaintext fallback plus a statement that it could not be serialized.
@@ -18,10 +18,10 @@
 
 ## 3. Activity timeline
 
-- [ ] 3.1 Rewrite `apps/web/components/console/activity-table.tsx` to feed `Table` from `useRowWindow(events).visible` and render `RowWindowFooter` as a sibling below the `Table`, never inside it (design D2).
-- [ ] 3.2 Replace `<Field label="Evidence" value={JSON.stringify(row.evidence)} />` in the expanded row with the `Evidence` primitive.
-- [ ] 3.3 Apply `row-enter` with the per-batch `--row-index` to arriving rows, leaving rows already on screen untouched.
-- [ ] 3.4 Update `apps/web/app/console/activity/page.tsx`'s `Frame` subtitle so it describes the window rather than claiming all fetched events are on screen.
+- [x] 3.1 Rewrite `apps/web/components/console/activity-table.tsx` to feed `Table` from `useRowWindow(events).visible` and render `RowWindowFooter` as a sibling below the `Table`, never inside it (design D2).
+- [x] 3.2 Replace `<Field label="Evidence" value={JSON.stringify(row.evidence)} />` in the expanded row with the `Evidence` primitive.
+- [x] 3.3 Apply `row-enter` with the per-batch `--row-index` to arriving rows, leaving rows already on screen untouched.
+- [x] 3.4 Update `apps/web/app/console/activity/page.tsx`'s `Frame` subtitle so it describes the window rather than claiming all fetched events are on screen.
 
 ## 4. Fleet table
 

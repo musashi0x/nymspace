@@ -10,7 +10,8 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { useState } from "react";
-import { Badge, Field } from "./primitives";
+import { Badge, Evidence, Field } from "./primitives";
+import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
 
 /**
  * The activity timeline as rows.
@@ -22,7 +23,8 @@ import { Badge, Field } from "./primitives";
  * The evidence does not fit a column — it is a different shape per source, and
  * that is the point of carrying it — so it lives in an expanded row rather than
  * being truncated into a cell or dropped. Expansion needs client state, which
- * is the only reason this is a client component; the fetch stays on the server.
+ * is one of the two reasons this is a client component; the other is the row
+ * window. The fetch stays on the server.
  */
 
 const STATUS_TONE = {
@@ -104,21 +106,49 @@ export function ActivityTable({ events }: { events: ActivityRow[] }) {
           summarised. A timeline that pretty-prints only the fields it already
           knows about cannot show you the one it did not expect.
         */}
-        <Field label="Evidence" value={JSON.stringify(row.evidence)} />
+        <Evidence value={row.evidence} />
       </VStack>
     ),
   });
 
+  const windowed = useRowWindow(events);
+
   return (
-    <Table
-      data={events}
-      columns={COLUMNS}
-      idKey="id"
-      density="compact"
-      dividers="none"
-      hasHover
-      textOverflow="truncate"
-      plugins={{ expansion }}
-    />
+    <VStack gap={0} width="100%" className="min-w-0">
+      {/*
+        `rowCount` is the loaded total rather than the visible one, so assistive
+        technology announces "row 12 of 100" against the whole list instead of
+        against the window — the same fact the footer states in text.
+      */}
+      <ScrollRegion
+        scrollSelector=".astryx-table-scroll-wrapper"
+        className="row-window"
+      >
+        <Table
+          data={windowed.visible}
+          columns={COLUMNS}
+          idKey="id"
+          density="compact"
+          dividers="none"
+          hasHover
+          textOverflow="truncate"
+          rowIndexStart={1}
+          rowCount={windowed.loaded}
+          plugins={{ expansion }}
+        />
+      </ScrollRegion>
+      {/*
+        Below the table, never inside it. A sentinel placed in the table's own
+        markup would observe the horizontal scroll wrapper rather than the
+        operator reaching the end of the list — design.md D2.
+      */}
+      <RowWindowFooter
+        shown={windowed.shown}
+        loaded={windowed.loaded}
+        hasMore={windowed.hasMore}
+        sentinelRef={windowed.sentinelRef}
+        noun="event"
+      />
+    </VStack>
   );
 }

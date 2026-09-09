@@ -38,7 +38,10 @@ export default async function ActivityPage() {
           detail="Provision the fleet to record the first events."
         />
       ) : (
-        <Frame title="timeline" subtitle={`${timeline.events.length} events, newest first. Expand a row for the evidence its source produced.`}>
+        <Frame
+          title="timeline"
+          subtitle={`${timeline.events.length} events loaded, newest first. Forty at a time — scroll to load the rest. Expand a row for the evidence its source produced.`}
+        >
           <ActivityTable events={timeline.events as unknown as ActivityRow[]} />
         </Frame>
       )}

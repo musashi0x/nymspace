@@ -425,3 +425,48 @@ html::-webkit-scrollbar {
     transition: none;
   }
 }
+
+/* Rows arriving in a window.
+
+   The animation is declared once for every body row, which is what makes it
+   correct rather than merely convenient. A CSS animation runs when an element
+   mounts; React reuses the `<tr>` elements already on screen (the tables key
+   their rows by id), so appending a batch animates exactly the new rows and
+   leaves the existing ones at their resting state. There is no "is this row
+   new" flag anywhere, because the DOM already knows.
+
+   Astryx's `Table` exposes no per-row className in data-driven mode, so the
+   `--row-index` property cannot be set on a row. `nth-child(40n + k)` gets the
+   same result from the other direction: the modulo is the window, so position
+   within the arriving batch is what the selector matches, and the stagger
+   resets every batch without anything tracking batches.
+
+   The first ten of each batch step by 18ms; everything past that shares the
+   180ms tail. Below the tenth row of a batch the difference is not perceptible
+   and is usually below the fold, and a flat tail is what bounds the total —
+   40 steps would be a wait rather than an entrance.
+
+   See design.md D4 and tasks 2.3 / 3.3. */
+@utility row-window {
+  & tbody tr {
+    animation: row-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 180ms;
+  }
+
+  & tbody tr:nth-child(40n + 1) { animation-delay: 0ms; }
+  & tbody tr:nth-child(40n + 2) { animation-delay: 18ms; }
+  & tbody tr:nth-child(40n + 3) { animation-delay: 36ms; }
+  & tbody tr:nth-child(40n + 4) { animation-delay: 54ms; }
+  & tbody tr:nth-child(40n + 5) { animation-delay: 72ms; }
+  & tbody tr:nth-child(40n + 6) { animation-delay: 90ms; }
+  & tbody tr:nth-child(40n + 7) { animation-delay: 108ms; }
+  & tbody tr:nth-child(40n + 8) { animation-delay: 126ms; }
+  & tbody tr:nth-child(40n + 9) { animation-delay: 144ms; }
+  & tbody tr:nth-child(40n + 10) { animation-delay: 162ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-window tbody tr {
+    animation: none;
+  }
+}

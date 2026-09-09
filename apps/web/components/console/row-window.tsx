@@ -134,6 +134,7 @@ export function RowWindowFooter({
 export function ScrollRegion({
   children,
   scrollSelector,
+  className,
 }: {
   children: React.ReactNode;
   /**
@@ -141,6 +142,8 @@ export function ScrollRegion({
    * `.astryx-table-scroll-wrapper` for an Astryx `Table`.
    */
   scrollSelector?: string;
+  /** Additional utilities on the shell — `row-window` for a windowed table. */
+  className?: string;
 }) {
   const { scrollRef, overflowEnd } = useScrollOverflow();
 
@@ -165,7 +168,7 @@ export function ScrollRegion({
       ref={shellRef}
       gap={0}
       width="100%"
-      className="scroll-shell scroll-quiet min-w-0"
+      className={`scroll-shell scroll-quiet min-w-0${className ? ` ${className}` : ""}`}
       data-overflow-inline={overflowEnd ? "true" : "false"}
     >
       {children}
