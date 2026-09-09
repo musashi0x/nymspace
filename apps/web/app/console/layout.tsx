@@ -23,7 +23,13 @@ const NAV = [
 
 export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-8">
+    // `surface-body` paints the Astryx body token rather than leaving the
+    // shell on the shadcn `--background` the landing page uses. Two token
+    // systems both claim "the page background", and a Frame punches its edge
+    // with the Astryx one: unreconciled, the punch is a visibly tinted lozenge
+    // behind every title. Painting the shell here reconciles them inside the
+    // console without touching the landing page.
+    <div className="surface-body mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-8">
       <header className="flex items-center justify-between gap-6 border-b border-border pb-4">
         <div className="flex items-baseline gap-6">
           <Link

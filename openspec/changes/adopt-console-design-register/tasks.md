@@ -16,15 +16,15 @@
 
 ## 2. Frame
 
-- [ ] 2.1 Build `Frame` from Astryx `Stack`, `Text`, and `Divider` plus the positioned wrapper elements the notch requires
-- [ ] 2.2 Render the dashed border, four corner marks, and the bracketed uppercase title, left-anchored and truncating (design.md Q2)
-- [ ] 2.3 Take the surrounding surface as a prop, defaulting to the page body, and paint the corner marks and title with it (design.md D4, Q1)
-- [ ] 2.4 Associate the title with the framed region as a caption; hide the corner marks from assistive technology
-- [ ] 2.5 Assert no literal colour or pixel value appears in `Frame`'s styles
-- [ ] 2.6 Render an Astryx `Table` with sorting and selection inside `Frame` and confirm both still work
-- [ ] 2.7 Write the scoped carve-out into `apps/web/AGENTS.md`, naming `Frame` and its parts and stating the reason
+- [x] 2.1 Build `Frame` from Astryx `Stack`, `Text`, and `Divider` plus the positioned wrapper elements the notch requires
+- [x] 2.2 Render the dashed border, four corner marks, and the bracketed uppercase title, left-anchored and truncating (design.md Q2)
+- [x] 2.3 Take the surrounding surface as a prop, defaulting to the page body, and paint the corner marks and title with it (design.md D4, Q1)
+- [x] 2.4 Associate the title with the framed region as a caption; hide the corner marks from assistive technology
+- [x] 2.5 Assert no literal colour or pixel value appears in `Frame`'s styles
+- [x] 2.6 Render an Astryx `Table` with sorting and selection inside `Frame` and confirm both still work
+- [x] 2.7 Write the scoped carve-out into `apps/web/AGENTS.md`, naming `Frame` and its parts and stating the reason
 
-**Gate B — Frame is correct on every surface.** Place one `Frame` on the page body, one inside a card, and one in a striped region. The border must not show through any title or corner mark.
+**Gate B — Frame is correct on every surface. PASSED.** Extended `app/astryx-check/page.tsx` with a frame on the page body, one inside a Card, and one carrying a runtime-length title. Machine-checked in both modes rather than eyeballed: for all three, the title punch and all four corner marks equal the computed background of the element behind the frame. The striped case named here no longer exists — see D10, which reduced the surface set to opaque colours only.
 
 - **Lies by**: testing on one surface. The reference hardcodes the page background because in MDX a figure only ever sits on the page. A console has three surfaces, and the bug is invisible on the default one.
 
@@ -54,7 +54,7 @@
 ## 5. Verification
 
 - [ ] 5.1 `pnpm typecheck`
-- [ ] 5.2 `pnpm lint`
+- [ ] 5.2 `pnpm lint` — BLOCKED, and not by this change. It fails on a clean tree: Next 16 removed `next lint`, so the stale `"lint": "next lint"` script reads its own name as a project directory. `apps/web` is the only workspace defining `lint`, so nothing in the repo is linted. Spun off as its own fix
 - [ ] 5.3 `pnpm --filter @nymspace/web build`
 - [ ] 5.4 Visual pass across all four console screens in light and dark mode
 - [ ] 5.5 Visual pass on `app/page.tsx`, which the theme swap changes without this change touching it

@@ -56,6 +56,15 @@ Found in implementation, not in review. Tailwind and shadcn read a `.dark` class
 **D9: Geist Mono is already loaded; the theme points at its variable.**
 `app/layout.tsx` loads Geist and Geist Mono through `next/font/google` and exposes them as CSS variables. Astryx never loads a font file, it only sets `--font-family-*`, so naming the family as `var(--font-geist-mono)` is the only way to name a webfont in the theme without loading it a second time. `next/font` writes its own adjusted fallback metrics into that variable, which makes the theme's `fallbacks` the second line of defence rather than the first. This retires the font-loading risk the proposal raised.
 
+**D10: Only opaque surfaces exist, which retires the striped case.**
+`--color-background-muted` is a translucent overlay (`#0536590C` light, `#1111127F` dark). Painting a translucent colour over the edge leaves the edge showing through, so a `muted` surface is a punch that does not punch. Rather than ship a broken option, the surface set is `body` and `card` — both opaque. A frame that wants to sit on a muted block should replace that block rather than nest inside it, which is what task 3.6 already does. Gate B's third case, a striped region, was eliminated by this rather than tested.
+
+**D11: The punch utility and the surface utility are the same utility.**
+Gate B found the D4 bug on the *default* surface, which is exactly where design.md predicted it would go unnoticed. Two token systems both claim "the page background": `<body>` paints shadcn's `--background` (white), while `Frame` punched with Astryx's `--color-background-body` (`#f0f0fa`), so every title sat in a visibly tinted lozenge. The fix is structural, not a corrected constant. `surface-body` and `surface-card` are single utilities used both to paint a surface and to punch a frame sitting on it, so "the punch equals the surface" is true by construction instead of by two definitions agreeing. The console shell now paints `surface-body`, which reconciles the two systems inside the console without touching the landing page. Verified by computing, for every frame in both modes, that the punch and all four corner marks equal the background of the element behind the frame.
+
+**D12: `Frame` sets its own width.**
+A `<figure>` inside a flex parent with `align-items: start` shrinks to its content, which produced a 131px-wide frame around a short title during Gate B. The console's `<main>` happens to stretch, so this would have shipped and then broken the first time a frame was placed in a start-aligned container. `w-full` on the root removes the dependency on the parent's alignment.
+
 ## Risks / Trade-offs
 
 - **The theme swap is a whole-app visual change.** Replacing `theme-neutral` with an owned theme repaints the landing page too, which this change does not otherwise touch. Verify `app/page.tsx` and `app/astryx-check/page.tsx` after the swap, not just the console.

@@ -186,3 +186,66 @@
   --tile-neutral-bg: #f2f2f2;
   --tile-neutral-fg: #0a0a0a;
 }
+
+/* ── Frame ────────────────────────────────────────────────────────────────
+   The console's framed surface, in the register of mdx-graphs.kshv.me.
+
+   The edge is four background gradients rather than a `border`, and that is
+   load-bearing rather than stylistic. `border-style: dashed` draws a pattern
+   the browser picks and cannot be interrupted; painting the edge as an image
+   is what lets the corner marks and the title sit on top of it and appear to
+   notch it. 2px on, 5px off, 1px thick — the reference's own values.
+
+   Every colour here is a theme token. `--astryx-theme-nymspace-color-frame`
+   is declared in `theme.ts` as a theme-local role aliasing `--color-border`,
+   so it follows light and dark without a second definition.
+
+   See openspec/changes/adopt-console-design-register/design.md. */
+
+@utility frame-edge {
+  background-image:
+    repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(to bottom, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(to bottom, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+  background-repeat: repeat-x, repeat-y, repeat-x, repeat-y;
+  background-position: 0 0, 100% 0, 0 100%, 0 0;
+  background-size: 100% 1px, 1px 100%, 100% 1px, 1px 100%;
+}
+
+/* A single horizontal rule in the same dash rhythm, so a divider inside a
+   frame reads as part of the frame rather than as a second border style. */
+@utility frame-rule {
+  height: 1px;
+  background-image: repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+}
+
+@utility frame-ink {
+  color: var(--astryx-theme-nymspace-color-frame);
+}
+
+/* Surfaces, and the punch.
+
+   Corner marks and the title paint the surface behind the frame so the edge
+   disappears underneath them. The reference hardcodes the page background
+   because in prose a figure only ever sits on the page; a console has more
+   than one surface, and the failure is invisible on the default one.
+
+   These same utilities paint a surface and punch a hole in a frame sitting on
+   it, deliberately. One name for both makes "the punch equals the surface"
+   true by construction rather than by two definitions agreeing. Painting the
+   console shell with `surface-body` and passing `surface="body"` to a Frame
+   inside it cannot drift.
+
+   Only opaque surfaces exist. `--color-background-muted` is a translucent
+   overlay (`#0536590C` light, `#1111127F` dark), and painting a translucent
+   colour over the edge leaves the edge showing through — a punch that does not
+   punch. A frame that wants to sit on a muted block should replace that block
+   rather than nest inside it. */
+@utility surface-body {
+  background-color: var(--color-background-body);
+}
+
+@utility surface-card {
+  background-color: var(--color-background-card);
+}
