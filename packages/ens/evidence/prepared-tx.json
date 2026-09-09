@@ -1,0 +1,26 @@
+{
+  "ranAt": "2026-09-09T09:51:28.947Z",
+  "check": "prepared-organization-transaction",
+  "go": true,
+  "facts": {
+    "agent": "research",
+    "recordKey": "agent-context",
+    "resolver": "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC",
+    "chainId": 11155111,
+    "expectedSigner": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+    "calldataBytes": 260,
+    "selector": "0xf2d1eb25"
+  },
+  "simulation": {
+    "fromOrganization": {
+      "outcome": "would succeed"
+    },
+    "fromOutsider": {
+      "outcome": "would revert",
+      "detail": "EACCannotGrantRoles(71678760582233053864232651433844026006748633398775695081126162134288844115272, 16, 0x00000000000000000000000000000000DeaDBeef)"
+    },
+    "gasEstimate": 91935,
+    "organizationBalanceWei": "43763537187976749"
+  },
+  "doesNotEstablish": "that a wallet-signed transaction lands on chain"
+}

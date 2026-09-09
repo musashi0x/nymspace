@@ -25,7 +25,7 @@ import {
   readAt,
   recordWriteSchema,
   walletNotProvisioned,
-} from "./shared";
+  permissionConfirmSchema,} from "./shared";
 
 /**
  * The agent routes from `docs/10_API_CONTRACT.md`.
@@ -205,10 +205,98 @@ export const agents = new Hono<DepsEnv>()
   })
 
   //////////////////////////////////////////////////////////////////////////
+  // Grant and revoke, prepared for the organization's own wallet to sign
+  //
+  // Organization authority is a person's decision, so the signature should come
+  // from their wallet rather than from a key this process holds. Nothing here
+  // signs: it encodes the same call `authorizeTextRole` would have made and
+  // hands it back, so it works with no organization key configured at all.
+  //////////////////////////////////////////////////////////////////////////
+  .post(
+    "/:id/permissions/prepare",
+    zValidator("json", permissionGrantSchema),
+    async (c) => {
+      const { store, ens, organization } = c.var.deps;
+      const id = c.req.param("id");
+      const agent = await store.getAgent(id);
+      if (!agent) agentNotFound(id);
+
+      const { controller, recordKey, grant } = c.req.valid("json");
+
+      const tx = ens.prepareAuthorizeTextRole({
+        dnsName: encodeDnsName(agent.ensName),
+        key: recordKey,
+        controller,
+        authorized: grant,
+      });
+
+      return c.json({
+        transaction: tx,
+        // The account the contract will check. The browser compares its
+        // connected account against this and refuses to sign on a mismatch,
+        // rather than spending gas to learn the same thing from a revert.
+        expectedSigner: organization,
+        intent: {
+          agentId: agent.id,
+          ensName: agent.ensName,
+          recordKey,
+          controller,
+          grant,
+        },
+      });
+    },
+  )
+
+  //////////////////////////////////////////////////////////////////////////
+  // Confirm a wallet-signed grant
+  //
+  // The browser broadcast the transaction, so this is the only way the server
+  // learns it happened. The hash is not taken on trust: the receipt is fetched
+  // and its status decides what is recorded, so a client cannot log a success
+  // that never mined.
+  //////////////////////////////////////////////////////////////////////////
+  .post(
+    "/:id/permissions/confirm",
+    zValidator("json", permissionConfirmSchema),
+    async (c) => {
+      const { store, ens, resolver } = c.var.deps;
+      const id = c.req.param("id");
+      const agent = await store.getAgent(id);
+      if (!agent) agentNotFound(id);
+
+      const { txHash, controller, recordKey, grant, signer } =
+        c.req.valid("json");
+
+      const receipt = await ens.waitForReceipt(txHash);
+      const ok = receipt.status === "success";
+
+      await store.recordEvent({
+        organizationId: ORGANIZATION_ID,
+        agentId: agent.id,
+        source: "ens",
+        type: grant ? "ens.permission.granted" : "ens.permission.revoked",
+        status: ok ? "success" : "failed",
+        occurredAt: readAt(),
+        txHash,
+        actor: signer,
+        summary: `${grant ? "Granted" : "Revoked"} SET_TEXT on ${recordKey} for ${controller}, signed in a wallet by ${signer}`,
+        evidence: { source: "ens", txHash, contractAddress: resolver },
+        metadata: { signedBy: "wallet", signer },
+      });
+
+      return c.json({
+        status: ok ? ("confirmed" as const) : ("failed" as const),
+        transaction: { hash: txHash },
+        readAt: readAt(),
+      });
+    },
+  )
+
+  //////////////////////////////////////////////////////////////////////////
   // Grant and revoke, organization-signed
   //////////////////////////////////////////////////////////////////////////
   .post("/:id/permissions", zValidator("json", permissionGrantSchema), async (c) => {
-    const { store, ens, resolver } = c.var.deps;
+    const { store, ens, resolver, organization } = c.var.deps;
     const id = c.req.param("id");
     const agent = await store.getAgent(id);
     if (!agent) agentNotFound(id);
@@ -232,8 +320,12 @@ export const agents = new Hono<DepsEnv>()
         status: receipt.status === "success" ? "success" : "failed",
         occurredAt: readAt(),
         txHash: hash,
+        actor: organization,
         summary: `${grant ? "Granted" : "Revoked"} SET_TEXT on ${recordKey} for ${controller}`,
         evidence: { source: "ens", txHash: hash, contractAddress: resolver },
+        // Which authority actually signed. Without this the log reads the same
+        // whether a person approved the change or a key in this process did.
+        metadata: { signedBy: "server", signer: organization },
       });
 
       return c.json({

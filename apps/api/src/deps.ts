@@ -33,6 +33,24 @@ import { Store, database, migrate } from "@nymspace/store";
  * rather than in every consumer.
  */
 
+/**
+ * The address to check authority for when no signing key is configured.
+ *
+ * Named separately from the key so the read-only path is explicit rather than
+ * a key that happens to be absent, and so the error says exactly which of the
+ * two variables to set for the mode you want.
+ */
+function requireReadAddress(addressVar: string, keyVar: string): Address {
+  const value = process.env[addressVar];
+  if (!value) {
+    throw new Error(
+      `Set ${keyVar} to enable writes, or ${addressVar} to run read-only. ` +
+        `Reads need the account to check permissions for, not its key.`,
+    );
+  }
+  return value as Address;
+}
+
 export const ORGANIZATION_ID = "nymspace";
 
 /** Base Sepolia. Where the ERC 8004 registration lives — design.md D14. */
@@ -43,7 +61,13 @@ export interface Deps {
   ens: EnsService;
   erc8004: Erc8004Service;
   graph: Agent0Client;
-  privy: PrivyClient;
+  /**
+   * Lazy. `new PrivyClient()` validates its credentials in the constructor, so
+   * building it eagerly made a missing Privy secret break every route in the
+   * app — including the fleet list, which never touches a wallet. Constructing
+   * on first access keeps the failure where it belongs: on the payment routes.
+   */
+  readonly privy: PrivyClient;
   chain: ViemChainClient;
   config: ChainConfig;
   organization: Address;
@@ -57,6 +81,7 @@ export type DepsEnv = { Variables: { deps: Deps } };
 
 let cached: Deps | undefined;
 let migrated = false;
+let privyClient: PrivyClient | undefined;
 
 export async function buildDeps(): Promise<Deps> {
   if (cached) return cached;
@@ -64,26 +89,54 @@ export async function buildDeps(): Promise<Deps> {
   const config = chainConfig();
   const deployed = requireDeployed(config);
   const env = requireServerEnv([
-    "ENSV2_ORGANIZATION_PRIVATE_KEY",
-    "ENSV2_AGENT_CONTROLLER_PRIVATE_KEY",
     "ERC8004_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS",
   ] as const);
 
-  const organizationKey = env.ENSV2_ORGANIZATION_PRIVATE_KEY as Hex;
-  const controllerKey = env.ENSV2_AGENT_CONTROLLER_PRIVATE_KEY as Hex;
+  /**
+   * Signing keys are optional here, deliberately.
+   *
+   * They used to be required to *construct* the deps, which meant a read-only
+   * route — `GET /v1/agents` reads Postgres and signs nothing — could not run
+   * without the funded signers. That locked every console screen behind
+   * credentials only one person holds: not a teammate, not CI, not a judge who
+   * cloned the repo. It also contradicts the rule of keeping the organization
+   * signing path out of routine execution.
+   *
+   * So: keys when present, addresses otherwise. Reads work either way, and a
+   * write on a keyless client throws NoSignerError, which the error handler
+   * turns into a 503 that says which variable is missing.
+   */
+  const organizationKey = process.env["ENSV2_ORGANIZATION_PRIVATE_KEY"] as
+    | Hex
+    | undefined;
+  const controllerKey = process.env["ENSV2_AGENT_CONTROLLER_PRIVATE_KEY"] as
+    | Hex
+    | undefined;
+
+  const signers =
+    organizationKey && controllerKey
+      ? ({ organizationKey, controllerKey } as const)
+      : ({
+          organizationAddress: requireReadAddress(
+            "ENSV2_ORGANIZATION_ADDRESS",
+            "ENSV2_ORGANIZATION_PRIVATE_KEY",
+          ),
+          controllerAddress: requireReadAddress(
+            "ENSV2_AGENT_CONTROLLER_ADDRESS",
+            "ENSV2_AGENT_CONTROLLER_PRIVATE_KEY",
+          ),
+        } as const);
 
   const chain = createViemChainClient({
     rpcUrl: config.rpcUrl,
     chainId: config.chainId,
-    organizationKey,
-    controllerKey,
+    ...signers,
   });
 
   const registrationClient = createViemChainClient({
     rpcUrl: process.env["BASE_SEPOLIA_RPC_URL"] ?? "https://sepolia.base.org",
     chainId: REGISTRATION_CHAIN_ID,
-    organizationKey,
-    controllerKey,
+    ...signers,
   });
 
   const db = database();
@@ -101,7 +154,10 @@ export async function buildDeps(): Promise<Deps> {
       chainId: REGISTRATION_CHAIN_ID,
     }),
     graph: new Agent0Client(),
-    privy: new PrivyClient(),
+    get privy() {
+      privyClient ??= new PrivyClient();
+      return privyClient;
+    },
     chain,
     config,
     organization: chain.organization,
@@ -130,4 +186,5 @@ export function withDeps(override?: Deps) {
 export function resetDeps(): void {
   cached = undefined;
   migrated = false;
+  privyClient = undefined;
 }

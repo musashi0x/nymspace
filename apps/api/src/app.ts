@@ -2,6 +2,7 @@ import { Hono, type ErrorHandler, type NotFoundHandler } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
+import { NoSignerError } from "@nymspace/ens";
 import type { ApiConfig } from "./config";
 import { withDeps, type Deps, type DepsEnv } from "./deps";
 import { activity } from "./routes/activity";
@@ -97,6 +98,22 @@ export const errorHandler: ErrorHandler<DepsEnv> = (err, c) => {
   if (err instanceof HTTPException) {
     return c.json({ error: err.message, status: err.status }, err.status);
   }
+
+  // A write attempted with no signing key is a configuration state, not a bug.
+  // 503 with the remedy beats a 500 that reads as broken code, and it points
+  // at the prepare route so the caller knows there is a way through.
+  if (err instanceof NoSignerError) {
+    return c.json(
+      {
+        error: err.message,
+        status: 503,
+        remedy:
+          "Set the signing key to write from the server, or use POST /v1/agents/:id/permissions/prepare and sign in a wallet.",
+      },
+      503,
+    );
+  }
+
   console.error(err);
   return c.json({ error: "internal error" }, 500);
 };
