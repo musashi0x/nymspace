@@ -66,11 +66,13 @@ const PARENT_DURATION = 365n * 24n * 60n * 60n;
 /** Ten years on the agent subname; it costs nothing and outlives the demo. */
 const SUBNAME_DURATION = 10n * 365n * 24n * 60n * 60n;
 
-const EVIDENCE_PATH = resolvePath(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "spike-evidence.json",
-);
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+/** The Day 1 gate artifact. Written by a full run, never by --verify-only. */
+const EVIDENCE_PATH = resolvePath(HERE, "..", "spike-evidence.json");
+
+/** The fresh-process re-read. A separate file so it cannot overwrite the gate. */
+const VERIFY_PATH = resolvePath(HERE, "..", "spike-verify.json");
 
 const DELEGATED_KEY = agentEndpointKey("mcp");
 const UNDELEGATED_KEY = agentEndpointKey("a2a");
@@ -90,9 +92,28 @@ const assertions: Assertion[] = [];
 const transactions: { what: string; hash: Hex }[] = [];
 const facts: Record<string, unknown> = {};
 
-function record(what: string, hash: Hex): Hex {
+/**
+ * The receipt waiter, installed once the client exists.
+ *
+ * Every write must be confirmed before anything reads the state it changed.
+ * Without this the script races itself: a balance read lands before the mint
+ * that funds it, a permission read lands before the grant that creates it, and
+ * a whole run of false failures follows one unconfirmed transaction. Worse,
+ * `checkReverts` then passes for the wrong reason — a call reverting because
+ * the name does not exist yet looks exactly like the boundary holding.
+ */
+let confirm: ((hash: Hex) => Promise<{ status: string }>) | undefined;
+
+async function record(what: string, hash: Hex): Promise<Hex> {
   transactions.push({ what, hash });
   console.log(`      tx ${what}: ${hash}`);
+
+  if (confirm) {
+    const receipt = await confirm(hash);
+    if (receipt.status !== "success") {
+      throw new Error(`${what} reverted on chain: ${hash}`);
+    }
+  }
   return hash;
 }
 
@@ -169,7 +190,7 @@ async function deployProxy(
   ens: EnsService,
   params: { implementation: Address; salt: bigint; initData: Hex; what: string },
 ): Promise<Address> {
-  const hash = record(
+  const hash = await record(
     params.what,
     await ens.deployProxy({
       implementation: params.implementation,
@@ -307,7 +328,7 @@ async function acquireParentName(
     if (balance < price) {
       // MockUSDC and MockDAI expose an open mint(). They are the testnet
       // faucet, which is the whole reason a mock token ships with the registrar.
-      record(
+      await record(
         "mint payment token",
         await client.writeContract({
           address: paymentToken,
@@ -329,7 +350,7 @@ async function acquireParentName(
     return `${balance} of ${paymentToken}`;
   });
 
-  record(
+  await record(
     "approve registrar",
     await client.writeContract({
       address: paymentToken,
@@ -362,7 +383,7 @@ async function acquireParentName(
   })) as Hex;
 
   await check("U1 commitment lands", async () => {
-    record(
+    await record(
       "commit",
       await client.writeContract({
         address: registrar,
@@ -398,7 +419,7 @@ async function acquireParentName(
   await new Promise((done) => setTimeout(done, waitMs));
 
   await check("U1 parent name is registered", async () => {
-    record(
+    await record(
       "register parent",
       await client.writeContract({
         address: registrar,
@@ -448,6 +469,21 @@ async function ensureSubregistry(
     return existing;
   }
 
+  // Configured but not yet wired: a previous run deployed the proxy and failed
+  // before `setSubregistry` landed. The salt is deterministic, so redeploying
+  // reverts on the address that already exists — reuse it and finish the wiring.
+  const configured = config.deployed.parentRegistry;
+  if (configured) {
+    await check("U3 reusing the UserRegistry from a previous run", async () => {
+      const isRegistrar = await ens.canRegister(configured, client.organization);
+      assert(isRegistrar, `${configured} does not grant us ROLE_REGISTRAR`);
+      return configured;
+    });
+    await wireSubregistry(ens, label, configured);
+    facts.userRegistry = configured;
+    return configured;
+  }
+
   const implementation = must(
     config.ensv2.userRegistryImpl,
     "ENSV2_USER_REGISTRY_IMPL_ADDRESS is not configured",
@@ -479,11 +515,31 @@ async function ensureSubregistry(
     return userRegistry;
   });
 
+  await wireSubregistry(ens, label, userRegistry);
+
+  facts.userRegistry = userRegistry;
+  return userRegistry;
+}
+
+/** Point the parent label at a UserRegistry and confirm it took. */
+async function wireSubregistry(
+  ens: EnsService,
+  label: string,
+  userRegistry: Address,
+): Promise<void> {
+  const ethRegistry = ens.config.ensv2.ethRegistry;
+
   await check("U2 subregistry is wired under the parent label", async () => {
+    if (
+      (await ens.getSubregistry(ethRegistry, label)).toLowerCase() ===
+      userRegistry.toLowerCase()
+    ) {
+      return `${userRegistry} (already wired)`;
+    }
     // A token id, not a labelhash, and it changes when roles change — so it is
     // read immediately before use.
     const tokenId = await ens.findTokenId(ethRegistry, label);
-    record(
+    await record(
       "setSubregistry",
       await ens.setSubregistry({
         registry: ethRegistry,
@@ -498,9 +554,6 @@ async function ensureSubregistry(
     );
     return wired;
   });
-
-  facts.userRegistry = userRegistry;
-  return userRegistry;
 }
 
 /**
@@ -613,14 +666,21 @@ async function verifyOnly(): Promise<void> {
     },
   });
 
+  confirm = (hash) => client.waitForReceipt(hash);
+
   console.log(`\nre-reading ${agentName} in a fresh process\n`);
 
   await check("delegated keys are enumerable from chain", async () => {
     // From NamedTextResource events, not from a hardcoded key list: the UI
     // must be able to discover a delegation nobody told it about.
+    // Public RPCs refuse an unbounded earliest..latest scan. The spike's own
+    // grants are minutes old, so a short window finds them and stays inside
+    // every provider's range cap.
+    const head = await client.publicClient.getBlockNumber();
     const keys = await ens.delegatedKeys({
       name: agentName,
       controller: client.controller,
+      fromBlock: head > 5000n ? head - 5000n : 0n,
     });
     assert(keys.length > 0, "no NamedTextResource event names this name");
     return keys
@@ -640,7 +700,7 @@ async function verifyOnly(): Promise<void> {
     return value;
   });
 
-  finish(true);
+  finish(true, "verify");
 }
 
 async function main() {
@@ -661,6 +721,8 @@ async function main() {
     controllerKey: env.ENSV2_AGENT_CONTROLLER_PRIVATE_KEY as Hex,
   });
 
+  confirm = (hash) => client.waitForReceipt(hash);
+
   console.log(`\nENSv2 authority spike — chain ${config.chainId}, ${parentName}\n`);
   facts.chainId = config.chainId;
   facts.parentName = parentName;
@@ -678,6 +740,16 @@ async function main() {
   console.log("\n-- section 2: namespace --");
   const bootstrap = new EnsService({ client, config });
   await acquireParentName(bootstrap, client, label);
+
+  const parentOwner = await bootstrap.findOwner(config.ensv2.ethRegistry, label);
+  if (parentOwner.toLowerCase() !== client.organization.toLowerCase()) {
+    // Without the parent, every check below reverts because the name does not
+    // exist, which would read as the permission boundary holding. A denial that
+    // is really an absence is worse than a plain failure.
+    console.log(`\n${parentName} is not ours (owner ${parentOwner}); stopping`);
+    return finish(false);
+  }
+
   const userRegistry = await ensureSubregistry(bootstrap, client, label);
 
   console.log("\n-- section 4: resolver --");
@@ -713,7 +785,7 @@ async function main() {
   await check("agent subname is registered against our own resolver", async () => {
     const expiry =
       BigInt(Math.floor(Date.now() / 1000)) + SUBNAME_DURATION;
-    record(
+    await record(
       "register subname",
       await ens.registerSubname({
         registry: userRegistry,
@@ -792,7 +864,7 @@ async function main() {
   console.log("\n-- section 5: record-level delegation --");
 
   await check("record-level grant is accepted", async () => {
-    record(
+    await record(
       "authorizeTextRoles grant",
       await ens.authorizeTextRole({
         dnsName,
@@ -848,7 +920,7 @@ async function main() {
   console.log("\n-- section 6: proofs --");
 
   await check("the controller writes its delegated endpoint", async () => {
-    record(
+    await record(
       "controller setText",
       await ens.writeText({
         name: agentName,
@@ -906,7 +978,7 @@ async function main() {
   });
 
   await check("only the organization writes the ENSIP 25 key", async () => {
-    record(
+    await record(
       "organization setText (ENSIP 25)",
       await ens.writeText({
         name: agentName,
@@ -921,7 +993,7 @@ async function main() {
   });
 
   await check("revocation takes effect without a restart", async () => {
-    record(
+    await record(
       "authorizeTextRoles revoke",
       await ens.authorizeTextRole({
         dnsName,
@@ -953,20 +1025,24 @@ async function main() {
 }
 
 /** Print the Day 1 deliverable and write the evidence file. */
-function finish(reachedTheEnd: boolean): void {
+function finish(reachedTheEnd: boolean, mode: "gate" | "verify" = "gate"): void {
   const failed = assertions.filter((a) => !a.passed);
   const go = reachedTheEnd && failed.length === 0;
 
-  console.log("\n-- Day 1 gate --");
-  for (const name of [
-    "the controller writes its delegated endpoint",
-    "an undelegated text key is denied",
-    "the controller cannot change the resolver",
-  ]) {
-    const result = assertions.find((a) => a.name === name);
-    console.log(
-      `  ${result?.passed ? "PASS" : "FAIL"}  ${name}${result ? "" : " (not reached)"}`,
-    );
+  // Only a full run can answer the gate. Printing those three lines after a
+  // re-read would report a NO-GO for checks that never ran.
+  if (mode === "gate") {
+    console.log("\n-- Day 1 gate --");
+    for (const name of [
+      "the controller writes its delegated endpoint",
+      "an undelegated text key is denied",
+      "the controller cannot change the resolver",
+    ]) {
+      const result = assertions.find((a) => a.name === name);
+      console.log(
+        `  ${result?.passed ? "PASS" : "FAIL"}  ${name}${result ? "" : " (not reached)"}`,
+      );
+    }
   }
 
   console.log(
@@ -974,15 +1050,16 @@ function finish(reachedTheEnd: boolean): void {
       `${go ? "GO" : "NO-GO"}\n`,
   );
 
+  const out = mode === "gate" ? EVIDENCE_PATH : VERIFY_PATH;
   writeFileSync(
-    EVIDENCE_PATH,
+    out,
     `${JSON.stringify(
       { ranAt: new Date().toISOString(), go, facts, assertions, transactions },
       null,
       2,
     )}\n`,
   );
-  console.log(`Evidence: ${EVIDENCE_PATH}`);
+  console.log(`Evidence: ${out}`);
 
   process.exitCode = go ? 0 : 1;
 }

@@ -50,3 +50,4 @@ next-env.d.ts
 # Day 1 spike output — carries transaction hashes and addresses, not secrets,
 # but it is a run artifact rather than source.
 packages/ens/spike-evidence.json
+packages/ens/spike-verify.json
