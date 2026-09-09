@@ -139,12 +139,15 @@ export function Badge({
  * `docs/03` says a permission denial is not a generic red error, so `proof`
  * maps to `info` rather than `error`: this is the control plane working, and
  * the interface should read as though that were expected, because it was.
+ * `allowed` is the other half of that pair and is a real success — a write the
+ * resolver permitted, with its hash.
  *
  * `collapsible={false}` because the detail is the evidence. A banner that
  * hides its own proof behind a toggle is a banner asserting something it will
  * not show.
  */
 const OUTCOME_STATUS = {
+  allowed: "success",
   proof: "info",
   waiting: "warning",
   fault: "error",
@@ -159,7 +162,8 @@ export function Outcome({
   tone: keyof typeof OUTCOME_STATUS;
   title: string;
   detail?: string;
-  action?: string;
+  /** Structured evidence, or a sentence. Rendered below the header. */
+  action?: ReactNode;
 }) {
   return (
     <Banner
@@ -174,11 +178,13 @@ export function Outcome({
       }
       collapsible={false}
     >
-      {action ? (
+      {typeof action === "string" ? (
         <Text type="supporting" as="p">
           {action}
         </Text>
-      ) : undefined}
+      ) : (
+        action ?? undefined
+      )}
     </Banner>
   );
 }

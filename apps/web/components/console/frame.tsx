@@ -85,7 +85,11 @@ export function Frame({
       // `w-full` because a <figure> inside a flex parent with `align-items:
       // start` shrinks to its content, which silently produced a 131px-wide
       // frame around a short title during Gate B.
-      className={cn("frame-edge relative w-full", className)}
+      // `min-w-0` alongside `w-full`: a flex item defaults to `min-width:
+      // auto`, so a wide child — a table with seven columns, say — pushes the
+      // frame past its container instead of scrolling inside it. Found when
+      // the fleet table dragged the frame's right edge off screen.
+      className={cn("frame-edge relative w-full min-w-0", className)}
     >
       {/*
         Left-anchored rather than centred, which is where this departs from the
@@ -109,7 +113,7 @@ export function Frame({
 
       <Corners punch={punch} />
 
-      <VStack gap={4} paddingInline={5} paddingBlock={6}>
+      <VStack gap={4} paddingInline={5} paddingBlock={6} width="100%" className="min-w-0 max-w-full">
         {subtitle ? (
           <Text type="supporting" as="p">
             {subtitle}

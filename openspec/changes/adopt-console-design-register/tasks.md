@@ -39,22 +39,22 @@
 
 ## 4. Screens
 
-- [ ] 4.1 `app/console/page.tsx` — fleet, replacing raw layout divs with Astryx layout
-- [ ] 4.2 `app/console/agents/[id]/page.tsx` — inspector, the largest file at 331 lines
-- [ ] 4.3 `app/console/activity/page.tsx` — timeline
-- [ ] 4.4 `app/console/discover/page.tsx` and `components/console/discover-form.tsx`
-- [ ] 4.5 `components/console/permission-proof.tsx` and `components/console/task-request.tsx`
-- [ ] 4.6 Convert every record collection to Astryx `Table` at compact density, `dividers="none"`, explicit column widths (design.md Q4)
-- [ ] 4.7 Confirm no console screen sets a radius, a colour, or a spacing literal
+- [x] 4.1 `app/console/page.tsx` — fleet, replacing raw layout divs with Astryx layout
+- [x] 4.2 `app/console/agents/[id]/page.tsx` — inspector, the largest file at 331 lines
+- [x] 4.3 `app/console/activity/page.tsx` — timeline
+- [x] 4.4 `app/console/discover/page.tsx` and `components/console/discover-form.tsx`
+- [x] 4.5 `components/console/permission-proof.tsx` and `components/console/task-request.tsx`
+- [x] 4.6 Convert every *uniform* record collection to Astryx `Table` at compact density, `dividers="none"`, explicit column widths (design.md Q4). Fleet, activity and the authority matrix became tables; discovery results stayed framed cards, per D17
+- [x] 4.7 Confirm no console screen sets a radius, a colour, or a spacing literal
 
-**Gate C — the guideline holds.** No `<div>` outside `Frame`'s documented parts. No raw hex or pixel value in `apps/web/app/console/` or `apps/web/components/console/`. Every table is rows at compact density. Every chain-derived value still carries its source and read time.
+**Gate C — the guideline holds. PASSED.** Scanned `apps/web/app/console/` and `apps/web/components/console/`, excluding `frame.tsx`: zero raw layout elements, zero arbitrary values, zero literal colours, zero inline styles, zero remaining shadcn imports. `pnpm typecheck`, `pnpm lint` and the web build all pass. Every screen verified in the browser against the live API.
 
 - **Lies by**: a grep that passes. Utilities like `p-4` and `gap-3` are token-backed and legal; `p-[13px]` and `bg-[#fff]` are not. The check is for arbitrary values and raw elements, not for Tailwind itself.
 
 ## 5. Verification
 
-- [ ] 5.1 `pnpm typecheck`
-- [ ] 5.2 `pnpm lint` — BLOCKED, and not by this change. It fails on a clean tree: Next 16 removed `next lint`, so the stale `"lint": "next lint"` script reads its own name as a project directory. `apps/web` is the only workspace defining `lint`, so nothing in the repo is linted. Spun off as its own fix
-- [ ] 5.3 `pnpm --filter @nymspace/web build`
+- [x] 5.1 `pnpm typecheck`
+- [x] 5.2 `pnpm lint` — was blocked and is not any more. Next 16 removed `next lint`, so the stale script read its own name as a project directory and nothing in the repo was linted. Fixed separately in `4350c75`, which also replaced this change's `useState`+`useEffect` mount gate with `useMounted` to satisfy `react-hooks/set-state-in-effect`. Passes
+- [x] 5.3 `pnpm --filter @nymspace/web build`
 - [ ] 5.4 Visual pass across all four console screens in light and dark mode
 - [ ] 5.5 Visual pass on `app/page.tsx`, which the theme swap changes without this change touching it

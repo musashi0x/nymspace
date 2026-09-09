@@ -73,6 +73,15 @@ That call site is not fixed by adding a timestamp. The controller is held by the
 **D14: Three primitives the task list did not name.**
 `Absent`, `Outcome`, and `Loading` were raw Tailwind divs alongside the five the tasks listed. Converting only the named five would have left Gate C failing on a file the same change had just rewritten. `Outcome` maps its `proof` tone to Astryx's `info` rather than `error`, per `docs/03`: a permission denial is the control plane working, and it should not read as a fault. Its `collapsible={false}` is deliberate — the detail is the evidence, and a banner that hides its own proof behind a toggle asserts something it will not show.
 
+**D15: A helper exported from a `"use client"` module is not callable by a server component.**
+The authority matrix needs `renderCell` to draw a Badge, so it is a client component, and it initially also exported an `authorityRows()` helper that flattened the two permission maps. The server page called it and the page died at runtime: "Attempted to call authorityRows() from the server". Every export of a client module is a client *reference*, not a function — it can be rendered or passed as a prop, not invoked. The two maps are now passed through as plain data props and flattened inside the client component, which puts the boundary where React actually draws it. Type checking did not catch this and could not; only loading the page did.
+
+**D16: Min-content propagation, not a missing `overflow`.**
+The fleet table declares six `proportional()` columns and one `pixel(140)`, giving it an intrinsic `min-width` of 980px. Astryx's own scroll wrapper has `overflow-x: auto` and would have contained it, but a chain of flex containers between `<body>` and the table each sized to max-content, so the frame's right edge and its corner marks were dragged off screen and the whole page scrolled sideways. `min-width: 0` on every link in that chain was not enough — in a column flex container the cross size is governed by `align-items: stretch` against max-content. The fix is an explicit `width="100%"` on the shell, on each screen's `<main>`, and on the frame body, which resolves against the parent instead of the content. Verified by asserting the page itself does not scroll horizontally while the table's own wrapper does.
+
+**D17: Discovery results stay framed cards.**
+`AGENTS.md` reserves rows for uniform data and points inconsistent content at a list or card layout. Fleet agents, activity events and authority cells are uniform and became tables. A discovery result is not: the ranking reason is a paragraph of varying length, the validation row disappears entirely when no registry exists on the network, and the cited fields differ per agent. A table would truncate the reason, which is the one thing this screen is actually claiming.
+
 ## Risks / Trade-offs
 
 - **The theme swap is a whole-app visual change.** Replacing `theme-neutral` with an owned theme repaints the landing page too, which this change does not otherwise touch. Verify `app/page.tsx` and `app/astryx-check/page.tsx` after the swap, not just the console.
