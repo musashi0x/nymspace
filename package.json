@@ -12,7 +12,8 @@
     "conditions:check": "tsx --conditions=react-server scripts/check-server-conditions.ts",
     "check:credentials": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-credentials.ts",
     "check": "pnpm env:check && pnpm conditions:check",
-    "provision:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-fleet.ts"
+    "provision:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-fleet.ts",
+    "register:identity": "tsx --env-file-if-exists=.env --conditions=react-server scripts/register-identity.ts"
   },
   "devDependencies": {
     "@nymspace/core": "workspace:*",

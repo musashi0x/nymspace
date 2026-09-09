@@ -270,7 +270,44 @@ export class Erc8004Service {
       );
     }
 
+    // Do not return until the registration is readable.
+    //
+    // A confirmed receipt says the transaction is in a block; it does not say
+    // the node the next read lands on has that block. Public endpoints are
+    // load-balanced, and a `tokenURI` immediately after a `register` really
+    // does revert with "nonexistent token" on a lagging replica — which reads
+    // as a broken registration rather than as a stale node.
+    await this.waitUntilReadable(registered.agentId);
+
     return { ...registered, agentURI, transactionHash: hash };
+  }
+
+  /**
+   * Poll until the agent's URI can be read, or give up loudly.
+   *
+   * Short and bounded: this covers replica lag, not an outage. A registration
+   * that is still unreadable after this is a real problem and the caller should
+   * see it rather than have it retried away.
+   */
+  private async waitUntilReadable(
+    agentId: string,
+    attempts = 6,
+    delayMs = 2000,
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        if ((await this.agentURI(agentId)).length > 0) return;
+      } catch {
+        // A revert here is the lagging-replica case, not a verdict.
+      }
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    throw new Error(
+      `ERC 8004 agent ${agentId} was registered but its URI is still unreadable ` +
+        `after ${attempts} attempts. The write confirmed, so this is the RPC, not the registry.`,
+    );
   }
 
   /** Pull `Registered(agentId, agentURI, owner)` out of a receipt. */

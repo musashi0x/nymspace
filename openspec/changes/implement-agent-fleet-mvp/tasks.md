@@ -56,17 +56,17 @@ The smallest thing that makes the rest addressable. Written first because every 
 - [x] 3.5 Grant the research agent's controller record-scoped `ROLE_SET_TEXT` on its operational keys via `authorizeTextRole`, one resource per key. No name-level grant
 - [x] 3.6 Assert the wildcard resource is empty for every granted key, across all three names
 - [x] 3.7 Assert grants do not leak: the research controller's roles on the trader name's MCP key read absent
-- [ ] 3.8 **Register the research agent in the ERC 8004 IdentityRegistry on Sepolia now.** Indexing latency is the one risk with no engineering mitigation — this is the earliest point it can start
-- [ ] 3.9 Confirm the registration claims the agent's ENS name, and record the transaction hash
+- [x] 3.8 **Register the research agent in the ERC 8004 IdentityRegistry on Sepolia now.** Indexing latency is the one risk with no engineering mitigation — this is the earliest point it can start
+- [x] 3.9 Confirm the registration claims the agent's ENS name, and record the transaction hash
 - [x] 3.10 Construct the ENSIP 25 key with the existing ERC 7930 encoder, and assert: lowercase registry, minimal chain reference (`0xaa36a7`), canonical decimal agent id, no whitespace
-- [ ] 3.11 Write the ENSIP 25 record from the **organization** key with value `"1"`
-- [ ] 3.12 Assert the controller cannot write that key — the transaction must revert
+- [x] 3.11 Write the ENSIP 25 record from the **organization** key with value `"1"`
+- [x] 3.12 Assert the controller cannot write that key — the transaction must revert
 - [x] 3.13 Implement runtime verification in the registry-to-ENS direction, returning the seven-state `Ensip25Status`, with the read time attached
 - [x] 3.14 Negative verification tests: wrong agent id, checksummed registry address, zero-padded chain reference — each must fail, and each must be distinguishable from an RPC failure
 - [x] 3.15 Implement manifest assembly as a per-request read-through view. No stored manifest, no manifest cache surviving the request
-- [ ] 3.16 Assert a record changed on chain changes the assembled manifest with no invalidation step
+- [x] 3.16 Assert a record changed on chain changes the assembled manifest with no invalidation step
 
-- [ ] 3.17 Write the gate runner as `pnpm --filter @nymspace/ens verify:identity`, emitting `evidence/gate-a.json`
+- [x] 3.17 Write the gate runner as `pnpm --filter @nymspace/ens verify:identity`, emitting `evidence/gate-a.json`
 
 **Gate A — Identity.**
 
