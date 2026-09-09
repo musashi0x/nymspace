@@ -18,6 +18,14 @@ pnpm test         # vitest run across workspaces that define it
 pnpm check        # env:check + conditions:check — the two custom invariants
 ```
 
+`@nymspace/store` talks to a real Postgres, so `pnpm test` needs one running:
+
+```bash
+docker compose up -d                          # postgres on 5433, not 5432
+pnpm --filter @nymspace/store db:migrate
+pnpm check:credentials                        # Gate 0 — every provider, real round trip
+```
+
 Per-package and single-test:
 
 ```bash
@@ -30,7 +38,18 @@ pnpm --filter @nymspace/ens generate:abis  # regenerate ENSv2 ABIs
 pnpm --filter @nymspace/ens spike          # Day 1 ENSv2 authority spike
 ```
 
-Tests live beside their source as `*.test.ts`. Only `@nymspace/api`, `@nymspace/core`, and `@nymspace/ens` have suites.
+Tests live beside their source as `*.test.ts`. Only `@nymspace/api`, `@nymspace/core`, `@nymspace/ens`, and `@nymspace/store` have suites.
+
+## The coordination store is not an authority
+
+`@nymspace/store` (Drizzle + Postgres) holds identifiers, labels, provisioning progress, cached snapshots, and the activity log. It is **not** the source of truth for ENS identity, permissions, ERC 8004 trust, or Privy policy — those are read from their own systems on every request. `docs/09_DATA_AND_EVENT_MODEL.md` is the contract.
+
+Two mechanisms keep that true as the schema grows, and both will fail your build rather than merely disagree with you:
+
+- `ALLOWED_COLUMNS` in `packages/store/src/schema.ts` is a hand-maintained second list of every permitted column, checked against `information_schema` by `schema.test.ts`. Adding a column means editing that list on purpose, which is the review moment where "should the store hold this?" gets asked. It is deliberately not derived from the Drizzle tables — derived, it would assert the schema equals itself.
+- Snapshot tables require a `NOT NULL fetched_at`, and `Snapshot<T>` is branded so `snapshot()` is the only way to build one. A cached value that reaches the interface without its read time is indistinguishable from a live read.
+
+Schema changes are `pnpm --filter @nymspace/store db:generate` (writes SQL to `drizzle/`, committed) then `db:migrate`. Never `drizzle-kit push` — it reshapes tables with no reviewable diff.
 
 ## The `react-server` condition — read before adding any script
 

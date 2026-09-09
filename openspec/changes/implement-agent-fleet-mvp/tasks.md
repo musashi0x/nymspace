@@ -40,12 +40,12 @@ Nothing in sections 2 onward starts until this section is clear. Two of these th
 
 The smallest thing that makes the rest addressable. Written first because every later section needs somewhere to record an id.
 
-- [ ] 2.1 Implement the entity shapes from `docs/09_DATA_AND_EVENT_MODEL.md`: organization, agent, identity snapshot, graph snapshot, financial authority reference
-- [ ] 2.2 Implement the unified `ActivityEvent` with source, type, status, occurrence time, and per-source evidence fields
-- [ ] 2.3 Enforce the boundary in types: a snapshot type carries `fetchedAt` and cannot be constructed without it
-- [ ] 2.4 Implement per-integration provisioning status. No single `active` flag
-- [ ] 2.5 Assert in a test that no entity holds a permission decision, a trust score, or key material as an authoritative value
-- [ ] 2.6 Restart durability test: write an agent and an event, restart the process, read both back
+- [x] 2.1 Implement the entity shapes from `docs/09_DATA_AND_EVENT_MODEL.md`: organization, agent, identity snapshot, graph snapshot, financial authority reference
+- [x] 2.2 Implement the unified `ActivityEvent` with source, type, status, occurrence time, and per-source evidence fields
+- [x] 2.3 Enforce the boundary in types: a snapshot type carries `fetchedAt` and cannot be constructed without it
+- [x] 2.4 Implement per-integration provisioning status. No single `active` flag
+- [x] 2.5 Assert in a test that no entity holds a permission decision, a trust score, or key material as an authoritative value
+- [x] 2.6 Restart durability test: write an agent and an event, restart the process, read both back
 
 ## 3. Identity gate (Day 2, first half)
 
