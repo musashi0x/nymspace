@@ -39,6 +39,25 @@ import {
   type PolicyLimit,
 } from "../src/index";
 
+/**
+ * `ReturnType<typeof createPublicClient>` resolves the generics to their
+ * defaults — chain `undefined` — so its `getBlock` returns the four base
+ * transaction types. baseSepolia is an OP-Stack chain whose formatters add a
+ * fifth (`deposit`), and the real client is therefore not assignable to it.
+ * Deriving the type from the same call that builds the client keeps the chain
+ * parameter attached.
+ */
+function createChainClient() {
+  return createPublicClient({
+    chain: baseSepolia,
+    transport: http(
+      process.env["BASE_SEPOLIA_RPC_URL"] ?? "https://sepolia.base.org",
+    ),
+  });
+}
+
+type ChainClient = ReturnType<typeof createChainClient>;
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const EVIDENCE_PATH = resolve(HERE, "..", "evidence", "gate-c.json");
 
@@ -81,7 +100,7 @@ async function sendAndSettle(
   privy: PrivyClient,
   walletId: string,
   request: PaymentRequest,
-  chain: ReturnType<typeof createPublicClient>,
+  chain: ChainClient,
 ): Promise<PaymentResult> {
   const result = await privy.sendPayment(walletId, request);
   if (result.status === "executed") {
@@ -152,10 +171,7 @@ async function main(): Promise<void> {
     caip2: CAIP2,
   });
 
-  const chain = createPublicClient({
-    chain: baseSepolia,
-    transport: http(process.env["BASE_SEPOLIA_RPC_URL"] ?? "https://sepolia.base.org"),
-  });
+  const chain = createChainClient();
 
   ////////////////////////////////////////////////////////////////////////////
   // 1 — the wallet loads, and holds more than the denied amount
