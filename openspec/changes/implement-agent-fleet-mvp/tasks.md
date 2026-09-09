@@ -93,10 +93,10 @@ The smallest thing that makes the rest addressable. Written first because every 
 
 Blocked on 1.2.
 
-- [ ] 4.1 Introspect the live Agent0 subgraph and correct `packages/graph/src/types.ts` against the real schema. The stub was written deliberately thin because the doc's query is conceptual
-- [ ] 4.2 Implement the MCP-capable agent search query against the corrected schema
-- [ ] 4.3 Implement the full-profile query for one agent id
-- [ ] 4.4 Extend `normaliseAgent` for feedback and validation: exclude revoked feedback, and represent validation as unavailable rather than zero on networks with no ValidationRegistry
+- [x] 4.1 Introspect the live Agent0 subgraph and correct `packages/graph/src/types.ts` against the real schema. The stub was written deliberately thin because the doc's query is conceptual
+- [x] 4.2 Implement the MCP-capable agent search query against the corrected schema
+- [x] 4.3 Implement the full-profile query for one agent id
+- [x] 4.4 Extend `normaliseAgent` for feedback and validation: exclude revoked feedback, and represent validation as unavailable rather than zero on networks with no ValidationRegistry
 - [ ] 4.5 Unit-test normalisation against every case in `docs/13`: missing MCP endpoint, missing ENS claim, no feedback, pending validation, revoked feedback excluded
 - [ ] 4.6 Confirm the demo registration from 3.8 is indexed. If it is not, continue with other tasks and re-check — do not fabricate a candidate
 - [ ] 4.7 Implement `search_agent0` as a server-side tool with capability, MCP-requirement, trust-model, and chain parameters
