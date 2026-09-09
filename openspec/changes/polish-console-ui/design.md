@@ -100,3 +100,13 @@ No data migration, no API change, no schema change — nothing to roll forward o
 
 - Does the fleet table need the window at all today? It is capped by real agent count, not by a limit, and 40 agents is not a near-term number. Windowing it is cheap and consistent, and the alternative is two tables that behave differently — resolved in favour of applying it to both, noted here because a reviewer will ask.
 - Whether the discover results list (framed cards, deliberately not rows) should also window. Left out of scope: its result set is capped by the `limit` the form sends and its cards are non-uniform by design.
+
+## Implementation notes
+
+Two decisions changed shape when they met the code. Both are recorded here rather than left to the commit log, because the next reader of this document will otherwise look for something that is not there.
+
+**D6 split in two.** `useRowWindow`, `RowWindowFooter` and `ScrollRegion` live in `components/console/row-window.tsx`, not in `primitives.tsx`. They need `"use client"`, and `primitives.tsx` is imported by the server pages for `Frame`, `Field` and `Empty` — marking it would pull the console's whole vocabulary, and the screens importing it, across the client boundary to buy one hook. `Evidence` needs no hook and stayed in `primitives.tsx`. The rule D6 was protecting is unchanged: no screen file decides its own page size.
+
+**D4's stagger is a selector, not a custom property.** Astryx's `Table` exposes no per-row `className` in data-driven mode, so `--row-index` cannot be set on a `<tr>`. The stagger is `.row-window tbody tr:nth-child(40n + k)` instead, which reaches the same place from the other side: the modulo is the window, so what the selector matches is position within the arriving batch, and the reset-per-batch requirement is satisfied by the selector rather than by anything tracking batches. The "existing rows do not re-animate" requirement also falls out for free — a CSS animation runs on mount, and the tables key their rows by id, so appending a batch mounts only the new `<tr>` elements. The first ten of each batch step by 18ms and the rest share a 180ms tail; forty sequential steps would be a wait rather than an entrance.
+
+`ScrollRegion` adds no `tabIndex`. Astryx's table scroll region already carries `tabIndex=0`, `role="group"` and an accessible name, verified in the browser, so the wrapper would only add a tab stop that scrolls nothing. The requirement stands; it is met by the component underneath rather than by this one.
