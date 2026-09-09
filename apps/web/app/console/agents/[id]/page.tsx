@@ -15,7 +15,7 @@ import {
   Empty,
   Field,
   Outcome,
-  Panel,
+  Frame,
 } from "@/components/console/primitives";
 
 /**
@@ -68,7 +68,7 @@ export default async function AgentPage({
       </header>
 
       {/* ── Identity ───────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Identity"
         subtitle="Read from ENSv2 during this request. ENS is the source; nothing here is a stored profile."
       >
@@ -78,11 +78,12 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
-        <Field
-          label="Controller"
-          value={identity.controller}
-          source="store"
-        />
+        {/*
+          No `source`. The controller is held by the coordination store, and
+          `CLAUDE.md` is explicit that the store is not an authority — dressing
+          a stored value in provenance claims a read that never happened.
+        */}
+        <Field label="Controller" value={identity.controller} />
         <Field
           label="Registry"
           value={identity.registry}
@@ -95,10 +96,10 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
-      </Panel>
+      </Frame>
 
       {/* ── Manifest ───────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Agent manifest"
         subtitle="ENSIP 26 text records, assembled per request. There is no manifest object — change a record on chain and the next load differs, with no invalidation step."
       >
@@ -124,10 +125,10 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
-      </Panel>
+      </Frame>
 
       {/* ── Verification ───────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="ENSIP 25 verification"
         subtitle="Checked registry-to-ENS: the registration's claim first, then whether ENS confirms it."
       >
@@ -173,10 +174,10 @@ export default async function AgentPage({
             detail="This agent has no registry entry, so there is no claim for ENS to confirm."
           />
         )}
-      </Panel>
+      </Frame>
 
       {/* ── Authority ──────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Authority"
         subtitle="Every cell is a hasRoles read against the resolver's own fallback chain. The intended policy is a table in the spec; this is what the contracts actually say."
       >
@@ -221,9 +222,9 @@ export default async function AgentPage({
               is the control that ran in the same request through the same code
               path and came back allowed.
             */}
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <Frame title="positive control">
               <p className="text-xs text-muted-foreground">
-                Positive control, same request:{" "}
+                Same request:{" "}
                 <span className="font-mono">{permissions.control.account}</span>{" "}
                 on <span className="font-mono">{permissions.control.key}</span> →{" "}
                 <Badge tone={permissions.control.allowed ? "good" : "bad"}>
@@ -235,7 +236,7 @@ export default async function AgentPage({
                   ? "The read path works, so the denials above are answers rather than failures."
                   : "The control failed, so no denial on this page can be trusted — the read path itself is wrong."}
               </p>
-            </div>
+            </Frame>
 
             <details className="text-xs text-muted-foreground">
               <summary className="cursor-pointer">
@@ -263,10 +264,10 @@ export default async function AgentPage({
             detail="The permission matrix could not be read. Nothing about this agent's authority has been established either way."
           />
         )}
-      </Panel>
+      </Frame>
 
       {/* ── Permission proof ───────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Permission proof"
         subtitle="Two writes from the same controller key, seconds apart. One it was granted, one it never was."
       >
@@ -280,10 +281,10 @@ export default async function AgentPage({
           protectedKey={"key" in identity.ensip25 ? identity.ensip25.key : undefined}
           currentValue={identity.records.mcp}
         />
-      </Panel>
+      </Frame>
 
       {/* ── Financial ──────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         id="task"
         title="Financial authority"
         subtitle="A Privy wallet under one amount policy. The limit is read from the live policy, never from a constant."
@@ -325,7 +326,7 @@ export default async function AgentPage({
             detail={EMPTY_STATES.noWallet.detail}
           />
         )}
-      </Panel>
+      </Frame>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { fetchActivity } from "@/lib/api";
-import { Badge, Empty, Panel } from "@/components/console/primitives";
+import { Badge, Empty, Frame } from "@/components/console/primitives";
 
 /**
  * The activity timeline — task 7.18.
@@ -42,7 +42,7 @@ export default async function ActivityPage() {
         <ol className="flex flex-col gap-3">
           {timeline.events.map((event) => (
             <li key={event.id}>
-              <Panel title={event.summary}>
+              <Frame title={event.summary}>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={STATUS_TONE[event.status] ?? "neutral"}>
                     {event.status}
@@ -69,7 +69,7 @@ export default async function ActivityPage() {
                   ) : null}
                   <div>evidence {JSON.stringify(event.evidence)}</div>
                 </dl>
-              </Panel>
+              </Frame>
             </li>
           ))}
         </ol>

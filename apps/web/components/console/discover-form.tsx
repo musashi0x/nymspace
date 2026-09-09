@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { discover } from "@/lib/api";
 import { classify, EMPTY_STATES } from "@/lib/console/errors";
 import { graphStateFrom, LOADING_COPY } from "@/lib/console/state";
-import { Absent, Badge, Empty, Loading, Outcome, Panel } from "./primitives";
+import { Absent, Badge, Empty, Loading, Outcome, Frame } from "./primitives";
 
 /**
  * Screen 3 — Discover.
@@ -104,7 +104,7 @@ export function DiscoverForm() {
 
           <div className="flex flex-col gap-4">
             {result.results.map((agent) => (
-              <Panel
+              <Frame
                 key={agent.graphId}
                 title={agent.ensName ?? agent.name ?? agent.graphId}
                 subtitle={agent.name ?? undefined}
@@ -167,25 +167,25 @@ export function DiscoverForm() {
                     {agent.mcpEndpoint ? <li>· mcp {agent.mcpEndpoint}</li> : null}
                   </ul>
                 </details>
-              </Panel>
+              </Frame>
             ))}
           </div>
 
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <p>
+          <Frame title="result provenance">
+            <p className="text-xs text-muted-foreground">
               {result.candidateCount} candidate
               {result.candidateCount === 1 ? "" : "s"} from {result.rawCount} raw
               results · {result.excluded.length} excluded by the server-side
               filter · ranked by {result.ranking.model ?? "no model"}
             </p>
-            <p>
+            <p className="text-xs text-muted-foreground">
               Source: {result.dataSource.provider} · chain{" "}
               {result.dataSource.chainId} · subgraph{" "}
               <span className="font-mono">{result.dataSource.subgraphId}</span> ·
               read {result.dataSource.fetchedAt}
               {result.dataSource.cached ? " · served from cache" : ""}
             </p>
-            <p>
+            <p className="text-xs text-muted-foreground">
               Explanation check:{" "}
               {result.explanationValid ? (
                 <Badge tone="good">every cited field present</Badge>
@@ -196,7 +196,7 @@ export function DiscoverForm() {
                 </Badge>
               )}
             </p>
-          </div>
+          </Frame>
         </>
       ) : null}
     </div>

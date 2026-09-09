@@ -30,12 +30,12 @@
 
 ## 3. Console vocabulary
 
-- [ ] 3.1 Rewrite `Panel` as `Frame` in `components/console/primitives.tsx`
-- [ ] 3.2 Rewrite `Field` on Astryx components, keeping `source` and `readAt` required
-- [ ] 3.3 Rewrite `Badge` on Astryx `Badge`, mapping the four tones to theme roles
-- [ ] 3.4 Rewrite `Empty` so absence stays visually distinct from a zero
-- [ ] 3.5 Rewrite `Provenance` in the mono register with tabular figures
-- [ ] 3.6 Convert the three `bg-muted/30` inner blocks to nested `Frame`s, each declaring its surface explicitly (design.md Q1)
+- [x] 3.1 Replace `Panel` with `Frame`, re-exported from `primitives.tsx` so screens keep one import. The rename touched the four screen files early, ahead of section 4, because a half-renamed tree does not build
+- [x] 3.2 Rewrite `Field` on Astryx components. Provenance is now a discriminated union rather than two optional props: passing `source` without `readAt` no longer compiles (D13)
+- [x] 3.3 Rewrite `Badge` on Astryx `Badge`, mapping the four tones to theme roles
+- [x] 3.4 Rewrite `Empty` so absence stays visually distinct from a zero
+- [x] 3.5 Rewrite `Provenance` in the mono register with tabular figures. Also converted `Absent`, `Outcome`, and `Loading`, which the task list missed and Gate C would have failed on
+- [x] 3.6 Convert the three `bg-muted/30` inner blocks to nested `Frame`s, each declaring its surface explicitly (design.md Q1)
 
 ## 4. Screens
 

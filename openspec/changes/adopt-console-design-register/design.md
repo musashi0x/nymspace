@@ -65,6 +65,14 @@ Gate B found the D4 bug on the *default* surface, which is exactly where design.
 **D12: `Frame` sets its own width.**
 A `<figure>` inside a flex parent with `align-items: start` shrinks to its content, which produced a 131px-wide frame around a short title during Gate B. The console's `<main>` happens to stretch, so this would have shipped and then broken the first time a frame was placed in a start-aligned container. `w-full` on the root removes the dependency on the parent's alignment.
 
+**D13: Provenance is a type, not a convention.**
+The old `Field` took `source?` and `readAt?` as two independent optionals and explained in a comment that both were required for anything read from outside the process. A comment is not an enforcement, and the rewrite found the case it had already lost: one call site passed `source="store"` with no `readAt`. The props are now a discriminated union — either both or neither — so a value read from outside cannot reach a screen without saying when it was read.
+
+That call site is not fixed by adding a timestamp. The controller is held by the coordination store, and `CLAUDE.md` is explicit that the store is not an authority for identity, permissions, trust, or policy. Labelling a stored value with a `source` dresses it in provenance for a read that never happened, so the field now carries none and reads as the in-process value it is.
+
+**D14: Three primitives the task list did not name.**
+`Absent`, `Outcome`, and `Loading` were raw Tailwind divs alongside the five the tasks listed. Converting only the named five would have left Gate C failing on a file the same change had just rewritten. `Outcome` maps its `proof` tone to Astryx's `info` rather than `error`, per `docs/03`: a permission denial is the control plane working, and it should not read as a fault. Its `collapsible={false}` is deliberate — the detail is the evidence, and a banner that hides its own proof behind a toggle asserts something it will not show.
+
 ## Risks / Trade-offs
 
 - **The theme swap is a whole-app visual change.** Replacing `theme-neutral` with an owned theme repaints the landing page too, which this change does not otherwise touch. Verify `app/page.tsx` and `app/astryx-check/page.tsx` after the swap, not just the console.

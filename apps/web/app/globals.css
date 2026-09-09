@@ -220,6 +220,16 @@
   background-image: repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
 }
 
+/* A field separator in the frame's rhythm. Painted at the bottom edge rather
+   than as a border so a row of fields reads as the same dash pattern as the
+   frame around them, instead of a solid hairline inside a dashed box. */
+@utility frame-rule-below {
+  background-image: repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 100% 1px;
+}
+
 @utility frame-ink {
   color: var(--astryx-theme-nymspace-color-frame);
 }

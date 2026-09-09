@@ -1,87 +1,35 @@
-import { cn } from "cn";
+import { Badge as AstryxBadge } from "@astryxdesign/core/Badge";
+import { Banner } from "@astryxdesign/core/Banner";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import type { ReactNode } from "react";
 
 /**
- * The console's shared vocabulary.
+ * The console's shared vocabulary, built from Astryx.
  *
- * Two of these carry rules rather than styles. `Field` refuses to render a
- * chain-derived value without saying which chain and when it was read — task
- * 7.3 — so the label is a required prop rather than an optional one a screen
- * can forget. And `Absent` exists so "we have nothing" has a single appearance
- * that cannot be mistaken for a zero: `docs/04` forbids inventing reputation,
- * and the easiest way to invent it is to render an absent number as 0.
+ * Two of these carry rules rather than styles, and the rewrite onto Astryx
+ * strengthened both rather than preserving them. `Field` cannot render a value
+ * read from outside the process without saying which system and when — that is
+ * now a type error rather than a convention — and `Absent` exists so "we have
+ * nothing" has a single appearance that cannot be mistaken for a zero:
+ * `docs/04` forbids inventing reputation, and the easiest way to invent it is
+ * to render an absent number as 0.
+ *
+ * `Frame` is re-exported here so screens have one import for the console's
+ * vocabulary. It lives in its own file because it is the one component with a
+ * documented exception to the layout rules; see `AGENTS.md`.
  */
-
-export function Panel({
-  id,
-  title,
-  subtitle,
-  children,
-  className,
-}: {
-  /** An anchor target, so the fleet card can link straight to a section. */
-  id?: string;
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      id={id}
-      className={cn(
-        "flex flex-col gap-4 rounded-xl border border-border bg-card/40 p-5",
-        className,
-      )}
-    >
-      <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-medium">{title}</h2>
-        {subtitle ? (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {subtitle}
-          </p>
-        ) : null}
-      </div>
-      {children}
-    </section>
-  );
-}
+export { Frame } from "./frame";
 
 /**
- * One labelled value, with its provenance.
+ * Where a value came from and when.
  *
- * `source` and `readAt` are required for anything read from outside the
- * process. A field that shows an owner address with no indication of where it
- * came from or when invites the reader to assume it is current, which is the
- * assumption `docs/09` spends its whole length arguing against.
+ * Tabular figures are not decoration here. A column of read times with
+ * proportional digits sits at a different offset on every row, which is the
+ * specific illegibility the register exists to fix.
  */
-export function Field({
-  label,
-  value,
-  source,
-  readAt,
-  mono = true,
-}: {
-  label: string;
-  value: ReactNode;
-  source?: string;
-  readAt?: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-1 border-b border-border/50 py-2 last:border-0">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        {source ? <Provenance source={source} readAt={readAt} /> : null}
-      </div>
-      <div className={cn("text-sm break-all", mono && "font-mono text-[0.8rem]")}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-/** Where a value came from and when. Small, and never omitted. */
 export function Provenance({
   source,
   readAt,
@@ -90,29 +38,89 @@ export function Provenance({
   readAt?: string;
 }) {
   return (
-    <span className="shrink-0 font-mono text-[0.65rem] uppercase tracking-wider text-muted-foreground/70">
+    <Text type="code" size="2xs" color="secondary" hasTabularNumbers textWrap="nowrap">
       {source}
       {readAt ? ` · ${new Date(readAt).toLocaleTimeString()}` : ""}
-    </span>
+    </Text>
+  );
+}
+
+/**
+ * One labelled value, with its provenance.
+ *
+ * The union is the point. Passing `source` without `readAt` no longer
+ * compiles, so a value read from outside this process cannot reach the screen
+ * without saying when it was read. An address shown with no read time invites
+ * the reader to assume it is current, which is the assumption `docs/09` spends
+ * its whole length arguing against.
+ *
+ * A field with neither is an in-process value. The coordination store counts
+ * as in-process on purpose: `CLAUDE.md` is explicit that it is not an
+ * authority, and labelling a stored value with a `source` dresses it up as
+ * provenance it does not have.
+ */
+type FieldProvenance =
+  | { source: string; readAt: string }
+  | { source?: never; readAt?: never };
+
+export function Field({
+  label,
+  value,
+  mono = true,
+  ...provenance
+}: {
+  label: string;
+  value: ReactNode;
+  mono?: boolean;
+} & FieldProvenance) {
+  return (
+    <VStack gap={1} paddingBlock={2} className="frame-rule-below last:bg-none">
+      <HStack gap={4} justify="between" align="end">
+        <Text type="supporting" size="sm">
+          {label}
+        </Text>
+        {provenance.source ? (
+          <Provenance source={provenance.source} readAt={provenance.readAt} />
+        ) : null}
+      </HStack>
+      <Text
+        type={mono ? "code" : "body"}
+        hasTabularNumbers={mono}
+        wordBreak="break-all"
+      >
+        {value}
+      </Text>
+    </VStack>
   );
 }
 
 /**
  * The one way to render "there is nothing here".
  *
- * Never a 0, never an empty string, never a dash that could be read as a value.
+ * Never a 0, never an empty string, never a dash that could be read as a
+ * value. The italic is the whole signal: it is the only thing in the console
+ * set in italic, so an absent value never looks like a short one.
  */
 export function Absent({ what }: { what: string }) {
   return (
-    <span className="text-muted-foreground italic">not set — {what}</span>
+    <Text type="body" color="secondary" className="italic">
+      not set — {what}
+    </Text>
   );
 }
 
+/**
+ * `docs/09`'s five integration states, in Astryx's semantic variants.
+ *
+ * `neutral` is deliberately not `info`. A track that has not started is not
+ * news, and an agent with a verified identity and no wallet is financially
+ * unprovisioned rather than broken.
+ */
 const TONE = {
-  good: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  bad: "border-destructive/30 bg-destructive/10 text-destructive",
-  warn: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  neutral: "border-border bg-muted/50 text-muted-foreground",
+  good: "success",
+  bad: "error",
+  warn: "warning",
+  neutral: "neutral",
 } as const;
 
 export function Badge({
@@ -122,55 +130,56 @@ export function Badge({
   children: ReactNode;
   tone?: keyof typeof TONE;
 }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-[0.7rem] whitespace-nowrap",
-        TONE[tone],
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <AstryxBadge variant={TONE[tone]} label={children} />;
 }
 
 /**
  * A denial, rendered as the product state it is.
  *
  * `docs/03` says a permission denial is not a generic red error, so `proof`
- * gets its own treatment: this is the control plane working and the interface
- * should read as though that were expected, because it was.
+ * maps to `info` rather than `error`: this is the control plane working, and
+ * the interface should read as though that were expected, because it was.
+ *
+ * `collapsible={false}` because the detail is the evidence. A banner that
+ * hides its own proof behind a toggle is a banner asserting something it will
+ * not show.
  */
+const OUTCOME_STATUS = {
+  proof: "info",
+  waiting: "warning",
+  fault: "error",
+} as const;
+
 export function Outcome({
   tone,
   title,
   detail,
   action,
 }: {
-  tone: "proof" | "fault" | "waiting";
+  tone: keyof typeof OUTCOME_STATUS;
   title: string;
   detail?: string;
   action?: string;
 }) {
-  const style =
-    tone === "proof"
-      ? "border-sky-500/30 bg-sky-500/10"
-      : tone === "waiting"
-        ? "border-amber-500/30 bg-amber-500/10"
-        : "border-destructive/30 bg-destructive/10";
-
   return (
-    <div className={cn("flex flex-col gap-1 rounded-lg border p-3", style)}>
-      <p className="text-sm font-medium">{title}</p>
-      {detail ? (
-        <p className="font-mono text-[0.7rem] leading-relaxed break-all text-muted-foreground">
-          {detail}
-        </p>
-      ) : null}
+    <Banner
+      status={OUTCOME_STATUS[tone]}
+      title={title}
+      description={
+        detail ? (
+          <Text type="code" size="sm" wordBreak="break-all">
+            {detail}
+          </Text>
+        ) : undefined
+      }
+      collapsible={false}
+    >
       {action ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">{action}</p>
-      ) : null}
-    </div>
+        <Text type="supporting" as="p">
+          {action}
+        </Text>
+      ) : undefined}
+    </Banner>
   );
 }
 
@@ -182,7 +191,9 @@ export function Outcome({
  */
 export function Loading({ what }: { what: string }) {
   return (
-    <p className="font-mono text-xs text-muted-foreground">{what}…</p>
+    <Text type="code" size="sm" color="secondary">
+      {what}…
+    </Text>
   );
 }
 
@@ -196,10 +207,6 @@ export function Empty({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-border p-5">
-      <p className="text-sm font-medium">{title}</p>
-      <p className="text-xs leading-relaxed text-muted-foreground">{detail}</p>
-      {action}
-    </div>
+    <EmptyState title={title} description={detail} actions={action} isCompact />
   );
 }

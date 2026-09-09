@@ -11,9 +11,19 @@ import {
   type TableSortState,
 } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
+import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useState } from "react";
-import { Frame } from "@/components/console/frame";
+import {
+  Absent,
+  Badge,
+  Empty,
+  Field,
+  Frame,
+  Loading,
+  Outcome,
+  Provenance,
+} from "@/components/console/primitives";
 
 /**
  * Astryx smoke test (task #82), extended into Gate B for the design register.
@@ -129,6 +139,63 @@ export default function AstryxCheck() {
         title="a runtime title long enough that a centred nowrap caption would overflow both edges of its own frame, which is why this one is left-anchored and truncates"
       >
         <Text as="p">design.md Q2.</Text>
+      </Frame>
+
+      {/*
+        The console's vocabulary, rendered without the API. Every one of these
+        is reachable in the product only behind a live read, which is exactly
+        why they are worth a static surface: a primitive that renders wrong in
+        an error state is a primitive nobody sees until the error happens.
+      */}
+      <Frame
+        title="fields"
+        subtitle="Provenance is a type error to omit. The last row is an in-process value, which is why it carries none."
+      >
+        <Field
+          label="Owner"
+          value="0x45DaD5508Ea6b3ADbD46e1a9c00Bb3A9E0e7d1F2"
+          source="chain 11155111"
+          readAt="2026-09-09T12:04:11.000Z"
+        />
+        <Field
+          label="agent-context"
+          value={<Absent what="no agent-context written" />}
+          source="chain 11155111"
+          readAt="2026-09-09T12:04:11.000Z"
+        />
+        <Field label="Controller" value="research.nymspace.eth" />
+      </Frame>
+
+      <Frame title="states">
+        <HStack gap={2} wrap="wrap">
+          <Badge tone="good">ENS active</Badge>
+          <Badge tone="warn">registering</Badge>
+          <Badge tone="bad">name mismatch</Badge>
+          <Badge tone="neutral">not registered</Badge>
+        </HStack>
+        <Provenance source="chain 11155111" readAt="2026-09-09T12:04:11.000Z" />
+        <Loading what="Reading roles from the resolver" />
+      </Frame>
+
+      <Frame
+        title="outcomes"
+        subtitle="A denial is the control plane working, so it reads as information rather than as a red error."
+      >
+        <Outcome
+          tone="proof"
+          title="Write denied by the resolver"
+          detail="0x45DaD5…d1F2 on agent-context reverted: Unauthorized(resource, account)"
+          action="This is the expected result. The same code path returned allowed for the control account in this request."
+        />
+        <Outcome tone="waiting" title="Registering" detail="tx 0x9f2c…" />
+        <Outcome tone="fault" title="Could not reach the resolver" detail="RPC timeout after 10s" />
+      </Frame>
+
+      <Frame title="nothing here">
+        <Empty
+          title="No agents yet"
+          detail="Provisioning writes the first subname under nymspace.eth. Nothing is cached, so this is genuinely empty rather than unloaded."
+        />
       </Frame>
     </VStack>
   );

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { previewPayment, sendPayment } from "@/lib/api";
 import { classify } from "@/lib/console/errors";
 import { financialStateFrom, LOADING_COPY } from "@/lib/console/state";
-import { Loading, Outcome } from "./primitives";
+import { Frame, Loading, Outcome } from "./primitives";
 
 /**
  * Screens 4 and 5 — the task request and the policy denial.
@@ -111,8 +111,7 @@ export function TaskRequest({
       {busy ? <Loading what={busy} /> : null}
 
       {preview ? (
-        <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
-          <p className="text-sm font-medium">Privy policy</p>
+        <Frame title="privy policy">
           <dl className="grid gap-1 font-mono text-[0.7rem] text-muted-foreground">
             <div>requested: {formatEth(preview.requestedWei)} ETH</div>
             <div>limit: {formatEth(preview.limitWei)} ETH (read from the live policy)</div>
@@ -123,7 +122,7 @@ export function TaskRequest({
             Informational. Privy enforces the limit on the signing path — this
             preview cannot allow or block anything.
           </p>
-        </div>
+        </Frame>
       ) : null}
 
       {result ? <PaymentOutcome result={result} state={state} amount={amount} /> : null}

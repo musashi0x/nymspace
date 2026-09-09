@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { fetchAgents } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
-import { Badge, Empty, Panel, Provenance } from "@/components/console/primitives";
+import { Badge, Empty, Frame, Provenance } from "@/components/console/primitives";
 
 /**
  * Screen 1 — Fleet home.
@@ -99,7 +99,7 @@ export default async function FleetPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {fleet.agents.map((agent) => (
-            <Panel
+            <Frame
               key={agent.id}
               title={agent.ensName}
               subtitle={`Controller ${agent.controllerAddress}`}
@@ -139,7 +139,7 @@ export default async function FleetPage() {
                   </Link>
                 ) : null}
               </div>
-            </Panel>
+            </Frame>
           ))}
         </div>
       )}
