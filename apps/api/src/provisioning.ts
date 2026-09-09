@@ -334,23 +334,38 @@ export async function provisionAgent(
     return { agentId, ensName, steps, ens: "failed" };
   }
 
-  await store.recordEvent({
-    organizationId: ctx.organizationId,
-    agentId,
-    source: "ens",
-    type: "ens.resolver.attached",
-    status: "success",
-    occurredAt: now(),
-    summary: `${ensName} resolves through ${attached}`,
-    metadata: { phase: PROVISIONING_PHASE, readBack: attached },
-    evidence: {
+  /**
+   * Recorded only when this run did the registering.
+   *
+   * The resolver is attached by the registration transaction, so on a re-run
+   * there is no new attachment to report — and the event would carry a zero
+   * hash, because the transaction it points at belongs to a run that already
+   * logged it. Found by re-posting a provisioned label: every step correctly
+   * spent nothing, and the step list grew by one row saying "no transaction".
+   */
+  const registrationHash = steps.find(
+    (s) => s.what === `register ${ensName}` && !s.skipped,
+  )?.txHash;
+
+  if (registrationHash) {
+    await store.recordEvent({
+      organizationId: ctx.organizationId,
+      agentId,
       source: "ens",
-      // The attachment happened in the registration transaction; the read above
-      // is the confirmation, and it is the registration that is the evidence.
-      txHash: steps.find((s) => s.what === `register ${ensName}`)?.txHash ?? ZERO_HASH,
-      contractAddress: registry,
-    },
-  });
+      type: "ens.resolver.attached",
+      status: "success",
+      occurredAt: now(),
+      summary: `${ensName} resolves through ${attached}`,
+      metadata: { phase: PROVISIONING_PHASE, readBack: attached },
+      evidence: {
+        source: "ens",
+        // The attachment happened in the registration transaction; the read
+        // above is the confirmation, and the registration is the evidence.
+        txHash: registrationHash,
+        contractAddress: registry,
+      },
+    });
+  }
 
   await store.setProvisioning(agentId, { ens: "pending" });
 

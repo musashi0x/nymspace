@@ -43,7 +43,18 @@
 ## 4. Gate
 
 - [x] 4.1 `pnpm typecheck`, `pnpm lint`, `pnpm test`
-- [ ] 4.2 (needs the principal's go-ahead — spends testnet ETH and registers a name for a year) Create an agent against Sepolia from the screen and confirm the inspector reads it back: resolver set, `agent-context` present, controller granted on the endpoint keys only
-- [ ] 4.3 Re-post the same label and confirm every step reports skipped and no transaction is sent
-- [ ] 4.4 Reload mid-provision and confirm the step list rebuilds from the activity log — design D3
-- [ ] 4.5 Confirm the created agent's controller is denied the ENSIP 25 key in the permission proof
+- [x] 4.2 Create an agent against Sepolia from the screen and confirm the inspector reads it back: resolver set, `agent-context` present, controller granted on the endpoint keys only
+- [x] 4.3 Re-post the same label and confirm every step reports skipped and no transaction is sent
+- [x] 4.4 Reload mid-provision and confirm the step list rebuilds from the activity log — design D3
+- [x] 4.5 Confirm the created agent's controller is denied the ENSIP 25 key in the permission proof
+
+### What the live gate found
+
+Two defects, both invisible to the offline suite and both fixed:
+
+- The screen kept the run it was watching in component state alone, so a reload mid-provision returned an empty form — the endpoint rebuilt the steps, and nothing knew which agent to ask about. The watched run is now in the query string.
+- `ens.resolver.attached` was recorded on every run, including repairs. The resolver is attached by the registration transaction, so a re-post logged a step whose evidence was a zero hash and whose work had happened days earlier. It is now recorded only by the run that registers.
+
+Run against Sepolia with `test-agent.nymspace.eth`: five steps, four transactions, `ens` active; a second and third post added no steps and no transactions; the authority matrix reads `agent-endpoint[mcp]` allowed and `agent-context`, `agent-endpoint[a2a]`, `setResolver`, `setSubregistry`, `unregister` all denied for the controller. The ENSIP 25 key itself has no live test here: `test-agent` has no ERC 8004 registration, so the key does not exist yet. `agent-context` is the same class of protected key and is denied.
+
+One event written before the second fix remains in `test-agent`'s log — a resolver-attached row carrying a zero hash. Harmless, and left rather than edited: the activity log is append-only.

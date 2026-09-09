@@ -14,6 +14,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createAgent, fetchProvisioning } from "@/lib/api";
 import { track } from "./fleet-table";
@@ -119,6 +120,16 @@ const STEP_COLUMNS: TableColumn<StepRow>[] = [
 ];
 
 export function CreateAgent({ parentName }: { parentName: string }) {
+  /**
+   * Which run this screen is watching, in the URL.
+   *
+   * The steps are durable and the endpoint rebuilds them, but none of that
+   * helps if a reload forgets which agent was being provisioned. Kept in the
+   * query string rather than in state alone, so the tab can be closed, shared,
+   * or refreshed mid-run and still show the same run.
+   */
+  const router = useRouter();
+  const resumed = useSearchParams().get("agent");
   const [label, setLabel] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -128,7 +139,7 @@ export function CreateAgent({ parentName }: { parentName: string }) {
   const [a2a, setA2a] = useState("");
   const [delegate, setDelegate] = useState(false);
 
-  const [agentId, setAgentId] = useState<string | null>(null);
+  const [agentId, setAgentId] = useState<string | null>(resumed);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [taken, setTaken] = useState<{ owner: string; reason: string } | null>(
@@ -146,12 +157,17 @@ export function CreateAgent({ parentName }: { parentName: string }) {
     }
   }, []);
 
-  // The interval only. The first read happens where the run starts, so this
-  // effect never sets state on its own.
+  // Timers only; this effect sets no state of its own. The zero-delay one
+  // covers the resumed case, where the run started in a previous page load and
+  // waiting a full interval to show anything would look like a dead screen.
   useEffect(() => {
     if (!agentId || complete) return;
+    const first = setTimeout(() => void poll(agentId), 0);
     const timer = setInterval(() => void poll(agentId), POLL_MS);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
   }, [agentId, complete, poll]);
 
   async function submit() {
@@ -179,6 +195,8 @@ export function CreateAgent({ parentName }: { parentName: string }) {
         return;
       }
       setAgentId(result.id);
+      // Survives a reload from here on.
+      router.replace(`/console/new?agent=${result.id}`, { scroll: false });
       await poll(result.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
