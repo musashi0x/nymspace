@@ -97,20 +97,20 @@ Blocked on 1.2.
 - [x] 4.2 Implement the MCP-capable agent search query against the corrected schema
 - [x] 4.3 Implement the full-profile query for one agent id
 - [x] 4.4 Extend `normaliseAgent` for feedback and validation: exclude revoked feedback, and represent validation as unavailable rather than zero on networks with no ValidationRegistry
-- [ ] 4.5 Unit-test normalisation against every case in `docs/13`: missing MCP endpoint, missing ENS claim, no feedback, pending validation, revoked feedback excluded
-- [ ] 4.6 Confirm the demo registration from 3.8 is indexed. If it is not, continue with other tasks and re-check — do not fabricate a candidate
-- [ ] 4.7 Implement `search_agent0` as a server-side tool with capability, MCP-requirement, trust-model, and chain parameters
-- [ ] 4.8 Implement the ranking step: derive criteria from the request, filter, rank, explain
-- [ ] 4.9 Pass registration descriptions and endpoint metadata as data in the user turn. Never into system instructions
-- [ ] 4.10 Validate the explanation against the candidate object — a cited field absent from the response fails the test
-- [ ] 4.11 Omit validation from scoring rather than weighting it zero, and drop the row from the trust panel when there is nothing to show
-- [ ] 4.12 Attach provenance to every result: provider, chain, subgraph id, query time
-- [ ] 4.13 Implement the indexing-pending state with last-checked time, retry, and the registry transaction hash as evidence
-- [ ] 4.14 Implement the short browse cache and an explicit refresh that bypasses it
-- [ ] 4.15 Log each discovery request: query, endpoint, chain, query time, result count, selected ids, explanation, verification result
-- [ ] 4.16 Provider-failure test: with the Graph unreachable, assert a provider error and assert no synthesised candidate appears
+- [x] 4.5 Unit-test normalisation against every case in `docs/13`: missing MCP endpoint, missing ENS claim, no feedback, pending validation, revoked feedback excluded
+- [x] 4.6 Confirm the demo registration from 3.8 is indexed. If it is not, continue with other tasks and re-check — do not fabricate a candidate
+- [x] 4.7 Implement `search_agent0` as a server-side tool with capability, MCP-requirement, trust-model, and chain parameters
+- [x] 4.8 Implement the ranking step: derive criteria from the request, filter, rank, explain
+- [x] 4.9 Pass registration descriptions and endpoint metadata as data in the user turn. Never into system instructions
+- [x] 4.10 Validate the explanation against the candidate object — a cited field absent from the response fails the test
+- [x] 4.11 Omit validation from scoring rather than weighting it zero, and drop the row from the trust panel when there is nothing to show
+- [x] 4.12 Attach provenance to every result: provider, chain, subgraph id, query time
+- [x] 4.13 Implement the indexing-pending state with last-checked time, retry, and the registry transaction hash as evidence
+- [x] 4.14 Implement the short browse cache and an explicit refresh that bypasses it
+- [x] 4.15 Log each discovery request: query, endpoint, chain, query time, result count, selected ids, explanation, verification result
+- [x] 4.16 Provider-failure test: with the Graph unreachable, assert a provider error and assert no synthesised candidate appears
 
-- [ ] 4.17 Write the gate runner as `pnpm --filter @nymspace/graph verify:discovery`, emitting `evidence/gate-b.json`
+- [x] 4.17 Write the gate runner as `pnpm --filter @nymspace/graph verify:discovery`, emitting `evidence/gate-b.json`
 
 **Gate B — Discovery.**
 

@@ -27,9 +27,34 @@ const CHAIN_IDS: Record<Agent0Network, ChainId> = {
   "base-sepolia": 84532,
 };
 
+/**
+ * The network discovery queries when a caller does not say.
+ *
+ * Configuration rather than a constant, because ADR 009 asked that a second
+ * network be a config entry. Unknown values fall back to Sepolia rather than
+ * throwing — a typo here should not take down every discovery request.
+ */
+export function defaultNetwork(): Agent0Network {
+  const configured = process.env["GRAPH_DEFAULT_NETWORK"];
+  return configured === "base-sepolia" || configured === "sepolia"
+    ? configured
+    : "sepolia";
+}
+
 export interface Agent0ClientOptions {
   network?: Agent0Network;
   fetchImpl?: typeof fetch;
+  /**
+   * Explicit credentials, overriding the server environment.
+   *
+   * Present so this client can be constructed without one. Reading `serverEnv()`
+   * unconditionally made the class untestable without a real API key and the
+   * whole ENSv2 address set — a unit test of normalisation would fail with
+   * "Missing required environment variables: SEPOLIA_RPC_URL", which is a
+   * confusing way to learn that a fake never reached the network anyway.
+   */
+  apiKey?: string;
+  subgraphId?: string;
 }
 
 /**
@@ -150,13 +175,19 @@ export const META_QUERY = `
 export class Agent0Client {
   readonly network: Agent0Network;
   private readonly fetchImpl: typeof fetch;
+  private readonly explicitApiKey?: string;
+  private readonly explicitSubgraphId?: string;
 
   constructor({
-    network = "sepolia",
+    network = defaultNetwork(),
     fetchImpl = fetch,
+    apiKey,
+    subgraphId,
   }: Agent0ClientOptions = {}) {
     this.network = network;
     this.fetchImpl = fetchImpl;
+    this.explicitApiKey = apiKey;
+    this.explicitSubgraphId = subgraphId;
   }
 
   get chainId(): ChainId {
@@ -164,6 +195,7 @@ export class Agent0Client {
   }
 
   subgraphId(): string {
+    if (this.explicitSubgraphId) return this.explicitSubgraphId;
     const env = serverEnv();
     const id =
       this.network === "sepolia"
@@ -179,11 +211,11 @@ export class Agent0Client {
   }
 
   private endpoint(): string {
-    const env = serverEnv();
-    if (!env.graph.apiKey) {
+    const apiKey = this.explicitApiKey ?? serverEnv().graph.apiKey;
+    if (!apiKey) {
       throw new Agent0ProviderError("GRAPH_API_KEY is required");
     }
-    return `https://gateway.thegraph.com/api/${env.graph.apiKey}/subgraphs/id/${this.subgraphId()}`;
+    return `https://gateway.thegraph.com/api/${apiKey}/subgraphs/id/${this.subgraphId()}`;
   }
 
   /**
