@@ -12,4 +12,6 @@ import "server-only";
  */
 
 export * from "./client";
+export * from "./discovery";
+export * from "./ranking";
 export * from "./types";

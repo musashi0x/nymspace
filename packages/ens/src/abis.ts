@@ -29,6 +29,59 @@
 
 export const registryAbi = [
   {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "expiry",
+        "type": "uint64"
+      }
+    ],
+    "name": "CannotSetPastExpiry",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "resource",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "roleBitmap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "EACCannotGrantRoles",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "resource",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "roleBitmap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "EACCannotRevokeRoles",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -58,6 +111,27 @@ export const registryAbi = [
     ],
     "name": "EACRolesChanged",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "resource",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "roleBitmap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "EACUnauthorizedAccountRoles",
+    "type": "error"
   },
   {
     "inputs": [
@@ -286,6 +360,17 @@ export const registryAbi = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "label",
+        "type": "string"
+      }
+    ],
+    "name": "LabelAlreadyRegistered",
+    "type": "error"
   },
   {
     "anonymous": false,
@@ -648,6 +733,48 @@ export const permissionedResolverAbi = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "resource",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "roleBitmap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "EACCannotGrantRoles",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "resource",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "roleBitmap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "EACCannotRevokeRoles",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -677,6 +804,27 @@ export const permissionedResolverAbi = [
     ],
     "name": "EACRolesChanged",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "resource",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "roleBitmap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "EACUnauthorizedAccountRoles",
+    "type": "error"
   },
   {
     "inputs": [
@@ -899,6 +1047,17 @@ export const permissionedResolverAbi = [
     ],
     "name": "TextChanged",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "selector",
+        "type": "bytes4"
+      }
+    ],
+    "name": "UnsupportedResolverProfile",
+    "type": "error"
   }
 ] as const;
 

@@ -63,6 +63,16 @@ const WANTED: Record<string, { exportName: string; members: string[] }> = {
       "LabelRegistered",
       "ResolverUpdated",
       "SubregistryUpdated",
+      // Errors. Without a fragment viem reports a bare selector, and a denial
+      // that cannot be named is indistinguishable from a generic failure —
+      // which is exactly what Gate A's control refuses to accept. The registry
+      // is a separate EAC domain from the resolver and raises its own copy of
+      // these, so both ABIs need them.
+      "EACUnauthorizedAccountRoles",
+      "EACCannotGrantRoles",
+      "EACCannotRevokeRoles",
+      "CannotSetPastExpiry",
+      "LabelAlreadyRegistered",
     ],
   },
   PermissionedResolverImpl: {
@@ -80,6 +90,13 @@ const WANTED: Record<string, { exportName: string; members: string[] }> = {
       "EACRolesChanged",
       "NamedTextResource",
       "TextChanged",
+      // The resolver's own refusal. Gate A must assert a denied write reverted
+      // with *this* rather than out of gas, a stale nonce, or a malformed call,
+      // and it can only do that if the fragment is here to decode against.
+      "EACUnauthorizedAccountRoles",
+      "EACCannotGrantRoles",
+      "EACCannotRevokeRoles",
+      "UnsupportedResolverProfile",
     ],
   },
   VerifiableFactory: {

@@ -5,20 +5,20 @@ import { hc } from "hono/client";
  * The typed client for `@nymspace/api`.
  *
  * The type comes from the API's own `AppType`, so a renamed or removed route is
- * a compile error here rather than a 404 in the browser. That is the whole
- * point: the alternative is a hand-written fetch wrapper, which is exactly the
- * drift the split was supposed to avoid, written by hand.
+ * a compile error here rather than a 404 in the browser. That is not
+ * theoretical: moving the commit-activity route to `/v1/github/activity` to make
+ * room for the agent timeline broke this file immediately, which is exactly the
+ * drift a hand-written fetch wrapper would have shipped silently.
  *
  * Imported from `@nymspace/api/app` rather than the package root — the root is
- * `index.ts`, which calls `serve()` at module scope. The import is type-only
- * and erased at compile time either way, but pointing at the application rather
- * than the process keeps it that way by construction.
+ * `index.ts`, which calls `serve()` at module scope. The import is type-only and
+ * erased at compile time either way, but pointing at the application rather than
+ * the process keeps it that way by construction.
  *
- * Note on what does *not* go through here: the landing page's commit activity.
- * That is server-rendered straight from `@nymspace/github`, the same package
- * the API serves `/v1/activity` from, so the page needs no network hop, no CORS
- * and no API process to render. This client is for calls the browser genuinely
- * has to make.
+ * Note on what does *not* go through here: the landing page's commit activity is
+ * server-rendered straight from `@nymspace/github`, the same package the API
+ * serves it from, so the page needs no network hop, no CORS and no API process.
+ * This client is for calls the browser genuinely has to make.
  */
 
 /**
@@ -30,44 +30,168 @@ export const apiBaseUrl =
 
 export const api = hc<AppType>(apiBaseUrl);
 
+/**
+ * Every call checks `res.ok` inline rather than through a shared unwrap helper.
+ *
+ * That is not repetition for its own sake. Hono types a client response as a
+ * union across status codes — the success body, and zod's error shape for a
+ * 400 — and TypeScript narrows that union only where the check is written. A
+ * helper taking the union collapses it to `unknown` before the caller ever sees
+ * the success type, which throws away the reason for having a typed client at
+ * all.
+ *
+ * Denials are not errors. The record and payment routes answer 200 with a typed
+ * `denied` body, so those functions return it rather than throwing — treating a
+ * refused write as an exception is the one thing `docs/11` says not to do.
+ */
+function requestFailed(status: number): Error {
+  return new Error(`request failed: ${status}`);
+}
+
 /** Liveness, for a status indicator or a deploy check. */
 export async function fetchHealth() {
   const res = await api.health.$get();
-  if (!res.ok) throw new Error(`API health check failed: ${res.status}`);
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/** The fleet, with each agent's five integration states separately. */
+export async function fetchAgents() {
+  const res = await api.v1.agents.$get();
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/** Live ENS state for one agent: records, registration, verification. */
+export async function fetchIdentity(id: string) {
+  const res = await api.v1.agents[":id"].identity.$get({ param: { id } });
+  if (!res.ok) throw requestFailed(res.status);
   return res.json();
 }
 
 /**
- * The ENSIP 25 and ENSIP 26 record keys for one agent name.
+ * The permission matrix, computed from chain.
  *
- * The chain-reading routes arrive with the Day 1 spike; this is the derivation
- * the API can already answer, and it is what makes the type link load-bearing —
- * rename the route in `apps/api` and this file stops compiling.
+ * The response carries `control` and `queries` alongside the cells, so the
+ * console can show the positive control that ran in the same request and the
+ * resources behind each answer. A matrix without them is a table someone typed.
  */
-export async function fetchAgentKeys(
-  name: string,
-  registration?: { registry: string; agentId: string },
+export async function fetchPermissions(id: string, controller?: string) {
+  const res = await api.v1.agents[":id"].permissions.$get({
+    param: { id },
+    query: { controller },
+  });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+export async function grantPermission(
+  id: string,
+  body: { controller: string; recordKey: string; grant: boolean },
 ) {
-  const res = await api.v1.agents[":name"].keys.$get({
-    param: { name },
-    // Both keys are always present because the route validates them as a pair;
-    // omitting one and sending the other is the 400 this shape makes unspellable.
+  const res = await api.v1.agents[":id"].permissions.$post({
+    param: { id },
+    json: body,
+  });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/**
+ * A controller-signed record write.
+ *
+ * Returns the outcome rather than throwing on a denial: a refused write is the
+ * permission proof, and the screen needs the reason and the old value to show
+ * it.
+ */
+export async function writeRecord(
+  id: string,
+  body: { key: string; value: string },
+) {
+  const res = await api.v1.agents[":id"].records.$post({
+    param: { id },
+    json: body,
+  });
+  if (!res.ok) throw new Error(`record write failed: ${res.status}`);
+  return res.json();
+}
+
+export async function verifyIdentity(id: string) {
+  const res = await api.v1.agents[":id"].verify.$post({ param: { id } });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+export async function fetchWallet(id: string) {
+  const res = await api.v1.agents[":id"].wallet.$get({ param: { id } });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/** Informational only. Privy still decides. */
+export async function previewPayment(
+  id: string,
+  body: { amount: string; recipient: string; memo?: string },
+) {
+  const res = await api.v1.agents[":id"].payments.preview.$post({
+    param: { id },
+    json: body,
+  });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/** Four typed outcomes, all of them HTTP 200. Never throws on a denial. */
+export async function sendPayment(
+  id: string,
+  body: { amount: string; recipient: string; memo?: string },
+) {
+  const res = await api.v1.agents[":id"].payments.$post({
+    param: { id },
+    json: body,
+  });
+  if (!res.ok) throw new Error(`payment request failed: ${res.status}`);
+  return res.json();
+}
+
+/** Discovery over live Agent0 data, ranked and explained. */
+export async function discover(body: {
+  query: string;
+  requireMcp?: boolean;
+  trustModels?: string[];
+  limit?: number;
+  refresh?: boolean;
+}) {
+  const res = await api.v1.discover.$post({ json: body });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/** The activity timeline, filterable by agent, source, type and status. */
+export async function fetchActivity(
+  filter: {
+    agent?: string;
+    source?: "ens" | "erc8004" | "graph" | "privy" | "app";
+    type?: string;
+    status?: "pending" | "success" | "denied" | "failed";
+    limit?: number;
+  } = {},
+) {
+  const res = await api.v1.activity.$get({
     query: {
-      registry: registration?.registry,
-      agentId: registration?.agentId,
+      ...filter,
+      // The schema coerces, so the wire form is a string either way; sending it
+      // as one keeps the query type honest about what a URL can carry.
+      limit: filter.limit === undefined ? undefined : String(filter.limit),
     },
   });
-
-  if (!res.ok) {
-    const body = (await res.json()) as { error?: string };
-    throw new Error(body.error ?? `Agent keys request failed: ${res.status}`);
-  }
+  if (!res.ok) throw requestFailed(res.status);
   return res.json();
 }
 
 /** The raw commit-activity payload, for anyone diffing the page against it. */
-export async function fetchActivity() {
-  const res = await api.v1.activity.$get();
-  if (!res.ok) throw new Error(`Activity request failed: ${res.status}`);
+export async function fetchCommitActivity() {
+  const res = await api.v1.github.activity.$get();
+  if (!res.ok) throw requestFailed(res.status);
   return res.json();
 }

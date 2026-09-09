@@ -1,0 +1,146 @@
+{
+  "ranAt": "2026-09-09T05:56:03.837Z",
+  "gate": "A",
+  "go": true,
+  "facts": {
+    "ensName": "research.nymspace.eth",
+    "ensChainId": 11155111,
+    "registrationChainId": 84532,
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "resolver": "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC",
+    "parentRegistry": "0xd0D823c89C68e7A80E4bd5215999965065B4255D",
+    "organization": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+    "controller": "0xDEA25D2537cE06cE1073dd9621C70056CBDC3aEB",
+    "universalResolverFound": "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC",
+    "erc8004AgentId": "9209",
+    "ensip25Key": "agent-registration[0x0001000003014a34148004a818bfb912233c491871b3d84c89a494bd9e][9209]",
+    "negativeVerificationKey": "agent-registration[0x0001000003014a34148004a818bfb912233c491871b3d84c89a494bd9e][9210]",
+    "verification": {
+      "expectedEnsName": "research.nymspace.eth",
+      "agentId": "9209",
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "chainId": 84532,
+      "status": "verified",
+      "key": "agent-registration[0x0001000003014a34148004a818bfb912233c491871b3d84c89a494bd9e][9209]",
+      "claimedEnsName": "research.nymspace.eth",
+      "readAt": "2026-09-09T05:55:27.087Z"
+    },
+    "manifest": {
+      "name": "research.nymspace.eth",
+      "context": {
+        "value": "{\"schema\":\"nymspace/agent-context@1\",\"name\":\"Research\",\"description\":\"Finds and ranks other agents from live registry data.\",\"operator\":\"nymspace.eth\",\"role\":\"Reads discovery data and may update its own MCP endpoint record.\",\"updatedAt\":\"2026-09-09T04:30:41.073Z\"}",
+        "source": "ens",
+        "key": "agent-context",
+        "chainId": 11155111,
+        "readAt": "2026-09-09T05:56:02.592Z"
+      },
+      "endpoints": {
+        "mcp": {
+          "value": "https://mcp.nymspace.example/research?manifest=1788933352629",
+          "source": "ens",
+          "key": "agent-endpoint[mcp]",
+          "chainId": 11155111,
+          "readAt": "2026-09-09T05:56:02.592Z"
+        }
+      },
+      "verification": {
+        "expectedEnsName": "research.nymspace.eth",
+        "agentId": "9209",
+        "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "chainId": 84532,
+        "status": "verified",
+        "key": "agent-registration[0x0001000003014a34148004a818bfb912233c491871b3d84c89a494bd9e][9209]",
+        "claimedEnsName": "research.nymspace.eth",
+        "readAt": "2026-09-09T05:56:03.837Z"
+      },
+      "assembledAt": "2026-09-09T05:56:02.592Z",
+      "registration": {
+        "agentId": "9209",
+        "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "chainId": 84532,
+        "owner": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+        "claimedEnsName": "research.nymspace.eth"
+      }
+    }
+  },
+  "assertions": [
+    {
+      "n": 0,
+      "name": "the organization and controller are different accounts",
+      "passed": true,
+      "detail": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9 vs 0xDEA25D2537cE06cE1073dd9621C70056CBDC3aEB"
+    },
+    {
+      "n": 1,
+      "name": "research.nymspace.eth resolves through the Universal Resolver",
+      "passed": true,
+      "detail": "findResolver returned 0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC"
+    },
+    {
+      "n": 2,
+      "name": "the controller's permitted write confirms and changes the value",
+      "passed": true,
+      "detail": "0x5cf1b408e93816c0486ebd51845c50096fc0542c63e0fd42908595a99307f110 — \"https://mcp.nymspace.example/research?manifest=1788933232930\" → \"https://mcp.nymspace.example/research?gate-a=1788933319216\""
+    },
+    {
+      "n": 3,
+      "name": "the controller's setText on the ENSIP 25 key reverts",
+      "passed": true,
+      "detail": "reverted with EACUnauthorizedAccountRoles"
+    },
+    {
+      "n": 4,
+      "name": "the controller's setResolver reverts",
+      "passed": true,
+      "detail": "reverted with EACUnauthorizedAccountRoles"
+    },
+    {
+      "n": 5,
+      "name": "an ERC 8004 registration claims this ENS name",
+      "passed": true,
+      "detail": "agent 9209 claims research.nymspace.eth"
+    },
+    {
+      "n": 7,
+      "name": "a deliberately mis-encoded key returns ens_record_missing",
+      "passed": true,
+      "detail": "agent 9210 → ens_record_missing"
+    },
+    {
+      "n": 6,
+      "name": "verification returns verified, carrying a read time",
+      "passed": true,
+      "detail": "verified at 2026-09-09T05:55:27.087Z"
+    },
+    {
+      "n": 9,
+      "name": "E6 — a revoked grant makes the next controller write revert",
+      "passed": true,
+      "detail": "reverted with EACUnauthorizedAccountRoles, grant restored: true"
+    },
+    {
+      "n": 8,
+      "name": "a record changed on chain changes the next manifest, with no invalidation",
+      "passed": true,
+      "detail": "\"https://mcp.nymspace.example/research?gate-a=1788933319216\" → \"https://mcp.nymspace.example/research?manifest=1788933352629\""
+    }
+  ],
+  "transactions": [
+    {
+      "what": "controller setText agent-endpoint[mcp]",
+      "hash": "0x5cf1b408e93816c0486ebd51845c50096fc0542c63e0fd42908595a99307f110"
+    },
+    {
+      "what": "E6 revoke agent-endpoint[mcp]",
+      "hash": "0x233d55835745699439f87ba76e858f910755c2f9de970d96d2f55c7037845d37"
+    },
+    {
+      "what": "E6 re-grant agent-endpoint[mcp]",
+      "hash": "0x4189dc014c6ed660bc6f97f7190aa388774f4cc26ec21551fa130b40750a3e22"
+    },
+    {
+      "what": "controller setText for the manifest mutation",
+      "hash": "0x630518b25482e967205bcc47e4fdeab24a37baa942a91a6a5355d6b9d54766fc"
+    }
+  ]
+}
