@@ -10,7 +10,13 @@
    The pre-Astryx landing page still uses Tailwind; see the note in AGENTS.md. */
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
-@import "@astryxdesign/theme-neutral/theme.css";
+/* The owned theme, replacing `@astryxdesign/theme-neutral`. This is the built
+   output of `theme.ts` (`pnpm exec astryx theme build theme.ts`), imported as
+   static CSS rather than generated at runtime: a runtime `defineTheme` injects
+   its component overrides after hydration, so the first paint would ship
+   untokenised tables. `astryx theme build --check theme.ts` fails when this
+   file is stale against its source. */
+@import "../nymspace.css";
 
 @custom-variant dark (&:is(.dark *));
 
