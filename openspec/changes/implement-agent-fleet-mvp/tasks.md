@@ -134,21 +134,21 @@ Blocked on 1.2.
 
 Blocked on 1.3. `docs/14` sets a hard mid-Day-3 decision point; `docs/17` Risk 6 names the fallback.
 
-- [ ] 5.1 Wire the Privy server SDK behind the existing `PrivyWalletPort`, so no route handler touches a credential
-- [ ] 5.2 Create or load the research agent's wallet; persist only the wallet id and address
-- [ ] 5.3 Choose the ownership model by trying one, and record which and why in the repository
-- [ ] 5.4 Configure exactly one amount-based control using Privy's current API
-- [ ] 5.5 Fund the wallet with the demo token
-- [ ] 5.6 **Run the denied payment first.** A policy that permits everything demos as a success and must not be discovered on stage
-- [ ] 5.7 Run the allowed payment; assert an executed status with a transaction hash
-- [ ] 5.8 Normalise provider errors into `denied`, `pending_approval`, and `failed`, and unit-test the mapping
-- [ ] 5.9 Read the displayed limit from the configured policy, never from a constant
-- [ ] 5.10 Assert the agent signer cannot alter its own policy
-- [ ] 5.11 Assert no response body contains the app secret, the authorization key id, the authorization private key, or signing material
-- [ ] 5.12 Frontend-tampering test: alter the displayed limit client-side, submit an over-limit payment, assert Privy still denies
-- [ ] 5.13 Wallet mapping restart test: restart, inspect the agent, assert the same wallet loads
+- [x] 5.1 Wire the Privy server SDK behind the existing `PrivyWalletPort`, so no route handler touches a credential
+- [x] 5.2 Create or load the research agent's wallet; persist only the wallet id and address
+- [x] 5.3 Choose the ownership model by trying one, and record which and why in the repository
+- [x] 5.4 Configure exactly one amount-based control using Privy's current API
+- [x] 5.5 Fund the wallet with the demo token
+- [x] 5.6 **Run the denied payment first.** A policy that permits everything demos as a success and must not be discovered on stage
+- [x] 5.7 Run the allowed payment; assert an executed status with a transaction hash
+- [x] 5.8 Normalise provider errors into `denied`, `pending_approval`, and `failed`, and unit-test the mapping
+- [x] 5.9 Read the displayed limit from the configured policy, never from a constant
+- [x] 5.10 Assert the agent signer cannot alter its own policy
+- [x] 5.11 Assert no response body contains the app secret, the authorization key id, the authorization private key, or signing material
+- [x] 5.12 Frontend-tampering test: alter the displayed limit client-side, submit an over-limit payment, assert Privy still denies
+- [x] 5.13 Wallet mapping restart test: restart, inspect the agent, assert the same wallet loads
 
-- [ ] 5.14 Write the gate runner as `pnpm --filter @nymspace/privy verify:policy`, emitting `evidence/gate-c.json`
+- [x] 5.14 Write the gate runner as `pnpm --filter @nymspace/privy verify:policy`, emitting `evidence/gate-c.json`
 
 **Gate C — Financial.**
 

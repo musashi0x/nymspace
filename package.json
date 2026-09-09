@@ -13,12 +13,14 @@
     "check:credentials": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-credentials.ts",
     "check": "pnpm env:check && pnpm conditions:check",
     "provision:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-fleet.ts",
-    "register:identity": "tsx --env-file-if-exists=.env --conditions=react-server scripts/register-identity.ts"
+    "register:identity": "tsx --env-file-if-exists=.env --conditions=react-server scripts/register-identity.ts",
+    "provision:wallet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-wallet.ts"
   },
   "devDependencies": {
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
     "@nymspace/graph": "workspace:*",
+    "@nymspace/privy": "workspace:*",
     "@nymspace/store": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.23.1",

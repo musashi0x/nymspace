@@ -7,14 +7,20 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify:policy": "tsx --env-file-if-exists=../../.env --conditions=react-server scripts/verify-policy.ts"
   },
   "dependencies": {
     "@nymspace/core": "workspace:*",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@nymspace/store": "workspace:*",
+    "viem": "^2.56.3"
   },
   "devDependencies": {
     "@types/node": "^24",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18",
+    "tsx": "^4.20.6"
   }
 }
