@@ -123,7 +123,7 @@ async function postWithRetry(
   url: string,
   apiKey: string,
   body: unknown,
-  attempts = 3,
+  attempts = 4,
 ): Promise<Response> {
   let last: RankingProviderError | undefined;
 
@@ -158,8 +158,14 @@ async function postWithRetry(
   throw last ?? new RankingProviderError("ranking provider failed");
 }
 
+/**
+ * 1s, 2s, 4s. The first version waited 500ms and gave up in about a second,
+ * which is shorter than the "high demand" windows Gemini actually reports —
+ * so a transient 503 surfaced as a ranking outage on a page that had just
+ * fetched four live candidates.
+ */
 function backoff(attempt: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 500 * 2 ** (attempt - 1)));
+  return new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** (attempt - 1)));
 }
 
 export interface RankAgentsOptions {

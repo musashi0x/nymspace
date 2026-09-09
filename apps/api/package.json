@@ -8,8 +8,8 @@
     "./app": "./src/app.ts"
   },
   "scripts": {
-    "dev": "tsx watch --conditions=react-server src/index.ts",
-    "start": "tsx --conditions=react-server src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=../../.env --conditions=react-server src/index.ts",
+    "start": "tsx --env-file-if-exists=../../.env --conditions=react-server src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

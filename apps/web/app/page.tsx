@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CommitActivity } from "@/components/commit-activity";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WordTiles } from "@/components/word-tiles";
@@ -21,7 +22,15 @@ export default async function Home() {
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
           nymspace
         </p>
-        <ThemeToggle />
+        <div className="flex items-center gap-4">
+          <Link
+            href="/console"
+            className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+          >
+            Console
+          </Link>
+          <ThemeToggle />
+        </div>
       </div>
 
       <header className="flex flex-col gap-8">

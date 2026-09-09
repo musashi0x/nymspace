@@ -94,9 +94,31 @@ export const discover = new Hono<DepsEnv>().post(
 
     const byKey = new Map(search.candidates.map((a) => [a.graphAgentKey, a]));
 
+    /**
+     * When the ranking fails, the candidates still ship — unranked.
+     *
+     * They are real, they came from a live query, and they are useful without
+     * an explanation. Returning an empty list instead would make a ranking
+     * outage indistinguishable from an empty market, which is the same mistake
+     * as returning zero candidates for a provider error one layer down.
+     */
+    const ordered: { graphAgentKey: string; score: number | null; reason: string | null; citedFields: string[] }[] =
+      ranked?.ranked.map((entry) => ({
+        graphAgentKey: entry.graphAgentKey,
+        score: entry.score,
+        reason: entry.reason,
+        citedFields: entry.citedFields,
+      })) ??
+      search.candidates.map((agent) => ({
+        graphAgentKey: agent.graphAgentKey,
+        score: null,
+        reason: null,
+        citedFields: [],
+      }));
+
     return c.json({
       query,
-      results: (ranked?.ranked ?? []).flatMap((entry) => {
+      results: ordered.flatMap((entry) => {
         const agent = byKey.get(entry.graphAgentKey);
         if (!agent) return [];
         return [

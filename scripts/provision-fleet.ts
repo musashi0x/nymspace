@@ -278,8 +278,13 @@ async function main(): Promise<void> {
       });
     }
 
+    // Provisioning stays `pending` here. Task 7.19 requires it to complete only
+    // after a read-back confirms the name, the resolver, the grants, and the
+    // absence of protected authority — and the grants have not been made yet at
+    // this point in the run. Marking it active now would report a fully
+    // provisioned agent whose delegation had not been attempted.
     await store.setProvisioning(agentId, {
-      ens: resolverAttached ? "active" : "failed",
+      ens: resolverAttached ? "pending" : "failed",
     });
   }
 
@@ -508,6 +513,51 @@ async function main(): Promise<void> {
         ? `LEAK — the research controller can write ${mcpKey} on ${otherName}`
         : `research controller cannot write ${mcpKey} on ${otherName}`,
     });
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  // 7.19 — provisioning completes only on a full chain read-back
+  //////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Four facts, all re-read from chain, before any agent is called active.
+   *
+   * The name resolves, the resolver is the one we deployed, the controller can
+   * write what it was granted, and it cannot reach what it was not. The last of
+   * those is the one worth spelling out: an agent whose controller can write
+   * everything is provisioned in the sense that nothing errored, and is exactly
+   * the state this product exists to prevent.
+   */
+  for (const agent of AGENTS) {
+    const ensName = `${agent.slug}.${parentName}`;
+    const agentId = `agent-${agent.slug}`;
+
+    const [owner, resolver, canWriteGranted, canWriteProtected] = await Promise.all([
+      ens.findOwner(registry, agent.slug),
+      ens.getResolver(registry, agent.slug),
+      agent.delegated
+        ? ens.canSetText(ensName, mcpKey, client.controller)
+        : Promise.resolve(true),
+      ens.canSetText(ensName, AGENT_CONTEXT_KEY, client.controller),
+    ]);
+
+    const confirmed =
+      owner.toLowerCase() === client.organization.toLowerCase() &&
+      resolver.toLowerCase() === deployed.permissionedResolver.toLowerCase() &&
+      canWriteGranted &&
+      // agent-context is written by the organization and never delegated, so a
+      // controller that can write it holds authority nobody granted.
+      !canWriteProtected;
+
+    step({
+      what: `7.19 read-back ${agent.slug}`,
+      ok: confirmed,
+      detail: confirmed
+        ? "name, resolver, grants and absence of protected authority all confirmed"
+        : `owner ${owner === client.organization}, resolver ${resolver === deployed.permissionedResolver}, granted ${canWriteGranted}, protected-reachable ${canWriteProtected}`,
+    });
+
+    await store.setProvisioning(agentId, { ens: confirmed ? "active" : "failed" });
   }
 
   //////////////////////////////////////////////////////////////////////////

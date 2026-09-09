@@ -185,27 +185,27 @@ Blocked on 1.3. `docs/14` sets a hard mid-Day-3 decision point; `docs/17` Risk 6
 
 ## 7. Console (Day 4)
 
-- [ ] 7.1 Fleet screen: parent name, agent count, chain, and per-agent cards showing the five integration states separately
-- [ ] 7.2 Agent inspector: identity, manifest, authority, trust, and financial sections
-- [ ] 7.3 Label every chain-derived field with its chain and read time
-- [ ] 7.4 Permission matrix computed from role reads — one cell, one query
-- [ ] 7.5 Evaluate the resolver's full fallback chain via `setTextResourceAlternatives`, so a name-level grant is not shown as an absence
-- [ ] 7.6 Use the effective-authority predicate that ORs root roles, never the raw per-resource read, so the organization is not displayed as unauthorised
-- [ ] 7.7 Assert a positive control in the same request before rendering any denied cell
-- [ ] 7.8 Live-mutation test: revoke a grant on chain, refresh, assert the matrix changed with no cache step
-- [ ] 7.9 Permission proof interaction: permitted write showing old value, new value, hash, actor, and the permission that allowed it
-- [ ] 7.10 Permission proof: unauthorised write showing the real revert, attributed to the resolver's access control
-- [ ] 7.11 Discover screen with the conversational input, result card, and evidence drawer listing the exact ranking fields
-- [ ] 7.12 Task request screen with the policy preview read from the live policy
-- [ ] 7.13 Policy denial screen stating the requested amount, the limit, the decision, and that no funds moved
-- [ ] 7.14 Implement the state machines from `docs/11`: identity, permission action, verification, graph, financial
-- [ ] 7.15 Implement the error taxonomy — identity policy, financial policy, RPC unavailable, indexing pending — each distinct from the others
-- [ ] 7.16 Loading states that name the system being read; no placeholder content behind a spinner
-- [ ] 7.17 Empty states that explain; no disabled fake balance, no seeded score
-- [ ] 7.18 Activity timeline sorted by occurrence, with provenance per event, retaining denied and failed events and resolving pending ones in place
-- [ ] 7.19 Provisioning completes only after chain read-back confirms name, resolver, grants, and absence of protected authority
-- [ ] 7.20 Link the landing page to the console
-- [ ] 7.21 Write the gate runner as `pnpm test:matrix-live`, emitting `evidence/gate-d.json`
+- [x] 7.1 Fleet screen: parent name, agent count, chain, and per-agent cards showing the five integration states separately
+- [x] 7.2 Agent inspector: identity, manifest, authority, trust, and financial sections
+- [x] 7.3 Label every chain-derived field with its chain and read time
+- [x] 7.4 Permission matrix computed from role reads — one cell, one query
+- [x] 7.5 Evaluate the resolver's full fallback chain via `setTextResourceAlternatives`, so a name-level grant is not shown as an absence
+- [x] 7.6 Use the effective-authority predicate that ORs root roles, never the raw per-resource read, so the organization is not displayed as unauthorised
+- [x] 7.7 Assert a positive control in the same request before rendering any denied cell
+- [x] 7.8 Live-mutation test: revoke a grant on chain, refresh, assert the matrix changed with no cache step
+- [x] 7.9 Permission proof interaction: permitted write showing old value, new value, hash, actor, and the permission that allowed it
+- [x] 7.10 Permission proof: unauthorised write showing the real revert, attributed to the resolver's access control
+- [x] 7.11 Discover screen with the conversational input, result card, and evidence drawer listing the exact ranking fields
+- [x] 7.12 Task request screen with the policy preview read from the live policy
+- [x] 7.13 Policy denial screen stating the requested amount, the limit, the decision, and that no funds moved
+- [x] 7.14 Implement the state machines from `docs/11`: identity, permission action, verification, graph, financial
+- [x] 7.15 Implement the error taxonomy — identity policy, financial policy, RPC unavailable, indexing pending — each distinct from the others
+- [x] 7.16 Loading states that name the system being read; no placeholder content behind a spinner
+- [x] 7.17 Empty states that explain; no disabled fake balance, no seeded score
+- [x] 7.18 Activity timeline sorted by occurrence, with provenance per event, retaining denied and failed events and resolving pending ones in place
+- [x] 7.19 Provisioning completes only after chain read-back confirms name, resolver, grants, and absence of protected authority
+- [x] 7.20 Link the landing page to the console
+- [x] 7.21 Write the gate runner as `pnpm test:matrix-live`, emitting `evidence/gate-d.json`
 
 **Gate D — Authority is contract-derived.**
 
