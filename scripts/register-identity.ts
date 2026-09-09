@@ -38,6 +38,7 @@ import {
   verifyEnsip25,
   type ViemChainClient,
 } from "@nymspace/ens";
+import { Agent0Client } from "@nymspace/graph";
 import { Store, closeDatabase, database, migrate } from "@nymspace/store";
 
 const ORGANIZATION_ID = "nymspace";
@@ -407,6 +408,65 @@ async function main(): Promise<void> {
         contractAddress: registry,
         chainId: REGISTRATION_CHAIN_ID,
       },
+    });
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // 4.6 — is the registration indexed yet?
+  ////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * `docs/17` Risk 3 has no engineering mitigation, so the honest thing is to
+   * ask and record the answer rather than assume either way.
+   *
+   * The fleet card was reading `not_indexed` for an agent the subgraph was
+   * already returning, because nothing ever advanced the track after
+   * registration. A status that only ever moves in one direction is a status
+   * that stops describing the system.
+   */
+  try {
+    const graph = new Agent0Client();
+    const key = `${REGISTRATION_CHAIN_ID}:${agentId}`;
+    const indexed = await graph.agentProfile(key);
+
+    await store.setProvisioning(AGENT_DB_ID, {
+      graph: indexed ? "indexed" : "pending",
+    });
+
+    step({
+      what: "4.6 registration is indexed",
+      ok: true,
+      detail: indexed
+        ? `${key} returns ${indexed.claimedEnsName ?? "no ENS claim"} — discoverable`
+        : `${key} not indexed yet; the registration transaction stands as evidence meanwhile`,
+    });
+
+    if (indexed) {
+      await store.recordEvent({
+        organizationId: ORGANIZATION_ID,
+        agentId: AGENT_DB_ID,
+        source: "graph",
+        type: "graph.indexed",
+        status: "success",
+        occurredAt: indexed.provenance.queriedAt,
+        summary: `${key} is indexed and claims ${indexed.claimedEnsName ?? "no name"}`,
+        evidence: {
+          source: "graph",
+          chainId: indexed.provenance.chainId,
+          subgraphId: indexed.provenance.subgraphId,
+          queriedAt: indexed.provenance.queriedAt,
+          graphEntityId: key,
+        },
+      });
+    }
+  } catch (error) {
+    // A provider outage is not "not indexed" — it is not knowing, and the
+    // track says so rather than reporting an absence it did not establish.
+    await store.setProvisioning(AGENT_DB_ID, { graph: "provider_error" });
+    step({
+      what: "4.6 registration is indexed",
+      ok: false,
+      detail: `could not ask the subgraph: ${messageOf(error)}`,
     });
   }
 
