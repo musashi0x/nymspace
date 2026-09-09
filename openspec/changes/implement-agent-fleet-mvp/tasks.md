@@ -15,13 +15,13 @@ The recurring hazard across all six gates is the same one: **a negative result t
 
 Nothing in sections 2 onward starts until this section is clear. Two of these three items are someone else's queue, not ours.
 
-- [ ] 1.1 Archive `ensv2-authority-spike` so `ensv2-authority` lands in `openspec/specs/`. This change's delta modifies that capability and cannot apply while it lives only in a pending change
-- [ ] 1.2 Obtain `GRAPH_API_KEY` from The Graph Studio and set it. Every task in section 4 is blocked on it
+- [x] 1.1 Archive `ensv2-authority-spike` so `ensv2-authority` lands in `openspec/specs/`. This change's delta modifies that capability and cannot apply while it lives only in a pending change
+- [x] 1.2 Obtain `GRAPH_API_KEY` from The Graph Studio and set it. Every task in section 4 is blocked on it
 - [ ] 1.3 Obtain Privy credentials — `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_AUTHORIZATION_KEY_ID`, `PRIVY_AUTHORIZATION_PRIVATE_KEY`. Every task in section 5 is blocked on them
-- [ ] 1.4 Confirm the spike's deployed proxies still respond: `getCode` on `ENSV2_PARENT_REGISTRY_ADDRESS` and `ENSV2_PERMISSIONED_RESOLVER_ADDRESS`, and `getSubregistry` for `nymspace` on the `.eth` registry returns the parent registry
+- [x] 1.4 Confirm the spike's deployed proxies still respond: `getCode` on `ENSV2_PARENT_REGISTRY_ADDRESS` and `ENSV2_PERMISSIONED_RESOLVER_ADDRESS`, and `getSubregistry` for `nymspace` on the `.eth` registry returns the parent registry
 - [ ] 1.5 Re-fund the organization and controller keys with Sepolia ETH. Three subname registrations, an ERC 8004 registration, and the permission-proof writes all spend
-- [ ] 1.6 Decide the persistence engine and the LLM provider (design.md, Open Questions), and add every variable either introduces to `.env.example` **and** `turbo.json` in the same edit, or `pnpm env:check` fails
-- [ ] 1.7 Write `scripts/check-credentials.ts`, wired as `pnpm check:credentials`, implementing Gate 0
+- [x] 1.6 Decide the persistence engine and the LLM provider (design.md, Open Questions), and add every variable either introduces to `.env.example` **and** `turbo.json` in the same edit, or `pnpm env:check` fails
+- [x] 1.7 Write `scripts/check-credentials.ts`, wired as `pnpm check:credentials`, implementing Gate 0
 
 **Gate 0 — Credentials are real.**
 
