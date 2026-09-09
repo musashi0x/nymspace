@@ -13,7 +13,7 @@ pnpm install
 pnpm dev          # turbo run dev — web + api together
 pnpm build
 pnpm typecheck    # tsc --noEmit across every workspace
-pnpm lint         # next lint (web only; no other package defines lint)
+pnpm lint         # eslint . (web only; no other package defines lint)
 pnpm test         # vitest run across workspaces that define it
 pnpm check        # env:check + conditions:check — the two custom invariants
 ```
@@ -39,6 +39,25 @@ pnpm --filter @nymspace/ens spike          # Day 1 ENSv2 authority spike
 ```
 
 Tests live beside their source as `*.test.ts`. Only `@nymspace/api`, `@nymspace/core`, `@nymspace/ens`, and `@nymspace/store` have suites.
+
+## Linting — ESLint pinned to 9, not 10
+
+Next 16 removed the `next lint` subcommand. The bare word `lint` became a positional
+project-directory argument, so the old `next lint` script failed with `no such directory:
+apps/web/lint` — which reads like a path bug and is actually a removed command. Linting is
+now `eslint .` against `apps/web/eslint.config.mjs` (flat config, `eslint-config-next/core-web-vitals`).
+
+`eslint` is held at `^9` on purpose. `eslint-config-next@16.3.4` still pulls
+`eslint-plugin-react@7.37.5`, which peer-caps at eslint 9 and dies on 10 with:
+
+```
+TypeError: Error while loading rule 'react/display-name': contextOrFilename.getFilename is not a function
+```
+
+pnpm reports that as a peer warning during install, not an error, so the break only shows up
+when the linter runs. Lift the pin when `eslint-config-next` ships eslint-10-compatible plugins.
+
+Only `apps/web` defines a `lint` script; `packages/*` are not linted yet.
 
 ## The coordination store is not an authority
 

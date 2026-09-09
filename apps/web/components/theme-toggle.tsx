@@ -34,13 +34,31 @@ const MoonIcon = () => (
   </svg>
 );
 
+// Never fires — the value it reports is constant per environment, so there is
+// nothing to subscribe to. Kept at module scope so the store is not re-subscribed
+// on every render.
+const subscribeToNothing = () => () => {};
+
+/**
+ * False on the server and through hydration, true afterwards. The setState-in-an-
+ * effect version of this reads the same but schedules a second render pass, which
+ * `react-hooks/set-state-in-effect` flags; `useSyncExternalStore` gets the server
+ * and client snapshots to differ without that.
+ */
+function useMounted() {
+  return React.useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+}
+
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
 
   // The server cannot know the viewer's theme, so render a neutral shell until
   // the client has resolved it. Otherwise the icon hydrates wrong.
-  React.useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const isDark = resolvedTheme === "dark";
 
