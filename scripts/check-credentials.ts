@@ -33,21 +33,50 @@ import type { Address, Hex } from "@nymspace/core";
 //////////////////////////////////////////////////////////////////////////////
 
 /**
- * What this change's onchain work costs, as a floor rather than an estimate.
+ * What this change's onchain work costs, derived rather than guessed.
  *
- * The organization signs three subname registrations, three `agent-context`
- * writes, one `agent-endpoint[mcp]` write, one ENSIP 25 record write, several
- * `authorizeTextRoles` grants, one ERC 8004 registration, and — for Gate D —
- * a revoke and a re-grant. The controller signs one permitted record write and
- * several deliberately reverting ones, which still burn gas up to the revert.
+ * The first version of this was a round number someone felt was generous, and
+ * it failed the gate at a balance that was in fact ~500 times the work — which
+ * is its own kind of gate lie: a check that blocks a section for a reason that
+ * is not true. So the basis is measured instead.
  *
- * Sepolia gas is cheap and volatile, so these are generous. A balance check
- * that passes at the exact cost of a run is a check that fails mid-run when the
- * base fee moves, which is the worst possible moment to discover it.
+ * `MEASURED_COST_PER_TX_WEI` is the mean of the Day 1 spike's five recorded
+ * transactions, read back from their receipts on Sepolia:
+ *
+ *   register subname                 170,274 gas   0.00018386 ETH
+ *   authorizeTextRoles grant          90,665 gas   0.00009210 ETH
+ *   controller setText               109,908 gas   0.00011027 ETH
+ *   organization setText (ENSIP 25)   66,359 gas   0.00007187 ETH
+ *   authorizeTextRoles revoke         42,745 gas   0.00004460 ETH
+ *
+ * all at roughly 1 gwei. `register` is the most expensive operation this change
+ * performs, so the mean is not hiding a heavier call in the tail.
+ *
+ * The transaction budgets are counted from `tasks.md`: the organization signs
+ * three registrations, three `agent-context` writes, an `agent-endpoint[mcp]`
+ * write, an ENSIP 25 write, the record-scoped grants, an ERC 8004 registration,
+ * and Gate D's revoke and re-grant — call it forty across the reruns a gate
+ * runner implies. The controller signs one permitted write and several
+ * deliberately reverting ones, which still burn gas up to the revert.
+ *
+ * The headroom multiplier is the part that matters, and it covers the one
+ * variable a measurement cannot: Sepolia's base fee is ~1 gwei today and has no
+ * obligation to stay there. Ten times leaves the floor two orders of magnitude
+ * above the measured work while still failing on a genuinely empty key.
  */
+const MEASURED_COST_PER_TX_WEI = 100_540_000_000_000n; // 0.00010054 ETH
+const GAS_PRICE_HEADROOM = 10n;
+
+const TRANSACTION_BUDGET = {
+  organization: 40n,
+  controller: 10n,
+} as const;
+
 const MINIMUM_BALANCE_WEI = {
-  organization: 50_000_000_000_000_000n, // 0.05 ETH
-  controller: 10_000_000_000_000_000n, // 0.01 ETH
+  organization:
+    MEASURED_COST_PER_TX_WEI * TRANSACTION_BUDGET.organization * GAS_PRICE_HEADROOM,
+  controller:
+    MEASURED_COST_PER_TX_WEI * TRANSACTION_BUDGET.controller * GAS_PRICE_HEADROOM,
 } as const;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -117,7 +146,11 @@ async function checkBalance(
       name: `${signer} is funded above the run's floor`,
       passed: balance >= minimum,
       code: `${formatEther(balance)} ETH`,
-      detail: `${address}, floor ${formatEther(minimum)} ETH`,
+      // The floor shows its derivation, so a failure can be argued with rather
+      // than merely obeyed — the previous round number could not be.
+      detail:
+        `${address}, floor ${formatEther(minimum)} ETH ` +
+        `(${TRANSACTION_BUDGET[signer]} tx × ${formatEther(MEASURED_COST_PER_TX_WEI)} measured × ${GAS_PRICE_HEADROOM} headroom)`,
     });
   } catch (error) {
     record({
