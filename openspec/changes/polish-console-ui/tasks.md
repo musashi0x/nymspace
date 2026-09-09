@@ -36,12 +36,12 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm typecheck` and `pnpm lint` clean.
-- [ ] 6.2 Grep the touched files for `style={{`, raw `<div>`/`<span>` layout, and literal hex/px values; the only permitted raw-element file remains `components/console/frame.tsx`.
-- [ ] 6.3 With a populated store, load `/console/activity`: confirm exactly 40 rows mount, scrolling to the end appends the next 40, arriving rows animate and existing rows do not, and the count reads correctly at each step.
-- [ ] 6.4 Expand an event: evidence renders as indented highlighted JSON, the copy button places the full payload on the clipboard, and long evidence scrolls inside its own bounded height.
-- [ ] 6.5 Force an event with `undefined` evidence and one with a cyclic/BigInt payload; confirm `Absent` and the serialization fallback respectively, with no crash.
-- [ ] 6.6 At the mobile breakpoint, confirm `FleetTable` scrolls horizontally with no painted bar, the edge fade appears and clears at the end, the sticky name column still pins, and the region is reachable and scrollable by keyboard alone.
-- [ ] 6.7 With `prefers-reduced-motion: reduce` set, confirm no animation runs, all content is visible in its resting state, and window extension still works.
-- [ ] 6.8 Disable JavaScript and load `/console/activity`: the first window of rows must be fully visible, not stuck at `opacity: 0`.
-- [ ] 6.9 Check both themes and re-run the visual pass in a second engine (WebKit and Gecko) to confirm the scrollbar is concealed in each.
+- [x] 6.1 `pnpm typecheck` and `pnpm lint` clean.
+- [x] 6.2 Grep the touched files for `style={{`, raw `<div>`/`<span>` layout, and literal hex/px values; the only permitted raw-element file remains `components/console/frame.tsx`.
+- [x] 6.3 With a populated store, load `/console/activity`: confirm exactly 40 rows mount, scrolling to the end appends the next 40, arriving rows animate and existing rows do not, and the count reads correctly at each step.
+- [x] 6.4 Expand an event: evidence renders as indented highlighted JSON, the copy button places the full payload on the clipboard, and long evidence scrolls inside its own bounded height.
+- [x] 6.5 Force an event with `undefined` evidence and one with a cyclic/BigInt payload; confirm `Absent` and the serialization fallback respectively, with no crash.
+- [x] 6.6 At the mobile breakpoint, confirm `FleetTable` scrolls horizontally with no painted bar, the edge fade appears and clears at the end, the sticky name column still pins, and the region is reachable and scrollable by keyboard alone.
+- [ ] 6.7 With `prefers-reduced-motion: reduce` set, confirm no animation runs, all content is visible in its resting state, and window extension still works. NOT VERIFIED — the Browser pane emulates `prefers-color-scheme` but not `prefers-reduced-motion`. The rules exist in `globals.css`; run this in a real browser with the OS setting on.
+- [ ] 6.8 Disable JavaScript and load `/console/activity`: the first window of rows must be fully visible, not stuck at `opacity: 0`. NOT VERIFIED — the pane offers no JS toggle. `animation-fill-mode: both` is the guarantee; confirm by hand.
+- [ ] 6.9 Check both themes and re-run the visual pass in a second engine (WebKit and Gecko) to confirm the scrollbar is concealed in each. PARTIAL — light verified in the pane's Chromium; the dark pass and the second engine are outstanding. No literal colour was introduced, so dark follows the theme by construction, but that is an argument rather than a look.

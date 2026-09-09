@@ -4,8 +4,24 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@nymspace/web", "dev", "--port", "3111"],
-      "port": 3111
+      "runtimeArgs": [
+        "--filter",
+        "@nymspace/web",
+        "dev",
+        "--port",
+        "3113"
+      ],
+      "port": 3113
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@nymspace/api",
+        "dev"
+      ],
+      "port": 3112
     }
   ]
 }
