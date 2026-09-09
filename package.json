@@ -21,6 +21,7 @@
     "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts"
   },
   "devDependencies": {
+    "@nymspace/api": "workspace:*",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
     "@nymspace/graph": "workspace:*",
