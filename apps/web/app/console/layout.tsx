@@ -3,6 +3,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ViewTransition } from "@/components/console/view-transition";
 
 /**
  * The console shell.
@@ -70,7 +71,12 @@ export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
         </HStack>
         <ThemeToggle />
       </HStack>
-      {children}
+      {/*
+        Only the screen fades. The header and nav sit outside, because chrome
+        that re-animates on every navigation reads as the whole page reloading
+        rather than as the content changing.
+      */}
+      <ViewTransition>{children}</ViewTransition>
     </VStack>
   );
 }

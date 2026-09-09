@@ -31,8 +31,8 @@
 
 ## 5. Route transition
 
-- [ ] 5.1 Add a client wrapper in `apps/web/app/console/layout.tsx` keyed on `usePathname()` that applies `view-enter` to `{children}`, keeping the server layout otherwise intact and the nav/header outside the animated region.
-- [ ] 5.2 Confirm the console still server-renders — the wrapper must not force the whole layout client-side or break `export const dynamic = "force-dynamic"` on the pages beneath it.
+- [x] 5.1 Add a client wrapper in `apps/web/app/console/layout.tsx` keyed on `usePathname()` that applies `view-enter` to `{children}`, keeping the server layout otherwise intact and the nav/header outside the animated region.
+- [x] 5.2 Confirm the console still server-renders — the wrapper must not force the whole layout client-side or break `export const dynamic = "force-dynamic"` on the pages beneath it.
 
 ## 6. Verification
 
