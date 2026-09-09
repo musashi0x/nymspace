@@ -173,6 +173,35 @@ function sameContext(before: string, next: string): boolean {
 }
 
 //////////////////////////////////////////////////////////////////////////////
+// Availability
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Read the label's owner, and refuse it if that owner is a stranger.
+ *
+ * Separate from `provisionAgent` because the route has to answer this one
+ * synchronously. Provisioning continues after the response, so a check made
+ * inside it would report a taken label into a promise nobody is holding, and
+ * the caller would have been told 202 for a name it will never own.
+ *
+ * Returns the owner it read, so the caller that goes on to provision does not
+ * pay for the read twice.
+ */
+export async function assertLabelAvailable(
+  ctx: Pick<ProvisionContext, "ens" | "registry" | "organization">,
+  label: string,
+): Promise<Address> {
+  const owner = await ctx.ens.findOwner(ctx.registry, label);
+  if (
+    !sameAddress(owner, ZERO_ADDRESS) &&
+    !sameAddress(owner, ctx.organization)
+  ) {
+    throw new LabelUnavailableError(label, owner);
+  }
+  return owner;
+}
+
+//////////////////////////////////////////////////////////////////////////////
 // The sequence
 //////////////////////////////////////////////////////////////////////////////
 
@@ -202,13 +231,7 @@ export async function provisionAgent(
   // The name
   //////////////////////////////////////////////////////////////////////////
 
-  const existingOwner = await ens.findOwner(registry, label);
-  if (
-    !sameAddress(existingOwner, ZERO_ADDRESS) &&
-    !sameAddress(existingOwner, organization)
-  ) {
-    throw new LabelUnavailableError(label, existingOwner);
-  }
+  const existingOwner = await assertLabelAvailable(ctx, label);
 
   await store.upsertAgent({
     id: agentId,
@@ -247,6 +270,11 @@ export async function provisionAgent(
         txHash: hash,
         summary: `Registered ${ensName}`,
         evidence: { source: "ens", txHash: hash, contractAddress: registry },
+        // The read-back travels with the event rather than only in the return
+        // value. A screen reloaded mid-provision rebuilds its step list from
+        // the log, and a step that cannot show what the chain said afterwards
+        // is back to reporting a submitted transaction as done — design D3.
+        metadata: { readBack: organization },
       });
     } catch (error) {
       step({
@@ -302,6 +330,7 @@ export async function provisionAgent(
     status: "success",
     occurredAt: now(),
     summary: `${ensName} resolves through ${attached}`,
+    metadata: { readBack: attached },
     evidence: {
       source: "ens",
       // The attachment happened in the registration transaction; the read above
@@ -392,6 +421,7 @@ export async function provisionAgent(
         txHash: hash,
         summary: `Wrote ${record.key} on ${ensName}`,
         evidence: evidence(hash),
+        metadata: { key: record.key, readBack: after },
       });
     } catch (error) {
       step({
@@ -466,6 +496,10 @@ export async function provisionAgent(
           txHash: hash,
           summary: `Granted SET_TEXT on ${key} to ${target.controller}`,
           evidence: evidence(hash),
+          metadata: {
+            key,
+            readBack: granted ? "controller can write" : "controller still cannot write",
+          },
         });
       } catch (error) {
         step({

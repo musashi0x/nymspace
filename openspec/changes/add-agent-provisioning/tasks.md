@@ -15,13 +15,13 @@
 
 ## 2. The routes
 
-- [ ] 2.1 `POST /v1/agents` on `apps/api/src/routes/agents.ts`, chained inline with `@hono/zod-validator`, dependencies from `c.var.deps` — the file's existing pattern, per `CLAUDE.md`
-- [ ] 2.2 Body: label, name, role, description, controller address, `endpoints: { mcp, a2a?, web? }`. Validate the label against the same local rule the script uses
-- [ ] 2.3 Write the agent and its `INITIAL_PROVISIONING` row, record `agent.created`, answer 202 with the agent id before provisioning finishes
-- [ ] 2.4 Run `provisionAgent` after responding; record each step as its typed activity event with `txHash` and evidence; advance the `ens` track through `setProvisioning`
-- [ ] 2.5 On revert, record `ens.action.denied` through `describeDenial` and leave the tracks where they stopped. A denial is a state, not a 500
-- [ ] 2.6 `GET /v1/agents/:id/provisioning`: the five tracks, the ordered steps with hash and read-back value, and `readAt`
-- [ ] 2.7 Route tests against `app.ts` with injected fakes: create returns 202; re-create the same label repairs and does not duplicate; a reverting grant yields `denied`, not a thrown error
+- [x] 2.1 `POST /v1/agents` on `apps/api/src/routes/agents.ts`, chained inline with `@hono/zod-validator`, dependencies from `c.var.deps` — the file's existing pattern, per `CLAUDE.md`
+- [x] 2.2 Body: label, name, role, description, controller address, `endpoints: { mcp, a2a?, web? }`. Validate the label against the same local rule the script uses
+- [x] 2.3 Write the agent and its `INITIAL_PROVISIONING` row, record `agent.created`, answer 202 with the agent id before provisioning finishes
+- [x] 2.4 Run `provisionAgent` after responding; record each step as its typed activity event with `txHash` and evidence; advance the `ens` track through `setProvisioning`
+- [x] 2.5 On revert, record `ens.action.denied` through `describeDenial` and leave the tracks where they stopped. A denial is a state, not a 500
+- [x] 2.6 `GET /v1/agents/:id/provisioning`: the five tracks, the ordered steps with hash and read-back value, and `readAt`
+- [x] 2.7 Route tests against `app.ts` with injected fakes: create returns 202; re-create the same label repairs and does not duplicate; a reverting grant yields `denied`, not a thrown error
 
 ## 3. The screen
 

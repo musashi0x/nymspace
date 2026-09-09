@@ -377,3 +377,194 @@ describe("failure shapes", () => {
     expect(text).not.toContain("PRIVY_APP_SECRET");
   });
 });
+
+describe("creating an agent", () => {
+  const ZERO = "0x0000000000000000000000000000000000000000";
+  const ORGANIZATION = "0x1111111111111111111111111111111111111111";
+  const CONTROLLER = "0x2222222222222222222222222222222222222222";
+  const RESOLVER = "0x3333333333333333333333333333333333333333";
+  const REGISTRY = "0x4444444444444444444444444444444444444444";
+  const HASH = `0x${"a".repeat(64)}`;
+
+  const body = {
+    label: "research",
+    name: "Research",
+    description: "Finds and ranks other agents.",
+    role: "May update its own MCP endpoint record.",
+    controller: CONTROLLER,
+    endpoints: { mcp: "https://mcp.example/research" },
+    delegate: true,
+  };
+
+  /**
+   * The chain fake answers reads and records writes. The route starts
+   * provisioning after it responds, so these tests assert on the response and
+   * on what the store was asked to do — the sequence itself is covered against
+   * a fake chain in `provisioning.test.ts`.
+   */
+  function containerFor(owner: string) {
+    const written: string[] = [];
+    const text: Record<string, string> = {};
+
+    const ens = {
+      findOwner: async () => owner,
+      getResolver: async () => RESOLVER,
+      registerSubname: async () => HASH,
+      waitForReceipt: async () => ({ status: "success" }),
+      readText: async (_n: string, key: string) => text[key] ?? "",
+      writeText: async ({ key, value }: { key: string; value: string }) => {
+        text[key] = value;
+        return HASH;
+      },
+      resolverHasRoles: async () => false,
+      authorizeTextRole: async () => HASH,
+      canSetText: async () => false,
+    };
+
+    const store = {
+      upsertAgent: async (a: { id: string }) => {
+        written.push(a.id);
+        return a;
+      },
+      recordEvent: async () => undefined,
+      setProvisioning: async () => undefined,
+      getAgent: async () => undefined,
+      listActivity: async () => [],
+    };
+
+    return {
+      written,
+      deps: {
+        ens,
+        store,
+        resolver: RESOLVER,
+        registry: REGISTRY,
+        organization: ORGANIZATION,
+        parentName: "nymspace.eth",
+      } as unknown as Deps,
+    };
+  }
+
+  const post = (app: ReturnType<typeof createApp>, payload: unknown) =>
+    app.fetch(
+      new Request("http://api.test/v1/agents", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    );
+
+  it("answers 202 with the id before provisioning finishes", async () => {
+    const { deps, written } = containerFor(ZERO);
+    const res = await post(createApp(config, deps), body);
+
+    expect(res.status).toBe(202);
+    const json = (await res.json()) as Record<string, string>;
+    expect(json).toMatchObject({
+      id: "agent-research",
+      ensName: "research.nymspace.eth",
+      status: "provisioning",
+    });
+    // The row exists before the caller is told to poll for it. Only the first
+    // entry is asserted: provisioning is already running behind the response
+    // and upserts the same row again, which is the idempotency working.
+    expect(written[0]).toBe("agent-research");
+  });
+
+  it("refuses a label owned by someone else, and writes nothing", async () => {
+    const stranger = "0x9999999999999999999999999999999999999999";
+    const { deps, written } = containerFor(stranger);
+    const res = await post(createApp(config, deps), body);
+
+    expect(res.status).toBe(409);
+    const json = (await res.json()) as Record<string, string>;
+    expect(json.status).toBe("unavailable");
+    expect(json.owner).toBe(stranger);
+    expect(written).toEqual([]);
+  });
+
+  it("rejects a label that is not a label", async () => {
+    const { deps } = containerFor(ZERO);
+    const res = await post(createApp(config, deps), { ...body, label: "Research Agent" });
+    expect(res.status).toBe(400);
+  });
+
+  it("reports progress as the five tracks and the steps behind them", async () => {
+    const agentRow = {
+      id: "agent-research",
+      ensName: "research.nymspace.eth",
+      provisioning: {
+        ens: "pending",
+        erc8004: "unregistered",
+        ensip25: "unchecked",
+        graph: "not_indexed",
+        financial: "no_wallet",
+      },
+    };
+
+    const app = createApp(config, {
+      store: {
+        getAgent: async () => agentRow,
+        listActivity: async () => [
+          {
+            type: "ens.record.updated",
+            status: "success",
+            summary: "Wrote agent-context on research.nymspace.eth",
+            occurredAt: "2026-09-09T00:00:02.000Z",
+            evidence: { source: "ens", txHash: HASH, contractAddress: RESOLVER },
+            metadata: { readBack: "{}" },
+          },
+          {
+            type: "agent.created",
+            status: "success",
+            summary: "Registered research.nymspace.eth",
+            occurredAt: "2026-09-09T00:00:01.000Z",
+            evidence: { source: "ens", txHash: HASH, contractAddress: REGISTRY },
+            metadata: { readBack: ORGANIZATION },
+          },
+          {
+            // Not a provisioning step. A payment on the same agent must not
+            // appear in the create screen's step list.
+            type: "privy.payment.executed",
+            status: "success",
+            summary: "Paid 5 USDC",
+            occurredAt: "2026-09-09T00:00:03.000Z",
+            evidence: {
+              source: "privy",
+              walletId: "w1",
+              policyId: "p1",
+              requestedAt: "2026-09-09T00:00:03.000Z",
+            },
+          },
+        ],
+      } as unknown as Deps["store"],
+    } as Deps);
+
+    const res = await app.fetch(
+      new Request("http://api.test/v1/agents/agent-research/provisioning"),
+    );
+    expect(res.status).toBe(200);
+
+    const json = (await res.json()) as {
+      tracks: Record<string, string>;
+      steps: { what: string; readBack: string | null }[];
+      complete: boolean;
+    };
+
+    expect(Object.keys(json.tracks).sort()).toEqual([
+      "ens",
+      "ensip25",
+      "erc8004",
+      "financial",
+      "graph",
+    ]);
+    // Oldest first, and the payment is not among them.
+    expect(json.steps.map((s) => s.what)).toEqual([
+      "Registered research.nymspace.eth",
+      "Wrote agent-context on research.nymspace.eth",
+    ]);
+    expect(json.steps[0]!.readBack).toBe(ORGANIZATION);
+    // The ENS track is still moving, so the screen keeps polling.
+    expect(json.complete).toBe(false);
+  });
+});
