@@ -372,6 +372,15 @@ export function assertEvidence(
 
 /** Filters for the activity route, from `docs/10_API_CONTRACT.md`. */
 export interface ActivityFilter {
+  /**
+   * Scope to one organization.
+   *
+   * Not cosmetic. The store is multi-tenant by design — `Organization` is an
+   * entity and agents hang off it — so an unscoped timeline query returns every
+   * organization's events. Found by a test that asserted a count and got the
+   * provisioning run's events too.
+   */
+  organizationId?: string;
   agentId?: string;
   source?: ActivitySource;
   type?: ActivityType;

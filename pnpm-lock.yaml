@@ -17,6 +17,9 @@ importers:
       '@nymspace/graph':
         specifier: workspace:*
         version: link:packages/graph
+      '@nymspace/store':
+        specifier: workspace:*
+        version: link:packages/store
       '@types/node':
         specifier: ^24
         version: 24.13.3

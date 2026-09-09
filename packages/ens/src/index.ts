@@ -10,9 +10,13 @@ import "server-only";
  */
 
 export * from "./abis";
+export * from "./agent-context";
 export * from "./chain";
 export * from "./eac";
+export * from "./ensip25";
+export * from "./erc8004";
 export * from "./factory";
 export * from "./ens-service";
 export * from "./keys";
+export * from "./manifest";
 export * from "./viem-client";

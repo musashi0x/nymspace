@@ -28,6 +28,12 @@ const REQUIRED = [
 
 export interface ServerEnv {
   sepoliaRpcUrl: string;
+  /**
+   * Base Sepolia. Optional, because ENSv2 lives only on Sepolia and every
+   * identity proof works without it — only the ERC 8004 registration in
+   * design.md D14 needs this network, and it defaults to the public endpoint.
+   */
+  baseSepoliaRpcUrl: string;
   ensv2: {
     rootRegistry?: string;
     ethRegistry: string;
@@ -46,6 +52,8 @@ export interface ServerEnv {
   };
   erc8004: {
     identityRegistry?: string;
+    /** Same address as Sepolia, different chain reference in the ENSIP 25 key. */
+    baseSepoliaIdentityRegistry?: string;
     reputationRegistry?: string;
     validationRegistry?: string;
   };
@@ -82,6 +90,8 @@ export function serverEnv(): ServerEnv {
 
   cached = {
     sepoliaRpcUrl: required.SEPOLIA_RPC_URL,
+    baseSepoliaRpcUrl:
+      optional(source, "BASE_SEPOLIA_RPC_URL") ?? "https://sepolia.base.org",
     ensv2: {
       rootRegistry: optional(source, "ENSV2_ROOT_REGISTRY_ADDRESS"),
       ethRegistry: required.ENSV2_ETH_REGISTRY_ADDRESS,
@@ -103,6 +113,10 @@ export function serverEnv(): ServerEnv {
     },
     erc8004: {
       identityRegistry: optional(source, "ERC8004_IDENTITY_REGISTRY_ADDRESS"),
+      baseSepoliaIdentityRegistry: optional(
+        source,
+        "ERC8004_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS",
+      ),
       reputationRegistry: optional(source, "ERC8004_REPUTATION_REGISTRY_ADDRESS"),
       validationRegistry: optional(source, "ERC8004_VALIDATION_REGISTRY_ADDRESS"),
     },

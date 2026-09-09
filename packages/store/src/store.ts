@@ -127,6 +127,13 @@ export class Store {
         .onConflictDoUpdate({
           target: agents.id,
           set: {
+            // Written on conflict, not just on insert. Leaving it out loses the
+            // caller's value silently: an id that already exists under another
+            // organization keeps the old one, the upsert reports success, and
+            // the agent then vanishes from `listAgents` for the organization
+            // that just created it. Found exactly that way.
+            organizationId: agent.organizationId,
+            slug: agent.slug,
             ensName: agent.ensName,
             controllerAddress: agent.controllerAddress,
             erc8004AgentId: sql`coalesce(excluded.erc8004_agent_id, ${agents.erc8004AgentId})`,
@@ -419,6 +426,9 @@ export class Store {
    */
   async listActivity(filter: ActivityFilter = {}): Promise<ActivityEvent[]> {
     const clauses: SQL[] = [];
+    if (filter.organizationId) {
+      clauses.push(eq(activityEvents.organizationId, filter.organizationId));
+    }
     if (filter.agentId) clauses.push(eq(activityEvents.agentId, filter.agentId));
     if (filter.source) clauses.push(eq(activityEvents.source, filter.source));
     if (filter.type) clauses.push(eq(activityEvents.type, filter.type));

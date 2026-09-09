@@ -49,9 +49,18 @@ beforeEach(async () => {
   });
 });
 
+/**
+ * Fixture ids are namespaced under the test organization.
+ *
+ * They were plain `agent-<slug>` once, which collided with the ids the real
+ * provisioning script writes — same database, same primary key, different
+ * organization. The upsert then kept the first organization, the provisioning
+ * run reported success, and the agent disappeared from its own fleet listing.
+ * The collision is fixed here and the silent overwrite is fixed in `store.ts`.
+ */
 function agentFixture(slug: string) {
   return {
-    id: `agent-${slug}`,
+    id: `${ORG_ID}-${slug}`,
     organizationId: ORG_ID,
     slug,
     ensName: `${slug}.nymspace.eth`,
@@ -62,7 +71,7 @@ function agentFixture(slug: string) {
 describe("agents and provisioning", () => {
   it("gives a new agent five independent tracks, none of them a global flag", async () => {
     await store.upsertAgent(agentFixture("research"));
-    const agent = await store.getAgent("agent-research");
+    const agent = await store.getAgent(`${ORG_ID}-research`);
 
     expect(agent?.provisioning).toEqual({
       ens: "draft",
@@ -79,8 +88,8 @@ describe("agents and provisioning", () => {
 
   it("advances one track without disturbing the others", async () => {
     await store.upsertAgent(agentFixture("research"));
-    await store.setProvisioning("agent-research", { ens: "active" });
-    const after = await store.setProvisioning("agent-research", {
+    await store.setProvisioning(`${ORG_ID}-research`, { ens: "active" });
+    const after = await store.setProvisioning(`${ORG_ID}-research`, {
       ensip25: "verified",
     });
 
@@ -106,7 +115,7 @@ describe("agents and provisioning", () => {
       erc8004AgentId: "42",
     });
 
-    const agent = await store.getAgent("agent-research");
+    const agent = await store.getAgent(`${ORG_ID}-research`);
     expect(agent?.privyWalletId).toBe("wallet-1");
     expect(agent?.erc8004AgentId).toBe("42");
   });
@@ -131,7 +140,7 @@ describe("snapshots are caches that know when they were true", () => {
     await store.putIdentitySnapshot(
       snapshot(
         {
-          agentId: "agent-research",
+          agentId: `${ORG_ID}-research`,
           owner: "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9" as const,
           resolver: "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC" as const,
           ensip25Status: "verified" as const,
@@ -140,7 +149,7 @@ describe("snapshots are caches that know when they were true", () => {
       ),
     );
 
-    const read = await store.getIdentitySnapshot("agent-research");
+    const read = await store.getIdentitySnapshot(`${ORG_ID}-research`);
     expect(read?.fetchedAt).toBe(fetchedAt);
     // The assertion that matters: a value stored eight days ago must still say
     // so, or the interface has nothing left to label it with.
@@ -158,7 +167,7 @@ describe("snapshots are caches that know when they were true", () => {
   it("keeps an absent validation count absent rather than zero", async () => {
     await store.putGraphSnapshot(
       snapshot({
-        agentId: "agent-research",
+        agentId: `${ORG_ID}-research`,
         chainId: 11155111,
         graphAgentKey: "11155111:1",
         subgraphId: "6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT",
@@ -167,7 +176,7 @@ describe("snapshots are caches that know when they were true", () => {
       }),
     );
 
-    const read = await store.getGraphSnapshot("agent-research");
+    const read = await store.getGraphSnapshot(`${ORG_ID}-research`);
     expect(read?.validationCount).toBeUndefined();
     // Contrast: a feedback count of zero is a real measurement and stays zero.
     expect(read?.feedbackCount).toBe(0);
@@ -181,14 +190,14 @@ describe("financial authority holds references and no credentials", () => {
 
   it("round-trips the wallet reference", async () => {
     await store.putFinancialAuthority({
-      agentId: "agent-research",
+      agentId: `${ORG_ID}-research`,
       privyWalletId: "wallet-1",
       walletAddress: "0x1111111111111111111111111111111111111111",
       policyId: "policy-1",
       policyLabel: "Max 10 USDC per payment",
     });
 
-    const ref = await store.getFinancialAuthority("agent-research");
+    const ref = await store.getFinancialAuthority(`${ORG_ID}-research`);
     expect(ref?.privyWalletId).toBe("wallet-1");
     expect(ref?.policyId).toBe("policy-1");
   });
@@ -201,7 +210,7 @@ describe("activity is one log with per-source provenance", () => {
 
   const base = {
     organizationId: ORG_ID,
-    agentId: "agent-research",
+    agentId: `${ORG_ID}-research`,
     occurredAt: new Date().toISOString(),
   };
 
@@ -288,7 +297,7 @@ describe("activity is one log with per-source provenance", () => {
       },
     });
 
-    const denied = await store.listActivity({ status: "denied" });
+    const denied = await store.listActivity({ organizationId: ORG_ID, status: "denied" });
     expect(denied).toHaveLength(1);
     expect(denied[0]?.type).toBe("ens.action.denied");
   });
@@ -317,7 +326,7 @@ describe("activity is one log with per-source provenance", () => {
     });
 
     expect(resolved?.status).toBe("success");
-    const all = await store.listActivity({ agentId: "agent-research" });
+    const all = await store.listActivity({ agentId: `${ORG_ID}-research` });
     expect(all).toHaveLength(1);
     expect(all[0]?.summary).toBe("payment executed");
   });
@@ -346,7 +355,7 @@ describe("activity is one log with per-source provenance", () => {
     });
     await store.recordEvent({
       ...base,
-      agentId: "agent-trader",
+      agentId: `${ORG_ID}-trader`,
       occurredAt: at(2),
       source: "graph",
       type: "graph.discovery.executed",
@@ -360,13 +369,13 @@ describe("activity is one log with per-source provenance", () => {
       },
     });
 
-    expect(await store.listActivity({ agentId: "agent-research" })).toHaveLength(1);
-    expect(await store.listActivity({ source: "graph" })).toHaveLength(1);
-    expect(await store.listActivity({ type: "ens.record.updated" })).toHaveLength(1);
-    expect(await store.listActivity({ status: "success" })).toHaveLength(2);
+    expect(await store.listActivity({ organizationId: ORG_ID, agentId: `${ORG_ID}-research` })).toHaveLength(1);
+    expect(await store.listActivity({ organizationId: ORG_ID, source: "graph" })).toHaveLength(1);
+    expect(await store.listActivity({ organizationId: ORG_ID, type: "ens.record.updated" })).toHaveLength(1);
+    expect(await store.listActivity({ organizationId: ORG_ID, status: "success" })).toHaveLength(2);
 
     // Newest first, by occurrence rather than by insertion.
-    const ordered = await store.listActivity({});
+    const ordered = await store.listActivity({ organizationId: ORG_ID });
     expect(ordered.map((e) => e.summary)).toEqual(["b", "a"]);
   });
 
