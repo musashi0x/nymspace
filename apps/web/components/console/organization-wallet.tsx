@@ -1,32 +1,38 @@
 "use client";
 
 import * as React from "react";
+import { Badge } from "@/components/console/primitives";
 import {
   EXPECTED_CHAIN,
   WalletError,
   connect,
   currentAccount,
   currentChainId,
+  ensureChain,
   hasProvider,
   watchWallet,
 } from "@/lib/wallet";
 
 /**
- * Connect the organization's wallet, and say plainly whether the connected
- * account is actually the organization.
+ * The organization's wallet, as a header control.
  *
- * The mismatch case is the one worth designing for. A wallet connected as some
- * other account will produce a signature the resolver refuses, and the refusal
- * arrives after the user has approved a prompt and spent gas. Comparing two
- * strings before offering to sign costs nothing and says the same thing.
+ * The first version put every problem on one line as red prose — the address,
+ * "not the organization (0x…) — switch accounts to sign", and "wrong network —
+ * switch to Sepolia" all at once, wrapping into the nav. Three sentences of red
+ * text is not a status; it reads as breakage, and it tells the operator to do
+ * something instead of letting them do it.
+ *
+ * So: one compact pill. Address, plus a single badge for the one thing that is
+ * currently wrong, with the fix as a button where a button can fix it. The
+ * detail lives in a title attribute rather than on the line.
  */
 
-export type WalletState = {
-  account: `0x${string}` | undefined;
-  chainId: number | undefined;
-  isOrganization: boolean;
-  ready: boolean;
-};
+export type WalletStatus =
+  | "no_provider"
+  | "disconnected"
+  | "wrong_chain"
+  | "wrong_account"
+  | "ready";
 
 export function useOrganizationWallet(organization: string | undefined) {
   const [account, setAccount] = React.useState<`0x${string}` | undefined>();
@@ -49,7 +55,17 @@ export function useOrganizationWallet(organization: string | undefined) {
     !!organization &&
     account.toLowerCase() === organization.toLowerCase();
 
-  return { account, chainId, isOrganization, ready, refresh };
+  const status: WalletStatus = !hasProvider()
+    ? "no_provider"
+    : !account
+      ? "disconnected"
+      : chainId !== undefined && chainId !== EXPECTED_CHAIN.id
+        ? "wrong_chain"
+        : !isOrganization
+          ? "wrong_account"
+          : "ready";
+
+  return { account, chainId, isOrganization, ready, status, refresh };
 }
 
 export function OrganizationWallet({
@@ -57,69 +73,97 @@ export function OrganizationWallet({
 }: {
   organization: string | undefined;
 }) {
-  const { account, chainId, isOrganization, ready, refresh } =
+  const { account, ready, status, refresh } =
     useOrganizationWallet(organization);
-  const [error, setError] = React.useState<string>();
   const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string>();
 
-  async function onConnect() {
+  async function act(fn: () => Promise<unknown>) {
     setError(undefined);
     setBusy(true);
     try {
-      await connect();
+      await fn();
       await refresh();
     } catch (cause) {
-      setError(
-        cause instanceof WalletError ? cause.message : "Could not connect.",
-      );
+      setError(cause instanceof WalletError ? cause.message : "Wallet error.");
     } finally {
       setBusy(false);
     }
   }
 
-  // Render nothing decisive until the provider has been asked, so the UI does
-  // not flash "no wallet" at someone who has one.
+  // Nothing until the provider has been probed, so the control does not flash
+  // "no wallet" at someone who has one.
   if (!ready) return null;
 
-  if (!hasProvider()) {
+  if (status === "no_provider") {
     return (
-      <p style={NOTE}>
-        No browser wallet detected. Organization actions can still be run
-        server-side where a key is configured; connect a wallet to sign them
-        yourself.
-      </p>
-    );
-  }
-
-  if (!account) {
-    return (
-      <span style={ROW}>
-        <button type="button" onClick={onConnect} disabled={busy} style={BUTTON}>
-          {busy ? "Connecting…" : "Connect wallet"}
-        </button>
-        {error && <span style={WARN}>{error}</span>}
+      <span
+        className="text-xs text-muted-foreground"
+        title="Organization actions will be signed by the server where a key is configured."
+      >
+        no wallet
       </span>
     );
   }
 
-  const wrongChain = chainId !== undefined && chainId !== EXPECTED_CHAIN.id;
+  if (status === "disconnected") {
+    return (
+      <span className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void act(connect)}
+          disabled={busy}
+          className="rounded-full border border-border px-3 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          {busy ? "Connecting…" : "Connect wallet"}
+        </button>
+        {error && <ErrorNote message={error} />}
+      </span>
+    );
+  }
 
   return (
-    <span style={ROW}>
-      <code style={MONO}>{short(account)}</code>
-      {!organization ? (
-        <span style={NOTE}>organization address unknown</span>
-      ) : isOrganization ? (
-        <span style={OK}>organization</span>
-      ) : (
-        <span style={WARN}>
-          not the organization ({short(organization)}) — switch accounts to sign
-        </span>
+    <span className="flex items-center gap-2">
+      <code
+        className="font-mono text-xs text-muted-foreground"
+        title={account}
+      >
+        {short(account!)}
+      </code>
+
+      {status === "ready" && <Badge tone="good">organization</Badge>}
+
+      {status === "wrong_chain" && (
+        <button
+          type="button"
+          onClick={() => void act(ensureChain)}
+          disabled={busy}
+          className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[0.7rem] text-amber-600 transition-colors hover:bg-amber-500/20 disabled:opacity-50 dark:text-amber-400"
+          title={`This wallet is on another network. Signing there would target a different deployment of the same addresses.`}
+        >
+          {busy ? "switching…" : `switch to ${EXPECTED_CHAIN.name}`}
+        </button>
       )}
-      {wrongChain && (
-        <span style={WARN}>wrong network — switch to {EXPECTED_CHAIN.name}</span>
+
+      {status === "wrong_account" && (
+        <Badge tone="warn">
+          <span
+            title={`Connected as ${account}. Organization actions must be signed by ${organization}. Switch accounts in your wallet — this cannot be done from the page.`}
+          >
+            not the organization
+          </span>
+        </Badge>
       )}
-      {error && <span style={WARN}>{error}</span>}
+
+      {error && <ErrorNote message={error} />}
+    </span>
+  );
+}
+
+function ErrorNote({ message }: { message: string }) {
+  return (
+    <span className="max-w-[16rem] truncate text-xs text-destructive" title={message}>
+      {message}
     </span>
   );
 }
@@ -127,28 +171,3 @@ export function OrganizationWallet({
 function short(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
-
-/**
- * Inline styles rather than classes: the console's own primitives are the
- * house style here, and this component sits in their header. Introducing a
- * fourth styling system for one status row would be worse than five style
- * objects.
- */
-const ROW: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "0.5rem",
-  fontSize: "0.75rem",
-};
-const MONO: React.CSSProperties = { fontFamily: "var(--font-geist-mono)" };
-const NOTE: React.CSSProperties = { color: "var(--muted-foreground)", fontSize: "0.75rem" };
-const OK: React.CSSProperties = { color: "var(--graph-accent-3)" };
-const WARN: React.CSSProperties = { color: "var(--destructive)" };
-const BUTTON: React.CSSProperties = {
-  border: "1px solid var(--border)",
-  borderRadius: "999px",
-  padding: "0.25rem 0.75rem",
-  background: "transparent",
-  cursor: "pointer",
-  font: "inherit",
-};

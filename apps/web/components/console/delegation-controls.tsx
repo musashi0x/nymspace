@@ -2,15 +2,17 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/console/primitives";
+import { useOrganizationWallet } from "@/components/console/organization-wallet";
 import { apiBaseUrl } from "@/lib/api";
 import {
+  EXPECTED_CHAIN,
   WalletError,
   connect,
-  hasProvider,
+  ensureChain,
   sendPrepared,
   type PreparedTransaction,
 } from "@/lib/wallet";
-import { useOrganizationWallet } from "@/components/console/organization-wallet";
 
 /**
  * Grant and revoke a controller's right to write one record key.
@@ -22,10 +24,14 @@ import { useOrganizationWallet } from "@/components/console/organization-wallet"
  *   otherwise                            -> the server-signed route, which
  *                                           answers 503 if it holds no key
  *
- * The wallet path is preferred when it is available because the organization
- * is a person, and a revocation that a human approved is a different fact from
- * one a server performed with a key it happens to hold. The server path stays
- * because the unattended flows and the existing scripts depend on it.
+ * The wallet path is preferred where possible because the organization is a
+ * person: a revocation someone approved is a different fact from one a server
+ * performed with a key it happens to hold.
+ *
+ * The panel says which path a click will take *before* it is clicked, and
+ * where the blocker is fixable from here (connect, switch network) it offers
+ * the fix rather than describing it. Switching accounts is the one case it
+ * cannot fix — MetaMask has no API for it — so that one is stated plainly.
  */
 
 type Outcome =
@@ -46,24 +52,21 @@ export function DelegationControls({
   organization: string | undefined;
 }) {
   const router = useRouter();
-  const { account, isOrganization, refresh } = useOrganizationWallet(organization);
+  const { account, status, refresh } = useOrganizationWallet(organization);
   const [outcome, setOutcome] = React.useState<Outcome>({ kind: "idle" });
   const [active, setActive] = React.useState<string>();
+  const [busy, setBusy] = React.useState(false);
 
-  const canUseWallet = !!account && isOrganization;
+  const signer: "wallet" | "server" = status === "ready" ? "wallet" : "server";
 
   async function run(recordKey: string, grant: boolean) {
     setActive(`${recordKey}:${grant}`);
     setOutcome({ kind: "busy", step: "Preparing" });
-
     try {
-      if (canUseWallet) {
-        await viaWallet(recordKey, grant);
-      } else {
-        await viaServer(recordKey, grant);
-      }
-      // The permission matrix is rendered on the server from live chain reads,
-      // so re-fetching the route is what makes the change visible. Nothing is
+      if (signer === "wallet") await viaWallet(recordKey, grant);
+      else await viaServer(recordKey, grant);
+      // The matrix above is rendered server-side from live chain reads, so
+      // re-fetching the route is what makes a change visible. Nothing is
       // mutated client-side, which is why the matrix cannot drift from chain.
       router.refresh();
     } catch (cause) {
@@ -105,7 +108,7 @@ export function DelegationControls({
       confirmed.status === "confirmed"
         ? {
             kind: "ok",
-            message: `${grant ? "Granted" : "Revoked"} ${recordKey}, signed by you.`,
+            message: `${grant ? "Granted" : "Revoked"} ${recordKey} — you signed it.`,
             txHash,
           }
         : {
@@ -117,7 +120,7 @@ export function DelegationControls({
 
   async function viaServer(recordKey: string, grant: boolean) {
     setOutcome({ kind: "busy", step: "Signing on the server" });
-    const result = await post<{ status?: string; error?: string }>(
+    const result = await post<{ status?: string }>(
       `/v1/agents/${agentId}/permissions`,
       { controller, recordKey, grant },
     );
@@ -125,106 +128,185 @@ export function DelegationControls({
       result.status === "confirmed"
         ? {
             kind: "ok",
-            message: `${grant ? "Granted" : "Revoked"} ${recordKey}, signed by the server.`,
+            message: `${grant ? "Granted" : "Revoked"} ${recordKey} — the server signed it.`,
           }
         : {
             kind: "error",
-            message: result.error ?? "The server could not complete the change.",
+            message: "The server could not complete the change.",
           },
     );
   }
 
-  async function onConnect() {
+  async function act(fn: () => Promise<unknown>) {
+    setBusy(true);
     try {
-      await connect();
+      await fn();
       await refresh();
     } catch (cause) {
       setOutcome({
         kind: "error",
-        message: cause instanceof WalletError ? cause.message : "Could not connect.",
+        message: cause instanceof WalletError ? cause.message : "Wallet error.",
       });
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <section style={BOX}>
-      <header style={HEAD}>
-        <strong style={{ fontSize: "0.8125rem" }}>Delegation</strong>
-        <span style={NOTE}>{describeSigner(canUseWallet, account, organization)}</span>
+    <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-medium">Delegation</span>
+        <SignerNote
+          status={status}
+          organization={organization}
+          busy={busy}
+          onConnect={() => void act(connect)}
+          onSwitch={() => void act(ensureChain)}
+        />
       </header>
 
-      {!canUseWallet && hasProvider() && (
-        <p style={NOTE}>
-          {account
-            ? "Connected as another account. Switch to the organization to sign these yourself."
-            : ""}
-          {!account && (
-            <button type="button" onClick={onConnect} style={LINK}>
-              Connect the organization wallet
-            </button>
-          )}
-        </p>
-      )}
-
-      <ul style={LIST}>
+      <ul className="flex flex-col divide-y divide-border/40">
         {recordKeys.map((key) => (
-          <li key={key} style={ROW}>
-            <code style={MONO}>{key}</code>
-            <span style={{ display: "inline-flex", gap: "0.5rem" }}>
-              <button
-                type="button"
-                style={BTN}
+          <li
+            key={key}
+            className="flex flex-wrap items-center justify-between gap-3 py-2"
+          >
+            <code className="font-mono text-xs break-all">{key}</code>
+            <span className="flex shrink-0 gap-2">
+              <ActionButton
+                label="Grant"
+                busy={active === `${key}:true`}
                 disabled={active !== undefined}
                 onClick={() => void run(key, true)}
-              >
-                {active === `${key}:true` ? "…" : "Grant"}
-              </button>
-              <button
-                type="button"
-                style={BTN}
+              />
+              <ActionButton
+                label="Revoke"
+                busy={active === `${key}:false`}
                 disabled={active !== undefined}
                 onClick={() => void run(key, false)}
-              >
-                {active === `${key}:false` ? "…" : "Revoke"}
-              </button>
+              />
             </span>
           </li>
         ))}
       </ul>
 
-      {outcome.kind === "busy" && <p style={NOTE}>{outcome.step}…</p>}
-      {outcome.kind === "ok" && (
-        <p style={OK}>
-          {outcome.message}
-          {outcome.txHash && (
-            <>
-              {" "}
-              <a
-                href={`https://sepolia.etherscan.io/tx/${outcome.txHash}`}
-                target="_blank"
-                rel="noreferrer"
-                style={LINKA}
-              >
-                {outcome.txHash.slice(0, 10)}…
-              </a>
-            </>
-          )}
-        </p>
-      )}
-      {outcome.kind === "error" && <p style={WARN}>{outcome.message}</p>}
-    </section>
+      <Result outcome={outcome} />
+    </div>
   );
 }
 
-function describeSigner(
-  canUseWallet: boolean,
-  account: string | undefined,
-  organization: string | undefined,
-) {
-  if (canUseWallet) return "you will sign these in your wallet";
-  if (!organization) return "organization address unknown";
-  if (account) return "connected as another account — the server will sign";
-  return "no wallet connected — the server will sign";
+function SignerNote({
+  status,
+  organization,
+  busy,
+  onConnect,
+  onSwitch,
+}: {
+  status: ReturnType<typeof useOrganizationWallet>["status"];
+  organization: string | undefined;
+  busy: boolean;
+  onConnect: () => void;
+  onSwitch: () => void;
+}) {
+  if (status === "ready") {
+    return <Badge tone="good">you will sign these</Badge>;
+  }
+
+  if (status === "disconnected") {
+    return (
+      <span className="flex items-center gap-2 text-xs text-muted-foreground">
+        the server will sign
+        <button
+          type="button"
+          onClick={onConnect}
+          disabled={busy}
+          className="rounded-full border border-border px-2 py-0.5 text-[0.7rem] transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          connect to sign yourself
+        </button>
+      </span>
+    );
+  }
+
+  if (status === "wrong_chain") {
+    return (
+      <button
+        type="button"
+        onClick={onSwitch}
+        disabled={busy}
+        className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[0.7rem] text-amber-600 transition-colors hover:bg-amber-500/20 disabled:opacity-50 dark:text-amber-400"
+      >
+        {busy ? "switching…" : `switch to ${EXPECTED_CHAIN.name} to sign`}
+      </button>
+    );
+  }
+
+  if (status === "wrong_account") {
+    return (
+      <span
+        className="text-xs text-muted-foreground"
+        title={`Organization actions must be signed by ${organization}. Switch accounts in your wallet — a page cannot do it for you.`}
+      >
+        the server will sign — connected as another account
+      </span>
+    );
+  }
+
+  return <span className="text-xs text-muted-foreground">the server will sign</span>;
+}
+
+function ActionButton({
+  label,
+  busy,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-full border border-border px-3 py-0.5 text-xs transition-colors hover:bg-muted disabled:opacity-40"
+    >
+      {busy ? "…" : label}
+    </button>
+  );
+}
+
+function Result({ outcome }: { outcome: Outcome }) {
+  if (outcome.kind === "idle") return null;
+
+  if (outcome.kind === "busy") {
+    return <p className="text-xs text-muted-foreground">{outcome.step}…</p>;
+  }
+
+  if (outcome.kind === "ok") {
+    return (
+      <p className="text-xs text-emerald-600 dark:text-emerald-400">
+        {outcome.message}
+        {outcome.txHash && (
+          <>
+            {" "}
+            <a
+              href={`https://sepolia.etherscan.io/tx/${outcome.txHash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono underline underline-offset-2"
+            >
+              {outcome.txHash.slice(0, 10)}…
+            </a>
+          </>
+        )}
+      </p>
+    );
+  }
+
+  return <p className="text-xs text-destructive">{outcome.message}</p>;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -246,61 +328,3 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   }
   return parsed;
 }
-
-const BOX: React.CSSProperties = {
-  border: "1px solid var(--border)",
-  borderRadius: "0.75rem",
-  padding: "1rem",
-  display: "flex",
-  flexDirection: "column",
-  gap: "0.75rem",
-};
-const HEAD: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "baseline",
-  gap: "1rem",
-};
-const LIST: React.CSSProperties = {
-  listStyle: "none",
-  margin: 0,
-  padding: 0,
-  display: "flex",
-  flexDirection: "column",
-  gap: "0.5rem",
-};
-const ROW: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "1rem",
-};
-const MONO: React.CSSProperties = {
-  fontFamily: "var(--font-geist-mono)",
-  fontSize: "0.75rem",
-};
-const BTN: React.CSSProperties = {
-  border: "1px solid var(--border)",
-  borderRadius: "999px",
-  padding: "0.125rem 0.625rem",
-  background: "transparent",
-  cursor: "pointer",
-  font: "inherit",
-  fontSize: "0.75rem",
-};
-const LINK: React.CSSProperties = {
-  ...BTN,
-  borderColor: "transparent",
-  textDecoration: "underline",
-  padding: 0,
-};
-const LINKA: React.CSSProperties = {
-  fontFamily: "var(--font-geist-mono)",
-  textDecoration: "underline",
-};
-const NOTE: React.CSSProperties = {
-  color: "var(--muted-foreground)",
-  fontSize: "0.75rem",
-};
-const OK: React.CSSProperties = { color: "var(--graph-accent-3)", fontSize: "0.75rem" };
-const WARN: React.CSSProperties = { color: "var(--destructive)", fontSize: "0.75rem" };

@@ -26,8 +26,11 @@ const NAV = [
 export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-8">
-      <header className="flex items-center justify-between gap-6 border-b border-border pb-4">
-        <div className="flex items-baseline gap-6">
+      {/* wrap, not overflow: the wallet control grows when it has something to
+          say, and on a narrow viewport it belongs on its own line rather than
+          crushing the nav. */}
+      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-border pb-4">
+        <div className="flex shrink-0 items-baseline gap-6">
           <Link
             href="/"
             className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
@@ -46,7 +49,7 @@ export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4">
           {/* The organization's own signer. Agent writes stay server-signed. */}
           <OrganizationWallet organization={publicEnv().organizationAddress} />
           <ThemeToggle />
