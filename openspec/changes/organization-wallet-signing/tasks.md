@@ -28,5 +28,6 @@
 
 ## 5. Still open
 
-- [ ] 5.1 Exercise the whole path against Sepolia with a real wallet: connect, grant, watch the permission matrix flip, revoke. Cannot be done from this machine — it needs the organization account in a wallet
+- [x] 5.0 Simulate the prepared transaction before asking anyone to sign it. `pnpm --filter @nymspace/ens verify:prepared` runs `eth_call` from the organization and from an outsider, and writes `packages/ens/evidence/prepared-tx.json`. It asserts **both** outcomes — success from the organization, `EACCannotGrantRoles` from anyone else — because a check that can only pass is not evidence. Verified falsifiable by pointing the outsider at the organization: exit 1
+- [ ] 5.1 Exercise the whole path against Sepolia with a real wallet: connect, grant, watch the permission matrix flip, revoke. Cannot be done from this machine — it needs the organization account in a wallet. 5.0 narrows what is unproven to the browser leg alone: the calldata is known-good and the authority gate is known to be enforced on chain, so what remains untested is MetaMask, the confirm route, and the receipt path — not whether the transaction is correct
 - [ ] 5.2 Decide whether the controller's server-held key stays. This change assumes it does, because the unattended agent write is the product's claim
