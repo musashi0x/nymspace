@@ -153,6 +153,45 @@ rather than its own.
 rate-limits rather than when the app is unhealthy. Railway still gates the
 release on the process binding its port.
 
+## The generated domain can be a dead edge record
+
+Observed on the first deploy of `api`, and worth recognising because every
+symptom points somewhere else. The service was healthy — `listening on
+http://localhost:8080`, Railway's own healthcheck getting `200` from `/health` —
+while every external request returned Railway's edge 404:
+
+```
+{"status":"error","code":404,"message":"Application not found"}
+```
+
+That is the edge saying it does not know the host at all. A host it knows but
+cannot reach answers `502 Application failed to respond` instead, so a 404 here
+means the domain record, not the container.
+
+`railway domain list --service api --json` showed `targetPort: null`. The likely
+cause is specific to this service: the first container Railway ever ran for
+`api` was the pre-deploy migration, which binds no port, so no port was ever
+detected. `web` has no pre-deploy command and was unaffected.
+
+Pinning the port on the existing record was **not** enough — `railway domain
+update ... --port 8080` reported `targetPort=8080` and the edge kept 404ing
+across two redeploys. Deleting the record and generating a new one fixed it:
+
+```bash
+railway domain delete <old-domain> --service api --yes
+railway domain --service api --port 8080
+```
+
+The replacement gets a new random suffix, so `${{api.RAILWAY_PUBLIC_DOMAIN}}`
+re-resolves on its own but `web` must be redeployed — its `NEXT_PUBLIC_API_URL`
+is baked into the bundle and still points at the deleted host.
+
+The blast radius reaches the browser, which is why this is worth naming. The web
+app's server component calls the API, `requestFailed()` in `apps/web/lib/api.ts`
+throws on the 404, and the visitor gets a 500 page plus a console message
+reading `Minified React error #441` — the production wrapper for "an error
+occurred in the Server Components render". Three symptoms, one dead domain.
+
 ## Troubleshooting
 
 | Symptom | Cause |
@@ -163,3 +202,5 @@ release on the process binding its port.
 | Frontend calls `localhost:3112` in production | The web bundle was built before the api domain existed. Redeploy `web`. |
 | `Missing required environment variable` during `next build` | A server-surface variable was set on `api` only. Both services need the `serverEnv()` required set. |
 | Deploy hangs, then fails the healthcheck | The process is not listening on `PORT` — usually `API_PORT` set on Railway. |
+| `Application not found` from the edge while the container logs a healthy `/health` | Dead domain record. See the section above: delete it and generate a new one with an explicit `--port`. |
+| `Minified React error #441` in the browser | Generic wrapper for a Server Component throw. Read the web service's own logs for the real error and its digest. |
