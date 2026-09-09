@@ -512,7 +512,7 @@ describe("creating an agent", () => {
             summary: "Wrote agent-context on research.nymspace.eth",
             occurredAt: "2026-09-09T00:00:02.000Z",
             evidence: { source: "ens", txHash: HASH, contractAddress: RESOLVER },
-            metadata: { readBack: "{}" },
+            metadata: { phase: "provisioning", readBack: "{}" },
           },
           {
             type: "agent.created",
@@ -520,11 +520,21 @@ describe("creating an agent", () => {
             summary: "Registered research.nymspace.eth",
             occurredAt: "2026-09-09T00:00:01.000Z",
             evidence: { source: "ens", txHash: HASH, contractAddress: REGISTRY },
-            metadata: { readBack: ORGANIZATION },
+            metadata: { phase: "provisioning", readBack: ORGANIZATION },
           },
           {
-            // Not a provisioning step. A payment on the same agent must not
-            // appear in the create screen's step list.
+            // A later controller write, same type as a provisioning step and
+            // not part of the run. The phase stamp is what separates them.
+            type: "ens.record.updated",
+            status: "success",
+            summary: "Controller wrote agent-endpoint[mcp]",
+            occurredAt: "2026-09-09T00:05:00.000Z",
+            evidence: { source: "ens", txHash: HASH, contractAddress: RESOLVER },
+            metadata: { key: "agent-endpoint[mcp]" },
+          },
+          {
+            // Not a provisioning step either. A payment on the same agent must
+            // not appear in the create screen's step list.
             type: "privy.payment.executed",
             status: "success",
             summary: "Paid 5 USDC",

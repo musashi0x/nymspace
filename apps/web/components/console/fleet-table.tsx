@@ -69,7 +69,12 @@ const TRACK_LABELS: Record<
   },
 };
 
-function track(kind: string, value: string) {
+/**
+ * Exported because the create screen renders the same five tracks while it
+ * provisions. Two copies of this map would drift, and the copy that drifted
+ * would be the one telling an operator an agent was fine.
+ */
+export function track(kind: string, value: string) {
   return TRACK_LABELS[kind]?.[value] ?? { text: value, tone: "neutral" as const };
 }
 

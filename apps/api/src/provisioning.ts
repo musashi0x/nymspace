@@ -38,6 +38,18 @@ import type { EnsProvisioning, Store } from "@nymspace/store";
 /** One year. `register` reverts with `CannotSetPastExpiry` on anything past. */
 const EXPIRY_SECONDS = 365n * 24n * 60n * 60n;
 
+/**
+ * Stamped on every event this path writes.
+ *
+ * The event *types* are not enough to identify a provisioning step. A
+ * controller updating its endpoint later writes `ens.record.updated`, and the
+ * permission proof writes `ens.action.denied` every time it runs — both would
+ * otherwise appear in the create screen's step list, describing a run that
+ * finished days ago. The phase says which run an event belongs to; the types
+ * only say what kind of thing happened.
+ */
+export const PROVISIONING_PHASE = "provisioning";
+
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 const ZERO_HASH = `0x${"0".repeat(64)}` as Hex;
 
@@ -274,7 +286,7 @@ export async function provisionAgent(
         // value. A screen reloaded mid-provision rebuilds its step list from
         // the log, and a step that cannot show what the chain said afterwards
         // is back to reporting a submitted transaction as done — design D3.
-        metadata: { readBack: organization },
+        metadata: { phase: PROVISIONING_PHASE, readBack: organization },
       });
     } catch (error) {
       step({
@@ -330,7 +342,7 @@ export async function provisionAgent(
     status: "success",
     occurredAt: now(),
     summary: `${ensName} resolves through ${attached}`,
-    metadata: { readBack: attached },
+    metadata: { phase: PROVISIONING_PHASE, readBack: attached },
     evidence: {
       source: "ens",
       // The attachment happened in the registration transaction; the read above
@@ -421,7 +433,7 @@ export async function provisionAgent(
         txHash: hash,
         summary: `Wrote ${record.key} on ${ensName}`,
         evidence: evidence(hash),
-        metadata: { key: record.key, readBack: after },
+        metadata: { phase: PROVISIONING_PHASE, key: record.key, readBack: after },
       });
     } catch (error) {
       step({
@@ -497,6 +509,7 @@ export async function provisionAgent(
           summary: `Granted SET_TEXT on ${key} to ${target.controller}`,
           evidence: evidence(hash),
           metadata: {
+            phase: PROVISIONING_PHASE,
             key,
             readBack: granted ? "controller can write" : "controller still cannot write",
           },
@@ -518,7 +531,7 @@ export async function provisionAgent(
           actor: organization,
           summary: `Grant of SET_TEXT on ${key} was refused`,
           evidence: { source: "ens", txHash: ZERO_HASH, contractAddress: resolver },
-          metadata: { key, reason: messageOf(error) },
+          metadata: { phase: PROVISIONING_PHASE, key, reason: messageOf(error) },
         });
       }
     }

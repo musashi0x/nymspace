@@ -21,6 +21,7 @@ import {
   agentIdFor,
   assertLabelAvailable,
   LabelUnavailableError,
+  PROVISIONING_PHASE,
   provisionAgent,
   type ProvisionContext,
 } from "../provisioning";
@@ -163,6 +164,7 @@ export const agents = new Hono<DepsEnv>()
             contractAddress: deps.resolver,
           },
           metadata: {
+            phase: PROVISIONING_PHASE,
             reason: error instanceof Error ? error.message.split("\n")[0]! : String(error),
           },
         })
@@ -209,7 +211,14 @@ export const agents = new Hono<DepsEnv>()
     });
 
     const steps = events
-      .filter((event) => PROVISIONING_TYPES.has(event.type))
+      // Both conditions. The type says what happened; the phase says it
+      // happened during a provisioning run rather than during a later endpoint
+      // update or a permission proof, which write the same two types.
+      .filter(
+        (event) =>
+          PROVISIONING_TYPES.has(event.type) &&
+          phaseOf(event.metadata) === PROVISIONING_PHASE,
+      )
       // The log is newest first; a step list reads in the order it happened.
       .reverse()
       .map((event) => ({
@@ -662,6 +671,12 @@ const PROVISIONING_TYPES: ReadonlySet<string> = new Set([
   "ens.permission.granted",
   "ens.action.denied",
 ]);
+
+function phaseOf(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const value = (metadata as Record<string, unknown>)["phase"];
+  return typeof value === "string" ? value : null;
+}
 
 function readBackOf(metadata: unknown): string | null {
   if (!metadata || typeof metadata !== "object") return null;

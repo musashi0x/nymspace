@@ -2,6 +2,7 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import Link from "next/link";
 import { fetchAgents } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
 import { FleetTable, type FleetRow } from "@/components/console/fleet-table";
@@ -55,6 +56,13 @@ export default async function FleetPage() {
         <Empty
           title={EMPTY_STATES.noAgents.title}
           detail={EMPTY_STATES.noAgents.detail}
+          action={
+            <Link href="/console/new">
+              <Text type="body" size="sm">
+                Create the first agent
+              </Text>
+            </Link>
+          }
         />
       ) : (
         <Frame

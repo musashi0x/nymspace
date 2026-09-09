@@ -25,16 +25,20 @@
 
 ## 3. The screen
 
-- [ ] 3.1 `apps/web/app/console/new/page.tsx` — static copy plus the client form, the shape `discover/page.tsx` already uses
-- [ ] 3.2 `apps/web/components/console/create-agent.tsx`, `"use client"`. Astryx only: `VStack`, `Grid`, `TextInput`, `Button`, `Text`, plus `Frame`/`Field`/`Outcome`/`Loading` from `./primitives`. No raw `div`, no `style`, no literal colours or pixels — `apps/web/AGENTS.md`
-- [ ] 3.3 Fields: label with the parent suffix rendered beside it, display name, role, controller address, MCP endpoint, optional A2A and web
-- [ ] 3.4 On submit, POST then poll `GET /v1/agents/:id/provisioning`. Stop when no track is still initial, or a step reports denied or failed
-- [ ] 3.5 Step rows show what, the transaction hash, and the value read back. Skipped rows read "already on chain, no spend" — design D2
-- [ ] 3.6 Footer renders all five tracks with their own states. No aggregate percentage, no single bar — design D6
-- [ ] 3.7 Completion hands off: link to `/console/agents/[id]`, which decides `active` versus `partial` from chain reads. The create screen never prints `Active` itself — design D5
-- [ ] 3.8 Denial and failure use `Outcome` and the console's error taxonomy, never a generic failure message
-- [ ] 3.9 Two typed functions in `apps/web/lib/api.ts` (`createAgent`, `fetchProvisioning`), each checking `res.ok` inline, per the file's note on Hono's response union
-- [ ] 3.10 Fleet empty state in `apps/web/app/console/page.tsx` links to `/console/new`; add the action to the console nav
+- [x] 3.1 `apps/web/app/console/new/page.tsx` — static copy plus the client form, the shape `discover/page.tsx` already uses
+- [x] 3.2 `apps/web/components/console/create-agent.tsx`, `"use client"`. Astryx only: `VStack`, `Grid`, `TextInput`, `Button`, `Text`, plus `Frame`/`Field`/`Outcome`/`Loading` from `./primitives`. No raw `div`, no `style`, no literal colours or pixels — `apps/web/AGENTS.md`
+- [x] 3.3 Fields: label with the parent suffix rendered beside it, display name, role, controller address, MCP endpoint, optional A2A and web
+- [x] 3.4 On submit, POST then poll `GET /v1/agents/:id/provisioning`. Stop when no track is still initial, or a step reports denied or failed
+- [x] 3.5 Step rows show what, the transaction hash, and the value read back. Skipped rows read "already on chain, no spend" — design D2
+- [x] 3.6 Footer renders all five tracks with their own states. No aggregate percentage, no single bar — design D6
+- [x] 3.7 Completion hands off: link to `/console/agents/[id]`, which decides `active` versus `partial` from chain reads. The create screen never prints `Active` itself — design D5
+- [x] 3.8 Denial and failure use `Outcome` and the console's error taxonomy, never a generic failure message
+- [x] 3.9 Two typed functions in `apps/web/lib/api.ts` (`createAgent`, `fetchProvisioning`), each checking `res.ok` inline, per the file's note on Hono's response union
+- [x] 3.10 Fleet empty state in `apps/web/app/console/page.tsx` links to `/console/new`; add the action to the console nav
+
+### Deviations recorded during group 3
+
+- Provisioning events are stamped `metadata.phase = "provisioning"`, and the step list filters on it as well as on the event type. Found against live data: a permission proof writes `ens.action.denied` and a controller endpoint update writes `ens.record.updated`, so a type-only filter showed a days-old proof run as a step of the current one. Steps written before this change carry no phase and no longer appear.
 
 ## 4. Gate
 
