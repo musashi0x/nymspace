@@ -387,3 +387,31 @@ export interface ActivityFilter {
   status?: ActivityStatus;
   limit?: number;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Site traffic
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The two numbers the public site shows, plus the one that makes them
+ * readable.
+ *
+ * `botViews` exists because a bot filter whose effect cannot be seen is a
+ * claim rather than a measurement. Showing "excluded N automated requests"
+ * next to the totals is what lets a reader judge whether the filter is doing
+ * anything, and it is the difference between a number and a number you can
+ * argue with.
+ */
+export interface PageViewStats {
+  /** Rows where `is_bot` is false. */
+  views: number;
+  /** Distinct visitor ids among those rows. */
+  visitors: number;
+  /** Rows excluded as automated. Not part of `views`. */
+  botViews: number;
+  /**
+   * When counting started — the oldest row, bot or not. Null when nothing has
+   * been recorded yet. Totals with no start date read as all-time and are not.
+   */
+  since: string | null;
+}

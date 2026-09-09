@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CommitActivity } from "@/components/commit-activity";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TrafficStats } from "@/components/traffic-stats";
 import { WordTiles } from "@/components/word-tiles";
 import { getActivity, REVALIDATE_SECONDS } from "@nymspace/github";
 
@@ -86,6 +87,8 @@ export default async function Home() {
           </p>
         )}
       </section>
+
+      <TrafficStats />
 
       <footer className="flex flex-col gap-2 border-t border-border/60 pt-6 text-xs text-muted-foreground">
         <p>

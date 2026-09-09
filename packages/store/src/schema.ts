@@ -1,4 +1,5 @@
 import {
+  boolean,
   check,
   index,
   integer,
@@ -191,6 +192,59 @@ export const activityEvents = pgTable(
   ],
 );
 
+/**
+ * One row per page view of the public site.
+ *
+ * This table answers the "should the store hold this?" question differently
+ * from every other one here, so the answer is written down rather than left to
+ * be inferred. Every other table is a *coordination* record about something an
+ * external system adjudicates — ENS owns permissions, the ERC 8004 registry
+ * owns identity, Privy owns policy, and the store must never be able to change
+ * one of their answers. Traffic has no external authority. Nothing else knows
+ * how many people opened the page, so this table is not a cache of a truth
+ * held elsewhere; it *is* the record.
+ *
+ * What is deliberately not here:
+ *
+ * `user_agent` is classified into {@link pageViews.isBot} at write time and
+ * then discarded. Keeping the raw string would allow re-classifying old rows
+ * with a better bot list later, which is a real cost — but it is identifying
+ * data collected from people who did not ask to be measured, in exchange for a
+ * number on a marketing page. The trade is not close.
+ *
+ * There is no IP address and no session beyond the cookie, for the same
+ * reason.
+ */
+export const pageViews = pgTable(
+  "page_views",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * A random id in a first-party cookie. Not an identity: clearing cookies
+     * makes a returning reader a new one, and a client that sends no cookies is
+     * new on every request. That is why the site says "visitors" is a lower
+     * bound on people and an upper bound on nothing.
+     */
+    visitorId: text("visitor_id").notNull(),
+    path: text("path").notNull(),
+    /**
+     * Classified from the user agent at write time, then the agent string is
+     * dropped. Stored rather than filtered out entirely so the site can say how
+     * many it excluded — a filter whose effect cannot be seen is a claim.
+     */
+    isBot: boolean("is_bot").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("page_views_created_at_idx").on(t.createdAt.desc()),
+    // The two displayed numbers are one aggregate over this table, and both
+    // filter on is_bot.
+    index("page_views_visitor_idx").on(t.visitorId, t.isBot),
+  ],
+);
+
 /** Every table, for the migrator and for the drift check in `schema.test.ts`. */
 export const tables = {
   organizations,
@@ -200,6 +254,7 @@ export const tables = {
   graphSnapshots,
   financialAuthority,
   activityEvents,
+  pageViews,
 } as const;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -274,6 +329,13 @@ export const ALLOWED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
     "wallet_address",
     "policy_id",
     "policy_label",
+  ],
+  page_views: [
+    "id",
+    "visitor_id",
+    "path",
+    "is_bot",
+    "created_at",
   ],
   activity_events: [
     "id",
