@@ -1,4 +1,4 @@
-import { decodeEventLog, namehash } from "viem";
+import { decodeEventLog, encodeFunctionData, namehash } from "viem";
 import type { Address, AgentPermissions, Hex } from "@nymspace/core";
 import { permissionedResolverAbi, registryAbi, verifiableFactoryAbi } from "./abis";
 import { chainConfig, requireDeployed, type ChainConfig } from "./chain";
@@ -156,6 +156,39 @@ export class EnsService {
       args: [params.dnsName, params.key, params.controller, params.authorized],
       as: "organization",
     });
+  }
+
+  /**
+   * The same call as {@link authorizeTextRole}, encoded but not sent.
+   *
+   * Organization authority is a human decision, so the signature should come
+   * from a person's wallet rather than from a key the server holds. This
+   * returns exactly what a wallet needs to sign — and nothing else: no signer
+   * is consulted, so it works with no organization key configured at all.
+   *
+   * The arguments are built by the same code path as the server-signed
+   * version, so the two cannot drift into encoding different transactions.
+   */
+  prepareAuthorizeTextRole(params: {
+    dnsName: Hex;
+    key: string;
+    controller: Address;
+    authorized: boolean;
+  }): { to: Address; data: Hex; chainId: number } {
+    return {
+      to: this.resolver,
+      data: encodeFunctionData({
+        abi: permissionedResolverAbi,
+        functionName: "authorizeTextRoles",
+        args: [
+          params.dnsName,
+          params.key,
+          params.controller,
+          params.authorized,
+        ],
+      }),
+      chainId: this.config.chainId,
+    };
   }
 
   /** Whether the organization may delegate this name's text records at all. */

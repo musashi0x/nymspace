@@ -205,6 +205,49 @@ export const agents = new Hono<DepsEnv>()
   })
 
   //////////////////////////////////////////////////////////////////////////
+  // Grant and revoke, prepared for the organization's own wallet to sign
+  //
+  // Organization authority is a person's decision, so the signature should come
+  // from their wallet rather than from a key this process holds. Nothing here
+  // signs: it encodes the same call `authorizeTextRole` would have made and
+  // hands it back, so it works with no organization key configured at all.
+  //////////////////////////////////////////////////////////////////////////
+  .post(
+    "/:id/permissions/prepare",
+    zValidator("json", permissionGrantSchema),
+    async (c) => {
+      const { store, ens, organization } = c.var.deps;
+      const id = c.req.param("id");
+      const agent = await store.getAgent(id);
+      if (!agent) agentNotFound(id);
+
+      const { controller, recordKey, grant } = c.req.valid("json");
+
+      const tx = ens.prepareAuthorizeTextRole({
+        dnsName: encodeDnsName(agent.ensName),
+        key: recordKey,
+        controller,
+        authorized: grant,
+      });
+
+      return c.json({
+        transaction: tx,
+        // The account the contract will check. The browser compares its
+        // connected account against this and refuses to sign on a mismatch,
+        // rather than spending gas to learn the same thing from a revert.
+        expectedSigner: organization,
+        intent: {
+          agentId: agent.id,
+          ensName: agent.ensName,
+          recordKey,
+          controller,
+          grant,
+        },
+      });
+    },
+  )
+
+  //////////////////////////////////////////////////////////////////////////
   // Grant and revoke, organization-signed
   //////////////////////////////////////////////////////////////////////////
   .post("/:id/permissions", zValidator("json", permissionGrantSchema), async (c) => {

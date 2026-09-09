@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { OrganizationWallet } from "@/components/console/organization-wallet";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { publicEnv } from "@nymspace/core";
 
 /**
  * The console shell.
@@ -44,7 +46,11 @@ export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
             ))}
           </nav>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-4">
+          {/* The organization's own signer. Agent writes stay server-signed. */}
+          <OrganizationWallet organization={publicEnv().organizationAddress} />
+          <ThemeToggle />
+        </div>
       </header>
       {children}
     </div>
