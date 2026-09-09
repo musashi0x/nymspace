@@ -238,11 +238,11 @@ The gate `docs/17` Risk 10 exists for, and the one guarding success metric one i
 - [x] 8.10 Secret audit: no key material, no provider secret, nothing in a client bundle or a response body
 - [x] 8.11 README with the architecture, the sponsor mapping, and the transaction evidence
 - [x] 8.12 Architecture diagram
-- [ ] 8.13 Demo video
+- [ ] 8.13 Demo video — yours to record; everything it needs is running
 - [x] 8.14 Re-verify the ENSv2 addresses against the canonical Deployments page before submitting — the deployment is beta and `docs/20_SOURCES.md` requires the recheck
 - [x] 8.15 State the unemancipation point in the demo narrative: the organization retains root roles and can reclaim any agent subname, deliberately
-- [ ] 8.16 Confirm the build pool and each partner's prize requirements
-- [ ] 8.17 Freeze contracts and integrations several hours before recording. After the freeze, fix only a broken demo, a security issue, or a submission requirement
+- [ ] 8.16 Confirm the build pool and each partner's prize requirements — external, yours to confirm
+- [ ] 8.17 Freeze contracts and integrations several hours before recording. After the freeze, fix only a broken demo, a security issue, or a submission requirement — a scheduling decision, yours to call
 
 **Gate E — Acceptance.**
 
@@ -257,6 +257,22 @@ The gate `docs/17` Risk 10 exists for, and the one guarding success metric one i
 ## 9. Cut list
 
 Adopted verbatim from `docs/14_EXECUTION_PLAN.md`. If behind, cut from the top.
+
+**Not invoked.** Everything above the cut line shipped and all five gates pass,
+so nothing here was traded away. The boxes below stay unticked because ticking
+one would mean "cut", not "built" — leaving them empty is the accurate record.
+
+Two are worth a note rather than a checkbox:
+
+- **9.5 cross-chain** is satisfied in the form ADR 009 asked for and no further.
+  `GRAPH_DEFAULT_NETWORK` is the config entry, discovery runs against Base
+  Sepolia because Ethereum Sepolia's indexer is stuck (design.md D14), and the
+  track is deliberately not claimed — one registration on a working indexer is
+  not a cross-chain query surface.
+- **9.6 approval escalation** stays uncut and unbuilt on purpose. `docs/08`
+  forbids simulating an approval path that is not implemented, so the denial
+  screen has no "request higher authority" button. A button that does nothing
+  claims a capability, which is worse than an absent one.
 
 - [ ] 9.1 Deploy agent
 - [ ] 9.2 Trader agent interactions
