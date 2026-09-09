@@ -19,10 +19,14 @@
 - [x] 3.3 Render nothing until the provider has been probed, so the UI does not flash "no wallet" at someone who has one
 - [x] 3.4 Declare the variable in `.env.example` and `turbo.json` so `pnpm env:check` stays green
 
-## 4. Still open
+## 4. Wiring
 
-- [ ] 4.1 Route the Inspector's grant/revoke controls through the prepare path when a wallet is connected, falling back to the server-signed route when it is not. The plumbing exists; the buttons are not wired to it yet
-- [ ] 4.2 Return 503 from the server-signed `POST /:id/permissions` when no organization key is configured, naming the prepare route. It currently surfaces `NoSignerError` as a 500
-- [ ] 4.3 Record the signing account and wallet-vs-server on the activity event, so the log cannot later be read as though the server acted. Requirement "The signer is recorded" is unmet until this lands
-- [ ] 4.4 Exercise the whole path against Sepolia with a real wallet: connect, grant, watch the permission matrix flip, revoke. Cannot be done from this machine — it needs the organization account in a wallet
-- [ ] 4.5 Decide whether the controller's server-held key stays. This change assumes it does, because the unattended agent write is the product's claim
+- [x] 4.1 Route the Inspector's grant/revoke controls through the prepare path when a wallet is connected, falling back to the server-signed route when it is not. The plumbing exists; the buttons are not wired to it yet
+- [x] 4.2 Return 503 from the server-signed `POST /:id/permissions` when no organization key is configured, naming the prepare route. It currently surfaces `NoSignerError` as a 500
+- [x] 4.3 Record the signing account and wallet-vs-server on the activity event, so the log cannot later be read as though the server acted. Requirement "The signer is recorded" is unmet until this lands
+- [x] 4.1b `describeDenial` rethrows `NoSignerError` instead of describing it. It was reporting a missing key as `source: "ensv2"` with a contract address — an infrastructure failure presented as a permission verdict, which is the exact shape this codebase is supposed to never produce
+
+## 5. Still open
+
+- [ ] 5.1 Exercise the whole path against Sepolia with a real wallet: connect, grant, watch the permission matrix flip, revoke. Cannot be done from this machine — it needs the organization account in a wallet
+- [ ] 5.2 Decide whether the controller's server-held key stays. This change assumes it does, because the unattended agent write is the product's claim

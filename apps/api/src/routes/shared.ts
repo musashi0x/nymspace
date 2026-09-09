@@ -1,6 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import * as z from "zod";
-import type { Address } from "@nymspace/core";
+import type { Address, Hex } from "@nymspace/core";
+import { NoSignerError } from "@nymspace/ens";
 
 /**
  * Schemas and helpers shared by the product routes.
@@ -25,6 +26,20 @@ export const permissionGrantSchema = z.object({
   controller: addressSchema,
   recordKey: z.string().min(1),
   grant: z.boolean(),
+});
+
+/**
+ * What the browser reports back after its wallet broadcast a prepared grant.
+ * The hash is a claim; the route verifies it against a receipt before writing
+ * anything to the log.
+ */
+export const permissionConfirmSchema = permissionGrantSchema.extend({
+  txHash: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{64}$/, "txHash must be a 32-byte hash")
+    .transform((value) => value as Hex),
+  /** The account that signed, for the activity record. */
+  signer: addressSchema,
 });
 
 export const recordWriteSchema = z.object({
@@ -115,6 +130,13 @@ export function describeDenial(
   error: unknown,
   contractAddress: Address,
 ): DeniedOutcome {
+  // A missing signing key is a configuration state, not something the contract
+  // said. Describing it here would report `source: "ensv2"` for a call that
+  // never reached the chain — an infrastructure failure dressed as a
+  // permission verdict, which is the one thing this shape must never do.
+  // Rethrown so the error handler can answer 503 with the remedy.
+  if (error instanceof NoSignerError) throw error;
+
   const message = error instanceof Error ? error.message : String(error);
   const authorization = message.includes("EACUnauthorizedAccountRoles");
 
