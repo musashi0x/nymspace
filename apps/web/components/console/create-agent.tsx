@@ -204,7 +204,18 @@ export function CreateAgent({ parentName }: { parentName: string }) {
         subtitle={`A subname under ${parentName}, its records, and — if you delegate — one grant per endpoint key. Signed by the organization.`}
       >
         <VStack gap={4}>
-          <Grid columns={{ minWidth: 240, max: 2 }} gap={3}>
+          {/*
+            One grid, six fields, and every one of them carries a one-line
+            description — including the ones whose label already says it. A row
+            where only one side has helper text puts the two inputs at
+            different heights, which is what this looked like first.
+
+            Grid rather than a horizontal FormLayout: that one keeps its fields
+            side by side at every width, and at 375px the form scrolled
+            sideways. `minWidth` is what collapses this to a single column
+            before that can happen.
+          */}
+          <Grid columns={{ minWidth: 260, max: 2 }} gap={3}>
             <TextInput
               label="Label"
               value={label}
@@ -219,6 +230,7 @@ export function CreateAgent({ parentName }: { parentName: string }) {
               value={name}
               onChange={setName}
               isRequired
+              description="How the agent introduces itself"
               placeholder="Research"
               isDisabled={agentId !== null}
             />
@@ -235,16 +247,8 @@ export function CreateAgent({ parentName }: { parentName: string }) {
               value={role}
               onChange={setRole}
               isRequired
+              description="What this agent is for, in one line"
               placeholder="Reads discovery data and updates its own MCP endpoint"
-              isDisabled={agentId !== null}
-            />
-            <TextInput
-              label="Controller address"
-              value={controller}
-              onChange={setController}
-              isRequired
-              description="The key the agent itself signs with"
-              placeholder="0x…"
               isDisabled={agentId !== null}
             />
             <TextInput
@@ -252,6 +256,7 @@ export function CreateAgent({ parentName }: { parentName: string }) {
               value={mcp}
               onChange={setMcp}
               isOptional
+              description="Where the agent answers MCP"
               placeholder="https://…/mcp"
               isDisabled={agentId !== null}
             />
@@ -260,9 +265,22 @@ export function CreateAgent({ parentName }: { parentName: string }) {
               value={a2a}
               onChange={setA2a}
               isOptional
+              description="A second protocol endpoint, if the agent serves one"
+              placeholder="https://…/a2a"
               isDisabled={agentId !== null}
             />
           </Grid>
+
+          {/* Its own row: 42 hex characters do not fit half of one. */}
+          <TextInput
+            label="Controller address"
+            value={controller}
+            onChange={setController}
+            isRequired
+            description="The key the agent itself signs with"
+            placeholder="0x…"
+            isDisabled={agentId !== null}
+          />
 
           <CheckboxInput
             label="Let the controller update its own endpoint records"
