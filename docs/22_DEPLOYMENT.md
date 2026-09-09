@@ -131,6 +131,12 @@ Two variables point at the other service's generated domain:
   `apiConfig()` as a comma-separated CORS allowlist. Add a custom domain here as
   a second entry once one exists.
 - `web.NEXT_PUBLIC_API_URL` → `https://${{api.RAILWAY_PUBLIC_DOMAIN}}`.
+- `web.WEB_ORIGIN` → `https://${{web.RAILWAY_PUBLIC_DOMAIN}}`, its own origin.
+  The web app does not do CORS; `app/layout.tsx` reuses this variable as Next's
+  `metadataBase`. Leave it unset and every deployed page advertises
+  `http://localhost:3111` as its canonical origin — wrong in share cards and to
+  crawlers, and invisible on screen. It is read during `next build`, so it needs
+  a rebuild rather than a restart.
 
 `DATABASE_URL` references the Postgres service directly and resolves to the
 private network (`postgres.railway.internal`), which is not billed as egress and

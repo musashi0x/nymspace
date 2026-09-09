@@ -184,6 +184,16 @@ export default defineRailway(() => {
       NEXT_PUBLIC_API_URL: "https://${{api.RAILWAY_PUBLIC_DOMAIN}}",
 
       /**
+       * Not CORS here — `app/layout.tsx` reuses `WEB_ORIGIN` as Next's
+       * `metadataBase`, which is what turns the relative `opengraph-image`
+       * path into an absolute URL. Without it the deployed pages advertise
+       * `http://localhost:3111` as their canonical origin, which is invisible
+       * on screen and wrong in every share card and crawler. Read during
+       * `next build`, so changing it needs a rebuild rather than a restart.
+       */
+      WEB_ORIGIN: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
+
+      /**
        * The web app server-renders through the same guarded packages the API
        * uses, so it needs the server surface too — `serverEnv()` validates
        * during `next build`, not at first request.
