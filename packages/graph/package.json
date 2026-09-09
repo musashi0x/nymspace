@@ -7,7 +7,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify:discovery": "tsx --env-file-if-exists=../../.env --conditions=react-server scripts/verify-discovery.ts"
   },
   "dependencies": {
     "@nymspace/core": "workspace:*",
@@ -15,6 +17,8 @@
   },
   "devDependencies": {
     "@types/node": "^24",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18",
+    "tsx": "^4.20.6"
   }
 }

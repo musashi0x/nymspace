@@ -145,6 +145,92 @@ It tracks this project's own repo,
 pushed to `main` shows up in the calendar within a minute. Override the two
 variables to point it elsewhere.
 
+## What is built
+
+Three agents live under `nymspace.eth` on ENSv2 Sepolia, and every claim below
+is checked by a gate that runs against the real systems rather than a fixture.
+
+```
+                    nymspace.eth  (ENSv2 Sepolia · 11155111)
+                          │
+                UserRegistry proxy 0xd0D823…
+                          │
+        ┌─────────────────┼─────────────────┐
+   research.           trader.           deploy.
+        │
+        │  PermissionedResolver 0x45DaD5…  (one resolver, all three names)
+        │     agent-context             ← organization writes
+        │     agent-endpoint[mcp]       ← controller writes  (record-scoped grant)
+        │     agent-registration[…]     ← organization only  (ENSIP 25)
+        │
+        ├──── ERC 8004 IdentityRegistry 0x8004A8…  (Base Sepolia · 84532)
+        │       agent 9209, registration file claims research.nymspace.eth
+        │            │
+        │            └── Agent0 subgraph ──→ discovery, ranked by Gemini
+        │
+        └──── Privy wallet 0x310207…  under one amount policy
+```
+
+The load-bearing detail is the resolver row. `agent-endpoint[mcp]` is granted to
+the agent's controller at `resource(namehash, partHash(key))` — one record, not
+the name — so the same key that writes it is refused on `agent-context` and on
+the ENSIP 25 binding by the contract itself, not by an application check.
+
+### Sponsor mapping
+
+| Track | What it does here | Proof |
+|---|---|---|
+| **ENS** | ENSv2 subnames with record-scoped delegation through a PermissionedResolver; ENSIP 26 records; ENSIP 25 binding verified at runtime with a seven-state model | Gate A, 10/10 |
+| **The Graph** | Live Agent0 ERC 8004 queries, normalisation that preserves absence, an LLM ranking whose every citation is validated against the response | Gate B, 7/7 |
+| **Privy** | One amount policy on a server wallet; a denied payment and an allowed one in the same run, with the limit read from the live policy | Gate C, 10/10 |
+
+### Transaction evidence
+
+All hashes are from committed gate artifacts under `evidence/` and
+`packages/*/evidence/`.
+
+| What | Chain | Hash |
+|---|---|---|
+| Register `research.nymspace.eth` | Sepolia | `0x77948c09394877467ad77c178f966cd006b08077739d7d90a5b13dd91c83744f` |
+| Grant `SET_TEXT` on `agent-endpoint[mcp]` | Sepolia | `0x036a463931f93d47b5dbb86004cedf11f0668f2ced6b6b33437e99c9d53d9c35` |
+| ERC 8004 registration (agent 9209) | Base Sepolia | `0x1750f2f5c77d7b3c951cd0a1ab41a40a42f444bb73081e5376a8c9d588528c9f` |
+| ENSIP 25 record, organization-signed | Sepolia | `0xb05d7c58e114299d38fd4d73628df4a365561a7b2ed9467e5be09d9600abf715` |
+| Controller write, permitted | Sepolia | `0x5cf1b408e93816c0486ebd51845c50096fc0542c63e0fd42908595a99307f110` |
+| Revoke, then re-grant (E6) | Sepolia | `0x233d5583…` / `0x4189dc01…` |
+| Payment executed inside policy | Base Sepolia | `0xff4989cdae039f5a7e75b13be49b7b6eda9198c13e75321b74c852cb24b99ded` |
+
+The two denials have no hashes, which is the point. The controller's write to
+the ENSIP 25 key reverts with the resolver's own
+`EACUnauthorizedAccountRoles`, and the over-limit payment returns Privy's
+`RPC request denied due to policy violation` without broadcasting anything.
+A denial that reached a chain would not be a denial.
+
+### The unemancipation point
+
+The organization retains root roles on the parent registry and can reclaim any
+agent subname. That is deliberate and the demo says so out loud rather than
+letting a judge discover it: an organization that cannot revoke a compromised
+agent's identity has delegated authority it can never take back. Emancipation
+is a later decision, and this is the state before it.
+
+### Running the gates
+
+```bash
+docker compose up -d                       # postgres on 5433
+pnpm --filter @nymspace/store db:migrate
+pnpm check:credentials                     # Gate 0 — every provider, real round trip
+pnpm check:addresses                       # ENSv2 addresses vs the canonical page
+pnpm provision:fleet                       # three subnames, records, record-scoped grants
+pnpm register:identity                     # ERC 8004 + ENSIP 25 binding
+pnpm provision:wallet                      # Privy wallet under one amount policy
+pnpm verify:acceptance                     # Gates A-D, three consecutive clean runs
+pnpm audit:secrets                         # nothing committed, nothing in a bundle
+```
+
+`verify:acceptance` takes roughly two minutes per run and resets its streak on
+any failure — three attempts of which two succeeded is not three consecutive
+clean runs.
+
 ## License
 
 MIT

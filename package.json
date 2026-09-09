@@ -10,13 +10,29 @@
     "test": "turbo run test",
     "env:check": "tsx --conditions=react-server scripts/check-env-declarations.ts",
     "conditions:check": "tsx --conditions=react-server scripts/check-server-conditions.ts",
-    "check": "pnpm env:check && pnpm conditions:check"
+    "check:credentials": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-credentials.ts",
+    "check": "pnpm env:check && pnpm conditions:check",
+    "provision:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-fleet.ts",
+    "register:identity": "tsx --env-file-if-exists=.env --conditions=react-server scripts/register-identity.ts",
+    "provision:wallet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/provision-wallet.ts",
+    "test:matrix-live": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-matrix-live.ts",
+    "verify:acceptance": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-acceptance.ts",
+    "audit:secrets": "tsx --env-file-if-exists=.env --conditions=react-server scripts/audit-secrets.ts",
+    "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts"
   },
   "devDependencies": {
+    "@nymspace/core": "workspace:*",
+    "@nymspace/ens": "workspace:*",
+    "@nymspace/graph": "workspace:*",
+    "@nymspace/privy": "workspace:*",
+    "@nymspace/store": "workspace:*",
     "@types/node": "^24",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
     "tsx": "^4.20.6",
     "turbo": "^2.5.8",
     "typescript": "^5",
+    "viem": "^2.56.3",
     "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@10.28.0"

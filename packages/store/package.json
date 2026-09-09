@@ -1,0 +1,29 @@
+{
+  "name": "@nymspace/store",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=../../.env --conditions=react-server scripts/migrate.ts"
+  },
+  "dependencies": {
+    "@nymspace/core": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.23.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.20.6",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  }
+}

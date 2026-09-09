@@ -1,0 +1,38 @@
+# The coordination store (design.md D12).
+#
+# Postgres was chosen over a file because the activity route filters by agent,
+# source, type, and status, and four filter dimensions over an append-only log
+# is a query rather than an array scan. The accepted cost of that choice is this
+# file: the demo depends on a running service, so the service is declared here
+# rather than being a step someone remembers.
+#
+#   docker compose up -d
+#
+# Port 5433, not 5432. The default is frequently already taken by another
+# project's database, and a connection that silently lands in the wrong
+# database is worse than one that is refused.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nymspace-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nymspace
+      POSTGRES_PASSWORD: nymspace
+      POSTGRES_DB: nymspace
+    ports:
+      - "5433:5432"
+    volumes:
+      # Named rather than anonymous: task 2.6 restarts the process and reads
+      # both records back, and task 8.6 restarts the whole demo. A volume that
+      # does not survive `docker compose down` would make both tests pass for
+      # the wrong reason on a single run and fail on the next.
+      - nymspace-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nymspace -d nymspace"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  nymspace-pgdata:

@@ -1,0 +1,139 @@
+{
+  "ranAt": "2026-09-09T05:56:29.597Z",
+  "gate": "C",
+  "go": true,
+  "facts": {
+    "agentId": "agent-research",
+    "walletId": "r9zlhocwx0167ahb12so428a",
+    "walletAddress": "0x310207D93403aE037ee2DF7812d69d58D112C1ca",
+    "policyId": "p8ep2ucnuqvkpylmsu31koh0",
+    "allowedWei": "100000000000000",
+    "deniedWei": "10000000000000000",
+    "recipient": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+    "caip2": "eip155:84532",
+    "walletBalanceWei": "30000000000000000",
+    "walletPolicyIds": [
+      "p8ep2ucnuqvkpylmsu31koh0"
+    ],
+    "limitBefore": {
+      "policyId": "p8ep2ucnuqvkpylmsu31koh0",
+      "name": "nymspace research max transfer",
+      "maxValueWei": "1000000000000000",
+      "ruleName": "Restrict native transfers to 1000000000000000 wei"
+    },
+    "deniedRequest": {
+      "amount": "10000000000000000",
+      "recipient": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+      "caip2": "eip155:84532",
+      "memo": "Gate C over-limit payment"
+    },
+    "deniedResult": {
+      "status": "denied",
+      "reason": "RPC request denied due to policy violation"
+    },
+    "allowedRequest": {
+      "amount": "100000000000000",
+      "recipient": "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+      "caip2": "eip155:84532",
+      "memo": "Gate C under-limit payment"
+    },
+    "allowedResult": {
+      "status": "executed",
+      "transactionHash": "0xff4989cdae039f5a7e75b13be49b7b6eda9198c13e75321b74c852cb24b99ded",
+      "requestId": "8bd7e9ce-f2af-49b7-bc55-df6160b6b153"
+    },
+    "limitRaised": {
+      "policyId": "p8ep2ucnuqvkpylmsu31koh0",
+      "name": "nymspace research max transfer",
+      "maxValueWei": "11000000000000000",
+      "ruleName": "Restrict native transfers to 11000000000000000 wei"
+    },
+    "afterRaiseResult": {
+      "status": "executed",
+      "transactionHash": "0x031ca123991541437d92d952b242b924f150240ff0a86af56a079858583a95bc",
+      "requestId": "08c627c0-40cb-4912-920d-00ce36f9f584"
+    },
+    "limitRestored": {
+      "policyId": "p8ep2ucnuqvkpylmsu31koh0",
+      "name": "nymspace research max transfer",
+      "maxValueWei": "1000000000000000",
+      "ruleName": "Restrict native transfers to 1000000000000000 wei"
+    },
+    "afterRestoreResult": {
+      "status": "denied",
+      "reason": "RPC request denied due to policy violation"
+    },
+    "tamperedResult": {
+      "status": "denied",
+      "reason": "RPC request denied due to policy violation"
+    },
+    "limitAfterAlterAttempt": {
+      "policyId": "p8ep2ucnuqvkpylmsu31koh0",
+      "name": "nymspace research max transfer",
+      "maxValueWei": "1000000000000000",
+      "ruleName": "Restrict native transfers to 1000000000000000 wei"
+    }
+  },
+  "assertions": [
+    {
+      "n": 1,
+      "name": "the wallet loads by agent id and holds enough for the whole run",
+      "passed": true,
+      "detail": "0.03 ETH against a run floor of 0.0201 ETH"
+    },
+    {
+      "n": 5,
+      "name": "the displayed limit is read from the policy and brackets both amounts",
+      "passed": true,
+      "detail": "allowed 0.0001 <= limit 0.001 < denied 0.01 ETH"
+    },
+    {
+      "n": 2,
+      "name": "the over-limit payment returns denied with a policy reason and broadcasts nothing",
+      "passed": true,
+      "detail": "RPC request denied due to policy violation"
+    },
+    {
+      "n": 3,
+      "name": "the under-limit payment executes, holding wallet and recipient constant",
+      "passed": true,
+      "detail": "0xff4989cdae039f5a7e75b13be49b7b6eda9198c13e75321b74c852cb24b99ded"
+    },
+    {
+      "n": 4,
+      "name": "raising the limit executes the identical request, and restoring it denies again",
+      "passed": true,
+      "detail": "raised → executed, restored → denied"
+    },
+    {
+      "n": 6,
+      "name": "changing the policy changes the value the interface would display",
+      "passed": true,
+      "detail": "0.001 → 0.011 → 0.001 ETH"
+    },
+    {
+      "n": 7,
+      "name": "a tampered client-side limit does not change the provider's decision",
+      "passed": true,
+      "detail": "client preview said within-limit, Privy returned denied"
+    },
+    {
+      "n": 8,
+      "name": "no response body or evidence artifact contains a credential",
+      "passed": true,
+      "detail": "6 secrets checked against the full evidence payload"
+    },
+    {
+      "n": 9,
+      "name": "the wallet mapping reloads from the store by agent id alone",
+      "passed": true,
+      "detail": "r9zlhocwx0167ahb12so428a at 0x310207D93403aE037ee2DF7812d69d58D112C1ca"
+    },
+    {
+      "n": 10,
+      "name": "the agent's signing path cannot alter the policy that binds it",
+      "passed": true,
+      "detail": "unauthenticated policy mutation returned 400; limit still 0.001 ETH"
+    }
+  ]
+}
