@@ -2,6 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Astryx design system (task #82). Standard UI = Astryx: every new screen is
+   built from @astryxdesign/core, not Tailwind utilities.
+   These sit after the Tailwind imports on purpose — Tailwind's preflight is a
+   `@layer base` reset, and Astryx has to win on its own custom elements
+   (astryx-button, astryx-stack, …) for its components to render correctly.
+   The pre-Astryx landing page still uses Tailwind; see the note in AGENTS.md. */
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

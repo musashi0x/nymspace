@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@astryxdesign/cli": "^0.5.4",
+    "@astryxdesign/core": "^0.5.4",
+    "@astryxdesign/theme-neutral": "^0.5.4",
     "@base-ui/react": "^1.8.0",
     "@nymspace/api": "workspace:*",
     "@nymspace/core": "workspace:*",
@@ -17,6 +20,7 @@
     "@nymspace/github": "workspace:*",
     "@nymspace/graph": "workspace:*",
     "@nymspace/privy": "workspace:*",
+    "@stylexjs/stylex": "^0.19.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
     "hono": "^4.11.7",
