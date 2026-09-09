@@ -17,7 +17,7 @@
 # move it, and point DATABASE_URL at the same number — the two are not derived
 # from each other, so they have to be changed together.
 #
-#   POSTGRES_PORT=5443 docker compose up -d
+#   POSTGRES_PORT=5544 docker compose up -d
 services:
   postgres:
     image: postgres:16-alpine
