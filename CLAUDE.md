@@ -87,7 +87,9 @@ Two servers, one set of packages. `apps/api` is Hono over web-standard `Request`
 
 `apps/api/src/index.ts` is the process; `app.ts` is the application and binds no socket. Test against `app.ts`.
 
-Not everything crosses the wire: the landing page's commit activity is server-rendered straight from `@nymspace/github`, the same package `/v1/activity` serves. No hop, no CORS.
+Not everything crosses the wire: the landing page's commit activity is server-rendered straight from `@nymspace/github`, the same package `/v1/github/activity` serves. No hop, no CORS. (`/v1/activity` is the agent timeline from `docs/10_API_CONTRACT.md`; the commit feed moved aside for it.)
+
+Route handlers follow Hono's own guidance: **inline handlers, chained routes**. An extracted handler loses the path-parameter type, and a route added with a statement instead of a chained `.get()`/`.post()` still serves traffic while silently vanishing from `AppType` — so the web client stops seeing it with no error anywhere. Validation is `@hono/zod-validator`; dependencies arrive through `c.var.deps` from `withDeps()` middleware rather than a module singleton, so a test injects fakes instead of arranging process state. `/health` deliberately has no dependencies: a liveness check that needs an RPC and a database is reporting their health, not its own.
 
 ## Environment
 

@@ -168,20 +168,20 @@ Blocked on 1.3. `docs/14` sets a hard mid-Day-3 decision point; `docs/17` Risk 6
 
 ## 6. Product API
 
-- [ ] 6.1 Agent list route with per-integration status
-- [ ] 6.2 Agent identity route returning live ENS state, records, and the verification result
-- [ ] 6.3 Permissions route: per text key and per registry action, naming the source
-- [ ] 6.4 Permission grant and revoke routes, organization-authorised
-- [ ] 6.5 Record write route for server-signed controller writes
-- [ ] 6.6 Verification route running the runtime check
-- [ ] 6.7 Discovery route returning candidates, signals, explanation, and data source
-- [ ] 6.8 Wallet route returning safe metadata only
-- [ ] 6.9 Payment preview and payment routes with the four typed outcomes
-- [ ] 6.10 Activity route with filters by agent, source, type, and status
-- [ ] 6.11 Attach a read time to every externally-derived payload, and test that one without it fails
-- [ ] 6.12 Return authority and policy denials as described outcomes, not 500s
-- [ ] 6.13 Extend the typed `hono/client` surface in `apps/web/lib/api.ts` so a renamed route is a typecheck failure
-- [ ] 6.14 Assert every new environment variable appears in both `turbo.json` and `.env.example`
+- [x] 6.1 Agent list route with per-integration status
+- [x] 6.2 Agent identity route returning live ENS state, records, and the verification result
+- [x] 6.3 Permissions route: per text key and per registry action, naming the source
+- [x] 6.4 Permission grant and revoke routes, organization-authorised
+- [x] 6.5 Record write route for server-signed controller writes
+- [x] 6.6 Verification route running the runtime check
+- [x] 6.7 Discovery route returning candidates, signals, explanation, and data source
+- [x] 6.8 Wallet route returning safe metadata only
+- [x] 6.9 Payment preview and payment routes with the four typed outcomes
+- [x] 6.10 Activity route with filters by agent, source, type, and status
+- [x] 6.11 Attach a read time to every externally-derived payload, and test that one without it fails
+- [x] 6.12 Return authority and policy denials as described outcomes, not 500s
+- [x] 6.13 Extend the typed `hono/client` surface in `apps/web/lib/api.ts` so a renamed route is a typecheck failure
+- [x] 6.14 Assert every new environment variable appears in both `turbo.json` and `.env.example`
 
 ## 7. Console (Day 4)
 

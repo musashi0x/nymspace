@@ -15,12 +15,14 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
+    "@hono/zod-validator": "^0.9.1",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
     "@nymspace/github": "workspace:*",
     "@nymspace/graph": "workspace:*",
     "@nymspace/privy": "workspace:*",
-    "hono": "^4.11.7"
+    "hono": "^4.11.7",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^24",
