@@ -1,21 +1,21 @@
 {
-  "ranAt": "2026-09-09T05:51:08.953Z",
+  "ranAt": "2026-09-09T13:42:51.245Z",
   "gate": "E",
   "attempt": 1,
   "clean": true,
   "consecutiveAfter": 1,
-  "durationMs": 109130,
+  "durationMs": 148236,
   "steps": [
     {
       "name": "top up the agent wallet",
       "passed": true,
-      "durationMs": 2367,
+      "durationMs": 7643,
       "setup": true
     },
     {
       "name": "Gate A — identity",
       "passed": true,
-      "durationMs": 53825,
+      "durationMs": 77643,
       "setup": false,
       "assertions": [
         {
@@ -73,7 +73,7 @@
     {
       "name": "Gate B — discovery",
       "passed": true,
-      "durationMs": 10975,
+      "durationMs": 8994,
       "setup": false,
       "assertions": [
         {
@@ -116,7 +116,7 @@
     {
       "name": "Gate C — financial",
       "passed": true,
-      "durationMs": 12387,
+      "durationMs": 11902,
       "setup": false,
       "assertions": [
         {
@@ -174,7 +174,7 @@
     {
       "name": "Gate D — authority is contract-derived",
       "passed": true,
-      "durationMs": 29570,
+      "durationMs": 42050,
       "setup": false,
       "assertions": [
         {

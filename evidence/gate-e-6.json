@@ -1,21 +1,21 @@
 {
-  "ranAt": "2026-09-09T05:46:34.017Z",
+  "ranAt": "2026-09-09T13:52:40.123Z",
   "gate": "E",
   "attempt": 6,
   "clean": false,
   "consecutiveAfter": 0,
-  "durationMs": 89811,
+  "durationMs": 94773,
   "steps": [
     {
       "name": "top up the agent wallet",
       "passed": true,
-      "durationMs": 7904,
+      "durationMs": 7532,
       "setup": true
     },
     {
       "name": "Gate A — identity",
       "passed": true,
-      "durationMs": 71573,
+      "durationMs": 57612,
       "setup": false,
       "assertions": [
         {
@@ -72,10 +72,9 @@
     },
     {
       "name": "Gate B — discovery",
-      "passed": false,
-      "durationMs": 10333,
+      "passed": true,
+      "durationMs": 15822,
       "setup": false,
-      "failure": "FAIL  3. every field the explanation cites is present on the candidate it describes — ranking provider responded 429: {",
       "assertions": [
         {
           "n": 1,
@@ -95,7 +94,7 @@
         {
           "n": 3,
           "name": "every field the explanation cites is present on the candidate it describes",
-          "passed": false
+          "passed": true
         },
         {
           "n": 4,
@@ -110,6 +109,103 @@
         {
           "n": 7,
           "name": "no score or explanation rests on the absent validation dimension",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Gate C — financial",
+      "passed": true,
+      "durationMs": 12969,
+      "setup": false,
+      "assertions": [
+        {
+          "n": 1,
+          "name": "the wallet loads by agent id and holds enough for the whole run",
+          "passed": true
+        },
+        {
+          "n": 5,
+          "name": "the displayed limit is read from the policy and brackets both amounts",
+          "passed": true
+        },
+        {
+          "n": 2,
+          "name": "the over-limit payment returns denied with a policy reason and broadcasts nothing",
+          "passed": true
+        },
+        {
+          "n": 3,
+          "name": "the under-limit payment executes, holding wallet and recipient constant",
+          "passed": true
+        },
+        {
+          "n": 4,
+          "name": "raising the limit executes the identical request, and restoring it denies again",
+          "passed": true
+        },
+        {
+          "n": 6,
+          "name": "changing the policy changes the value the interface would display",
+          "passed": true
+        },
+        {
+          "n": 7,
+          "name": "a tampered client-side limit does not change the provider's decision",
+          "passed": true
+        },
+        {
+          "n": 8,
+          "name": "no response body or evidence artifact contains a credential",
+          "passed": true
+        },
+        {
+          "n": 9,
+          "name": "the wallet mapping reloads from the store by agent id alone",
+          "passed": true
+        },
+        {
+          "n": 10,
+          "name": "the agent's signing path cannot alter the policy that binds it",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Gate D — authority is contract-derived",
+      "passed": false,
+      "durationMs": 835,
+      "setup": false,
+      "failure": "Command failed: pnpm test:matrix-live\nGate D could not run: fetch failed\n",
+      "assertions": [
+        {
+          "n": 1,
+          "name": "a grant revoked on chain flips the cell on the next read",
+          "passed": true
+        },
+        {
+          "n": 2,
+          "name": "re-granting flips it back, so the first flip was not a one-way cache miss",
+          "passed": true
+        },
+        {
+          "n": 3,
+          "name": "every rendered cell has a role query in that request's own trace",
+          "passed": true
+        },
+        {
+          "n": 4,
+          "name": "a positive control rendered allowed in the same request as a denied cell",
+          "passed": true
+        },
+        {
+          "n": 5,
+          "name": "the matrix evaluates all three resources onlyPartRoles accepts",
+          "passed": true
+        },
+        {
+          "n": 6,
+          "name": "the wildcard resource reads empty for every granted key across all three agents",
           "passed": true
         }
       ]

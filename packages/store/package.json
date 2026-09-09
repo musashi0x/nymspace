@@ -16,13 +16,13 @@
     "@nymspace/core": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.23.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "tsx": "^4.20.6"
   },
   "devDependencies": {
     "@types/node": "^24",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.10",
-    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.0.18"
   }

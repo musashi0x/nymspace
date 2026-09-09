@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["scripts/**/*.ts"],
+  "include": [".railway/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "apps", "packages"]
 }

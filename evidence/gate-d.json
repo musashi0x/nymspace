@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-09T05:57:07.965Z",
+  "ranAt": "2026-09-09T13:56:07.486Z",
   "gate": "D",
   "go": true,
   "facts": {
@@ -61,7 +61,7 @@
           ]
         }
       ],
-      "readAt": "2026-09-09T05:56:34.573Z"
+      "readAt": "2026-09-09T13:55:29.931Z"
     },
     "matrixAfterRevoke": {
       "controller": "0xDEA25D2537cE06cE1073dd9621C70056CBDC3aEB",
@@ -116,7 +116,7 @@
           ]
         }
       ],
-      "readAt": "2026-09-09T05:56:44.978Z"
+      "readAt": "2026-09-09T13:55:43.809Z"
     },
     "matrixAfterGrant": {
       "controller": "0xDEA25D2537cE06cE1073dd9621C70056CBDC3aEB",
@@ -171,7 +171,7 @@
           ]
         }
       ],
-      "readAt": "2026-09-09T05:57:07.078Z"
+      "readAt": "2026-09-09T13:56:06.463Z"
     }
   },
   "assertions": [
@@ -179,13 +179,13 @@
       "n": 1,
       "name": "a grant revoked on chain flips the cell on the next read",
       "passed": true,
-      "detail": "agent-endpoint[mcp]: allowed → denied (tx 0xe80e4c89f1b9ab119dd092bb4df1a368f53dc302e99fb08cb33c68e0dd5ee571)"
+      "detail": "agent-endpoint[mcp]: allowed → denied (tx 0x1ed744649eb6a46d1c3b468b5f112e29a2f982c2bcc6e11a48d0d28f0e754b62)"
     },
     {
       "n": 2,
       "name": "re-granting flips it back, so the first flip was not a one-way cache miss",
       "passed": true,
-      "detail": "agent-endpoint[mcp]: denied → allowed (tx 0xb26ada0ff980cc925f6468536bcab34383d3e93d1be70550d1cb39e21877c4cf)"
+      "detail": "agent-endpoint[mcp]: denied → allowed (tx 0x8d9c88b0004c90c706f5ebd7e824266318c8efc8de757352f9292977c5bc0a9d)"
     },
     {
       "n": 3,
@@ -215,11 +215,11 @@
   "transactions": [
     {
       "what": "revoke SET_TEXT",
-      "hash": "0xe80e4c89f1b9ab119dd092bb4df1a368f53dc302e99fb08cb33c68e0dd5ee571"
+      "hash": "0x1ed744649eb6a46d1c3b468b5f112e29a2f982c2bcc6e11a48d0d28f0e754b62"
     },
     {
       "what": "re-grant SET_TEXT",
-      "hash": "0xb26ada0ff980cc925f6468536bcab34383d3e93d1be70550d1cb39e21877c4cf"
+      "hash": "0x8d9c88b0004c90c706f5ebd7e824266318c8efc8de757352f9292977c5bc0a9d"
     }
   ]
 }
