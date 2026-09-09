@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <style>
+    /* The palette in globals.css is pure neutral, so the mark is too. The
+       media query is what keeps it visible on a dark browser tab; without it a
+       near-black mark disappears into the chrome. */
+    .mark { fill: #0a0a0a; }
+    @media (prefers-color-scheme: dark) { .mark { fill: #fafafa; } }
+  </style>
+  <path
+    class="mark"
+    fill-rule="evenodd"
+    d="M6 2h20a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4Zm10 8a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"
+  />
+</svg>
