@@ -60,7 +60,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider
-          attribute="class"
+          // Two attributes from one store: `class` for Tailwind and shadcn,
+          // `data-theme` for Astryx, whose reset maps it to `color-scheme`.
+          // Both are written by next-themes' pre-paint inline script, so the
+          // two systems agree on the first frame rather than after hydration.
+          attribute={["class", "data-theme"]}
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange

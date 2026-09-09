@@ -1,12 +1,24 @@
 {
-  "ranAt": "2026-09-09T05:56:17.413Z",
+  "ranAt": "2026-09-09T14:08:10.221Z",
   "gate": "B",
   "go": true,
   "facts": {
     "network": "base-sepolia",
     "rawCount": 100,
-    "candidateCount": 4,
+    "candidateCount": 5,
     "excluded": [
+      {
+        "graphAgentKey": "84532:9196",
+        "reason": "no MCP endpoint"
+      },
+      {
+        "graphAgentKey": "84532:6707",
+        "reason": "no MCP endpoint"
+      },
+      {
+        "graphAgentKey": "84532:9210",
+        "reason": "no MCP endpoint"
+      },
       {
         "graphAgentKey": "84532:9208",
         "reason": "no MCP endpoint"
@@ -41,10 +53,6 @@
       },
       {
         "graphAgentKey": "84532:6710",
-        "reason": "no MCP endpoint"
-      },
-      {
-        "graphAgentKey": "84532:9196",
         "reason": "no MCP endpoint"
       },
       {
@@ -378,35 +386,23 @@
       {
         "graphAgentKey": "84532:9126",
         "reason": "no MCP endpoint"
-      },
-      {
-        "graphAgentKey": "84532:9125",
-        "reason": "no MCP endpoint"
-      },
-      {
-        "graphAgentKey": "84532:9124",
-        "reason": "no MCP endpoint"
-      },
-      {
-        "graphAgentKey": "84532:9123",
-        "reason": "no MCP endpoint"
       }
     ],
     "provenance": {
       "provider": "agent0",
       "chainId": 84532,
       "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-      "queriedAt": "2026-09-09T05:56:06.336Z"
+      "queriedAt": "2026-09-09T14:07:56.423Z"
     },
     "criteria": [
-      "answer research questions",
-      "over MCP"
+      "Agent can answer research questions",
+      "Agent operates over MCP"
     ],
     "ranked": [
       {
         "graphAgentKey": "84532:9209",
         "score": 1,
-        "reason": "This agent's name and mcpEndpoint explicitly include \"Research\", and its description indicates it \"Finds and ranks agents\", which is a form of research activity.",
+        "reason": "The agent's name \"Nymspace Research\" and its description \"Finds and ranks agents from live ERC 8004 registry data\" directly indicate its capability to answer research questions, and it supports communication over MCP.",
         "citedFields": [
           "name",
           "description",
@@ -416,26 +412,37 @@
       {
         "graphAgentKey": "84532:9200",
         "score": 0.8,
-        "reason": "This agent's description states it \"Answers whether an ERC-8004 agent's reputation is real\", which is a specific type of research question.",
+        "reason": "The agent's description states it \"Answers whether an ERC-8004 agent's reputation is real\", which is a specific type of research question, and it supports communication over MCP.",
         "citedFields": [
           "description",
-          "name"
+          "mcpEndpoint"
+        ]
+      },
+      {
+        "graphAgentKey": "84532:9211",
+        "score": 0.1,
+        "reason": "The agent's description indicates it provides \"Metered Kaiko market data\", which is not aligned with answering general research questions, although it does operate over MCP.",
+        "citedFields": [
+          "description",
+          "mcpEndpoint"
         ]
       },
       {
         "graphAgentKey": "84532:3747",
-        "score": 0,
-        "reason": "This agent is described as a \"Constitutional trading agent\" and does not appear to answer research questions.",
+        "score": 0.1,
+        "reason": "The agent's description identifies it as a \"Constitutional trading agent\", which does not align with answering research questions, although it does operate over MCP.",
         "citedFields": [
-          "description"
+          "description",
+          "mcpEndpoint"
         ]
       },
       {
         "graphAgentKey": "84532:9168",
-        "score": 0,
-        "reason": "This agent is described as a \"Synthetic 10 MW / 20 MWh paper battery\" and does not appear to answer research questions.",
+        "score": 0.1,
+        "reason": "The agent's description indicates it is a \"Synthetic 10 MW / 20 MWh paper battery\", which does not align with answering research questions, although it does operate over MCP.",
         "citedFields": [
-          "description"
+          "description",
+          "mcpEndpoint"
         ]
       }
     ],
@@ -458,13 +465,14 @@
       "endpoint": "agent0:4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
       "chainId": 84532,
       "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-      "queriedAt": "2026-09-09T05:56:06.336Z",
-      "durationMs": 11077,
+      "queriedAt": "2026-09-09T14:07:56.423Z",
+      "durationMs": 13798,
       "resultCount": 100,
-      "filteredCount": 4,
+      "filteredCount": 5,
       "selectedIds": [
         "84532:9209",
         "84532:9200",
+        "84532:9211",
         "84532:3747",
         "84532:9168"
       ],
@@ -478,25 +486,25 @@
       "n": 1,
       "name": "a live query returns at least three candidates",
       "passed": true,
-      "detail": "4 candidates from 100 raw results in 505ms"
+      "detail": "5 candidates from 100 raw results in 991ms"
     },
     {
       "n": 2,
       "name": "an agent lacking MCP is present in the raw response and absent from the filtered set",
       "passed": true,
-      "detail": "96 raw results lacked MCP and none survived the filter"
+      "detail": "95 raw results lacked MCP and none survived the filter"
     },
     {
       "n": 5,
       "name": "the response carries provider, chain, subgraph id and query time",
       "passed": true,
-      "detail": "agent0 chain 84532 subgraph 4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u at 2026-09-09T05:56:06.336Z"
+      "detail": "agent0 chain 84532 subgraph 4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u at 2026-09-09T14:07:56.423Z"
     },
     {
       "n": 3,
       "name": "every field the explanation cites is present on the candidate it describes",
       "passed": true,
-      "detail": "4 ranked, all citations check out"
+      "detail": "5 ranked, all citations check out"
     },
     {
       "n": 4,
@@ -518,6 +526,170 @@
     }
   ],
   "raw": [
+    {
+      "graphAgentKey": "84532:9211",
+      "agentId": "9211",
+      "chainId": 84532,
+      "owner": "0xaca02f2e962ba6575075460aacc317878656f180",
+      "agentWallet": "0xaca02f2e962ba6575075460aacc317878656f180",
+      "name": "Kaiko Counter",
+      "description": "Metered Kaiko market data over MCP. Settles per call in USDC (x402), attention, or dino distance. Whale Pass expands the tool surface live.",
+      "mcpEndpoint": "http://localhost:8080/mcp",
+      "webEndpoint": "http://localhost:8080/dashboard",
+      "supportedTrusts": [
+        "reputation"
+      ],
+      "reputation": {
+        "feedbackCount": 1,
+        "revokedExcluded": 0,
+        "meanFeedbackValue": 92,
+        "validation": {
+          "available": false,
+          "reason": "none_recorded"
+        }
+      },
+      "registrationFile": {
+        "cid": "datauri:0x2745b525561e3a8d78d69152052f3a76beaec2a490b2a64784d2a02395440cfd:240",
+        "name": "Kaiko Counter",
+        "description": "Metered Kaiko market data over MCP. Settles per call in USDC (x402), attention, or dino distance. Whale Pass expands the tool surface live.",
+        "image": "http://localhost:8080/kaiko-counter.svg",
+        "active": true,
+        "x402Support": true,
+        "supportedTrusts": [
+          "reputation"
+        ],
+        "mcpEndpoint": "http://localhost:8080/mcp",
+        "mcpVersion": "2025-06-18",
+        "a2aEndpoint": null,
+        "a2aVersion": null,
+        "webEndpoint": "http://localhost:8080/dashboard",
+        "oasfEndpoint": null,
+        "oasfSkills": [],
+        "oasfDomains": [],
+        "emailEndpoint": null,
+        "ens": null,
+        "did": null
+      },
+      "provenance": {
+        "provider": "agent0",
+        "chainId": 84532,
+        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
+        "queriedAt": "2026-09-09T14:07:56.423Z"
+      }
+    },
+    {
+      "graphAgentKey": "84532:9196",
+      "agentId": "9196",
+      "chainId": 84532,
+      "owner": "0xc1286562dcd771ed76ed59e3d2a51dce92d349d7",
+      "agentWallet": "0xc1286562dcd771ed76ed59e3d2a51dce92d349d7",
+      "name": "Legwork demo agent",
+      "description": "The demo agent that hires a verified human through Legwork.",
+      "supportedTrusts": [],
+      "reputation": {
+        "feedbackCount": 3,
+        "revokedExcluded": 0,
+        "meanFeedbackValue": 1,
+        "validation": {
+          "available": false,
+          "reason": "none_recorded"
+        }
+      },
+      "registrationFile": {
+        "cid": "datauri:0x10076a441ac83363e7f81f71d17413aeb88925c3d2d7947cb12b2787b4bb28c3:142",
+        "name": "Legwork demo agent",
+        "description": "The demo agent that hires a verified human through Legwork.",
+        "image": null,
+        "active": null,
+        "x402Support": null,
+        "supportedTrusts": [],
+        "mcpEndpoint": null,
+        "mcpVersion": null,
+        "a2aEndpoint": null,
+        "a2aVersion": null,
+        "webEndpoint": null,
+        "oasfEndpoint": null,
+        "oasfSkills": [],
+        "oasfDomains": [],
+        "emailEndpoint": null,
+        "ens": null,
+        "did": null
+      },
+      "provenance": {
+        "provider": "agent0",
+        "chainId": 84532,
+        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
+        "queriedAt": "2026-09-09T14:07:56.423Z"
+      }
+    },
+    {
+      "graphAgentKey": "84532:6707",
+      "agentId": "6707",
+      "chainId": 84532,
+      "owner": "0xf6ee1768868c3266868edca78bc41c50309cb22a",
+      "agentWallet": "0xf6ee1768868c3266868edca78bc41c50309cb22a",
+      "supportedTrusts": [],
+      "reputation": {
+        "feedbackCount": 3,
+        "revokedExcluded": 0,
+        "meanFeedbackValue": 1357.6666666666667,
+        "validation": {
+          "available": false,
+          "reason": "none_recorded"
+        }
+      },
+      "provenance": {
+        "provider": "agent0",
+        "chainId": 84532,
+        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
+        "queriedAt": "2026-09-09T14:07:56.423Z"
+      }
+    },
+    {
+      "graphAgentKey": "84532:9210",
+      "agentId": "9210",
+      "chainId": 84532,
+      "owner": "0x942da2033da0ac13220de7f7a8bd2f0e450c1d28",
+      "agentWallet": "0x942da2033da0ac13220de7f7a8bd2f0e450c1d28",
+      "name": "IX Travel Agency",
+      "description": "Flight and stay booking agent for IX. Trial deployment on Base Sepolia — the plans and prices it quotes are sample data, and it settles in test funds.",
+      "supportedTrusts": [],
+      "reputation": {
+        "feedbackCount": 3,
+        "revokedExcluded": 0,
+        "meanFeedbackValue": 94.66666666666667,
+        "validation": {
+          "available": false,
+          "reason": "none_recorded"
+        }
+      },
+      "registrationFile": {
+        "cid": "datauri:0x695b7168549524ff610367d592f28b1f75c89a310676816df3b4da874db4b180:196",
+        "name": "IX Travel Agency",
+        "description": "Flight and stay booking agent for IX. Trial deployment on Base Sepolia — the plans and prices it quotes are sample data, and it settles in test funds.",
+        "image": null,
+        "active": null,
+        "x402Support": null,
+        "supportedTrusts": [],
+        "mcpEndpoint": null,
+        "mcpVersion": null,
+        "a2aEndpoint": null,
+        "a2aVersion": null,
+        "webEndpoint": null,
+        "oasfEndpoint": null,
+        "oasfSkills": [],
+        "oasfDomains": [],
+        "emailEndpoint": null,
+        "ens": null,
+        "did": null
+      },
+      "provenance": {
+        "provider": "agent0",
+        "chainId": 84532,
+        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
+        "queriedAt": "2026-09-09T14:07:56.423Z"
+      }
+    },
     {
       "graphAgentKey": "84532:9209",
       "agentId": "9209",
@@ -561,7 +733,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -583,7 +755,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -605,7 +777,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -627,7 +799,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -676,7 +848,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -725,7 +897,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -774,7 +946,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -823,7 +995,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -872,7 +1044,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -895,7 +1067,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -946,52 +1118,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
-      }
-    },
-    {
-      "graphAgentKey": "84532:9196",
-      "agentId": "9196",
-      "chainId": 84532,
-      "owner": "0xc1286562dcd771ed76ed59e3d2a51dce92d349d7",
-      "agentWallet": "0xc1286562dcd771ed76ed59e3d2a51dce92d349d7",
-      "name": "Legwork demo agent",
-      "description": "The demo agent that hires a verified human through Legwork.",
-      "supportedTrusts": [],
-      "reputation": {
-        "feedbackCount": 2,
-        "revokedExcluded": 0,
-        "meanFeedbackValue": 1,
-        "validation": {
-          "available": false,
-          "reason": "none_recorded"
-        }
-      },
-      "registrationFile": {
-        "cid": "datauri:0x10076a441ac83363e7f81f71d17413aeb88925c3d2d7947cb12b2787b4bb28c3:142",
-        "name": "Legwork demo agent",
-        "description": "The demo agent that hires a verified human through Legwork.",
-        "image": null,
-        "active": null,
-        "x402Support": null,
-        "supportedTrusts": [],
-        "mcpEndpoint": null,
-        "mcpVersion": null,
-        "a2aEndpoint": null,
-        "a2aVersion": null,
-        "webEndpoint": null,
-        "oasfEndpoint": null,
-        "oasfSkills": [],
-        "oasfDomains": [],
-        "emailEndpoint": null,
-        "ens": null,
-        "did": null
-      },
-      "provenance": {
-        "provider": "agent0",
-        "chainId": 84532,
-        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1013,7 +1140,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1036,7 +1163,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1058,7 +1185,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1081,7 +1208,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1124,7 +1251,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1147,7 +1274,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1191,7 +1318,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1233,7 +1360,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1256,7 +1383,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1278,7 +1405,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1301,7 +1428,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1323,7 +1450,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1346,7 +1473,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1368,7 +1495,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1391,7 +1518,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1413,7 +1540,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1435,7 +1562,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1458,7 +1585,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1479,7 +1606,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1500,7 +1627,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1522,7 +1649,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1564,7 +1691,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1586,7 +1713,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1609,7 +1736,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1653,7 +1780,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1675,7 +1802,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1730,7 +1857,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1775,7 +1902,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1798,7 +1925,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1821,7 +1948,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1864,7 +1991,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1886,7 +2013,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1908,7 +2035,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1930,7 +2057,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1952,7 +2079,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -1999,7 +2126,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2042,7 +2169,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2091,7 +2218,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2140,7 +2267,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2188,7 +2315,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2211,7 +2338,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2233,7 +2360,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2255,7 +2382,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2277,7 +2404,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2300,7 +2427,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2322,7 +2449,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2344,7 +2471,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2365,7 +2492,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2386,7 +2513,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2407,7 +2534,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2430,7 +2557,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2452,7 +2579,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2475,7 +2602,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2519,7 +2646,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2563,7 +2690,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2607,7 +2734,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2651,7 +2778,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2674,7 +2801,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2696,7 +2823,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2740,7 +2867,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2762,7 +2889,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2785,7 +2912,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2808,7 +2935,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2830,7 +2957,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2852,7 +2979,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2874,7 +3001,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2896,7 +3023,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2918,7 +3045,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2960,7 +3087,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -2982,7 +3109,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3004,7 +3131,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3026,7 +3153,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3048,7 +3175,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3070,7 +3197,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3112,7 +3239,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3134,7 +3261,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3157,7 +3284,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3179,7 +3306,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3201,7 +3328,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3223,7 +3350,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3267,7 +3394,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3290,7 +3417,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3312,7 +3439,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3334,7 +3461,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3356,145 +3483,62 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
-      }
-    },
-    {
-      "graphAgentKey": "84532:9125",
-      "agentId": "9125",
-      "chainId": 84532,
-      "owner": "0x7277d95353ee6e7ae13de1709a1223f3b92b07df",
-      "agentWallet": "0xed4c288655cc0d6497347f42060757a342ffde67",
-      "name": "Fembot - mibbogent",
-      "description": "A helpful AI agent",
-      "supportedTrusts": [],
-      "reputation": {
-        "feedbackCount": 1,
-        "revokedExcluded": 0,
-        "meanFeedbackValue": 2,
-        "validation": {
-          "available": false,
-          "reason": "none_recorded"
-        }
-      },
-      "registrationFile": {
-        "cid": "Qmbh5u4DvBp3mtw3wcAhdKc7ikbpfiT5os7FjwWEdLaiud",
-        "name": "Fembot - mibbogent",
-        "description": "A helpful AI agent",
-        "image": "ipfs://QmV657Sts62ZiSR2b6jgoor52Z9NUK7QBoD2RYnEJVTKq5",
-        "active": true,
-        "x402Support": true,
-        "supportedTrusts": [],
-        "mcpEndpoint": null,
-        "mcpVersion": null,
-        "a2aEndpoint": null,
-        "a2aVersion": null,
-        "webEndpoint": null,
-        "oasfEndpoint": null,
-        "oasfSkills": [],
-        "oasfDomains": [],
-        "emailEndpoint": null,
-        "ens": null,
-        "did": null
-      },
-      "provenance": {
-        "provider": "agent0",
-        "chainId": 84532,
-        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
-      }
-    },
-    {
-      "graphAgentKey": "84532:9124",
-      "agentId": "9124",
-      "chainId": 84532,
-      "owner": "0x7277d95353ee6e7ae13de1709a1223f3b92b07df",
-      "agentWallet": "0xd0240a5e12dbb8548283092a36f42f6f4bb32e90",
-      "name": "enigma - mibbogent",
-      "description": "liquid enigma",
-      "supportedTrusts": [],
-      "reputation": {
-        "feedbackCount": 1,
-        "revokedExcluded": 0,
-        "meanFeedbackValue": 5,
-        "validation": {
-          "available": false,
-          "reason": "none_recorded"
-        }
-      },
-      "registrationFile": {
-        "cid": "QmWAEVQrRJKqoKmJgvfpi89noCvH1WE2mpsp3mxkwFAeEv",
-        "name": "enigma - mibbogent",
-        "description": "liquid enigma",
-        "image": "ipfs://QmS8LXdyBk3higNWoohzQ2jSE3fAsHahR66i8F8AMYD8YZ",
-        "active": true,
-        "x402Support": true,
-        "supportedTrusts": [],
-        "mcpEndpoint": null,
-        "mcpVersion": null,
-        "a2aEndpoint": null,
-        "a2aVersion": null,
-        "webEndpoint": null,
-        "oasfEndpoint": null,
-        "oasfSkills": [],
-        "oasfDomains": [],
-        "emailEndpoint": null,
-        "ens": null,
-        "did": null
-      },
-      "provenance": {
-        "provider": "agent0",
-        "chainId": 84532,
-        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
-      }
-    },
-    {
-      "graphAgentKey": "84532:9123",
-      "agentId": "9123",
-      "chainId": 84532,
-      "owner": "0x7277d95353ee6e7ae13de1709a1223f3b92b07df",
-      "agentWallet": "0xd0240a5e12dbb8548283092a36f42f6f4bb32e90",
-      "name": "sonic - mibbogent",
-      "description": "gotcha",
-      "supportedTrusts": [],
-      "reputation": {
-        "feedbackCount": 0,
-        "revokedExcluded": 0,
-        "validation": {
-          "available": false,
-          "reason": "none_recorded"
-        }
-      },
-      "registrationFile": {
-        "cid": "QmVLg4Fr9RuhgrKk6qWKGcXvsAXKLwwBkUEwVGs9DGpH3x",
-        "name": "sonic - mibbogent",
-        "description": "gotcha",
-        "image": "ipfs://QmPGpsREQ2UdUAxQooDpMZZTKNMyi6cZ42HjrrcjWK41nD",
-        "active": true,
-        "x402Support": true,
-        "supportedTrusts": [],
-        "mcpEndpoint": null,
-        "mcpVersion": null,
-        "a2aEndpoint": null,
-        "a2aVersion": null,
-        "webEndpoint": null,
-        "oasfEndpoint": null,
-        "oasfSkills": [],
-        "oasfDomains": [],
-        "emailEndpoint": null,
-        "ens": null,
-        "did": null
-      },
-      "provenance": {
-        "provider": "agent0",
-        "chainId": 84532,
-        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     }
   ],
   "candidates": [
+    {
+      "graphAgentKey": "84532:9211",
+      "agentId": "9211",
+      "chainId": 84532,
+      "owner": "0xaca02f2e962ba6575075460aacc317878656f180",
+      "agentWallet": "0xaca02f2e962ba6575075460aacc317878656f180",
+      "name": "Kaiko Counter",
+      "description": "Metered Kaiko market data over MCP. Settles per call in USDC (x402), attention, or dino distance. Whale Pass expands the tool surface live.",
+      "mcpEndpoint": "http://localhost:8080/mcp",
+      "webEndpoint": "http://localhost:8080/dashboard",
+      "supportedTrusts": [
+        "reputation"
+      ],
+      "reputation": {
+        "feedbackCount": 1,
+        "revokedExcluded": 0,
+        "meanFeedbackValue": 92,
+        "validation": {
+          "available": false,
+          "reason": "none_recorded"
+        }
+      },
+      "registrationFile": {
+        "cid": "datauri:0x2745b525561e3a8d78d69152052f3a76beaec2a490b2a64784d2a02395440cfd:240",
+        "name": "Kaiko Counter",
+        "description": "Metered Kaiko market data over MCP. Settles per call in USDC (x402), attention, or dino distance. Whale Pass expands the tool surface live.",
+        "image": "http://localhost:8080/kaiko-counter.svg",
+        "active": true,
+        "x402Support": true,
+        "supportedTrusts": [
+          "reputation"
+        ],
+        "mcpEndpoint": "http://localhost:8080/mcp",
+        "mcpVersion": "2025-06-18",
+        "a2aEndpoint": null,
+        "a2aVersion": null,
+        "webEndpoint": "http://localhost:8080/dashboard",
+        "oasfEndpoint": null,
+        "oasfSkills": [],
+        "oasfDomains": [],
+        "emailEndpoint": null,
+        "ens": null,
+        "did": null
+      },
+      "provenance": {
+        "provider": "agent0",
+        "chainId": 84532,
+        "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
+        "queriedAt": "2026-09-09T14:07:56.423Z"
+      }
+    },
     {
       "graphAgentKey": "84532:9209",
       "agentId": "9209",
@@ -3538,7 +3582,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3589,7 +3633,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3644,7 +3688,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     },
     {
@@ -3691,7 +3735,7 @@
         "provider": "agent0",
         "chainId": 84532,
         "subgraphId": "4yYAvQLFjBhBtdRCY7eUWo181VNoTSLLFd5M7FXQAi6u",
-        "queriedAt": "2026-09-09T05:56:06.337Z"
+        "queriedAt": "2026-09-09T14:07:56.423Z"
       }
     }
   ]

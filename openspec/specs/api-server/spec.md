@@ -123,3 +123,160 @@ The API SHALL carry tests over its routing, validation, and error shapes, and th
 
 - **WHEN** a route is tested
 - **THEN** it MUST be exercised through the application's fetch handler, so no port is bound and tests cannot collide
+
+### Requirement: Agent creation is served by the API
+
+The API SHALL expose a route that provisions a new agent under the organization's parent namespace, and SHALL report that provisioning's progress separately from the request that started it.
+
+#### Scenario: Creation answers before provisioning finishes
+
+- **WHEN** a valid creation request is received
+- **THEN** the response MUST be 202 carrying the agent's id and ENS name, and MUST NOT wait for the chain transactions to confirm
+
+#### Scenario: The agent is readable before the caller polls
+
+- **WHEN** the API answers a creation request
+- **THEN** the agent row and its five provisioning tracks MUST already exist, so the first progress read has something to return
+
+#### Scenario: A label owned by someone else is refused before anything is written
+
+- **WHEN** the requested label's on-chain owner is neither absent nor the organization
+- **THEN** the response MUST be 409 naming that owner, and no store row and no transaction may have been written
+
+#### Scenario: Endpoints are named by protocol, never by record key
+
+- **WHEN** a creation request describes the agent's endpoints
+- **THEN** the request MUST name protocols and the record keys MUST be derived server-side, so no request can name the ENSIP 25 binding as a key to publish or delegate
+
+### Requirement: Creation is idempotent against chain state
+
+Provisioning SHALL read chain state before every write, so re-sending a creation request repairs what is missing rather than duplicating what exists.
+
+#### Scenario: A re-post spends nothing on completed work
+
+- **WHEN** a creation request names a label the organization already owns and has fully provisioned
+- **THEN** every step MUST report that it found its work already on chain, and no transaction may be sent
+
+#### Scenario: A re-post completes a partial provisioning
+
+- **WHEN** a previous run stopped after some steps
+- **THEN** a re-post MUST perform only the steps whose work is absent from the chain
+
+#### Scenario: A repair does not re-log work it did not do
+
+- **WHEN** a run skips registration because the name already exists
+- **THEN** it MUST NOT record an event whose evidence is a transaction from an earlier run
+
+### Requirement: A step is complete only when read back
+
+No step in a provisioning run SHALL be reported successful on the strength of a submitted transaction.
+
+#### Scenario: Each write is followed by a read
+
+- **WHEN** a provisioning step writes a record or a grant
+- **THEN** it MUST re-read that value from chain, and MUST report failure when the read does not match what was written
+
+#### Scenario: The read-back is durable
+
+- **WHEN** a provisioning step is recorded in the activity log
+- **THEN** the value it read back MUST be recorded with it, so a later reader sees what the chain said rather than only what was sent
+
+### Requirement: Provisioning progress is reconstructed from the activity log
+
+The API SHALL report a run's steps from the recorded activity events rather than from process memory, and SHALL distinguish provisioning events from later writes of the same type.
+
+#### Scenario: Progress survives a restart
+
+- **WHEN** progress is requested after the API process has restarted mid-run
+- **THEN** the steps already taken MUST still be returned, with their transaction hashes and read-back values
+
+#### Scenario: Later writes are not reported as provisioning steps
+
+- **WHEN** a controller updates an endpoint record, or a permission proof records a denial, on an agent that was provisioned earlier
+- **THEN** those events MUST NOT appear among that agent's provisioning steps
+
+#### Scenario: Completion is reported for the identity track alone
+
+- **WHEN** provisioning progress is read
+- **THEN** completion MUST reflect the ENS track only, and the registry, verification, discovery and financial tracks MUST be reported with their own separate states
+
+### Requirement: The API serves the product contract
+
+The API SHALL expose the agent, permission, record, verification, discovery, wallet, payment, and activity operations the console needs, under the existing version prefix.
+
+#### Scenario: Agent listing carries per-integration status
+
+- **WHEN** the agent list is requested
+- **THEN** each entry MUST carry its identity, discovery, and financial status separately
+
+#### Scenario: Identity returns live ENS state
+
+- **WHEN** an agent's identity is requested
+- **THEN** the response MUST include owner, resolver, registry, the published records, and the verification result, each read for that request
+
+#### Scenario: Permissions are returned per record and per registry action
+
+- **WHEN** permissions are requested for a controller
+- **THEN** the response MUST answer per text key and per registry action, and MUST name the system the answers were derived from
+
+#### Scenario: Discovery returns candidates with their evidence
+
+- **WHEN** a discovery request is served
+- **THEN** the response MUST include the ranked candidates, the signals used, the explanation, and the data source
+
+#### Scenario: Payment responses are typed
+
+- **WHEN** a payment is attempted
+- **THEN** the response MUST be one of executed, denied, pending approval, or failed, and a denial MUST carry its reason
+
+#### Scenario: Approval status is returned only when implemented
+
+- **WHEN** a pending-approval status would be returned
+- **THEN** it MUST correspond to an implemented provider flow
+
+### Requirement: Externally-derived responses carry a read time
+
+Any response field read from a chain, a subgraph, or a provider SHALL be accompanied by the time it was read.
+
+#### Scenario: Chain and Graph payloads are timestamped
+
+- **WHEN** a response contains ENS state, verification results, or Graph results
+- **THEN** it MUST include the time that state was read
+
+#### Scenario: A response without a read time is incomplete
+
+- **WHEN** an externally-derived payload omits its read time
+- **THEN** the response MUST be treated as incomplete, because a permission or verification result without a read time cannot be evaluated for staleness
+
+### Requirement: Responses never carry secret material
+
+The API SHALL NOT return provider secrets, authorization keys, or server signing material in any response.
+
+#### Scenario: Financial metadata is filtered
+
+- **WHEN** wallet or policy state is returned
+- **THEN** it MUST contain only the address, the provider, the agent association, and a policy summary, and MUST NOT contain credentials or configuration that reveals them
+
+#### Scenario: Configuration endpoints expose only public values
+
+- **WHEN** demo configuration is served
+- **THEN** it MUST contain only values safe for the browser — the parent name, the chain, public addresses, and public provider identifiers
+
+#### Scenario: A missing secret fails before the external call
+
+- **WHEN** a route requiring a provider secret is invoked without it
+- **THEN** the failure MUST name the absent variable and MUST occur before any external request is made
+
+### Requirement: Denials are responses, not errors
+
+An authority or policy denial SHALL be returned as a successful response describing the denial.
+
+#### Scenario: An EAC revert is a described outcome
+
+- **WHEN** a write is rejected by the resolver's access control
+- **THEN** the API MUST return a denied outcome naming the source, rather than a generic server error
+
+#### Scenario: A provider denial is a described outcome
+
+- **WHEN** a payment is rejected by policy
+- **THEN** the API MUST return a denied status with its reason, and MUST NOT surface it as an internal error

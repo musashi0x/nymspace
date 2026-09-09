@@ -37,3 +37,33 @@ MORE CLI:
   swizzle <Name>     eject component source for deep customization
   upgrade --apply    run after any @astryxdesign/core bump
 <!-- ASTRYX:END -->
+
+<!-- The two blocks above are machine-managed: `next dev` rewrites the first,
+     `astryx upgrade` the second. Everything below is ours and survives both. -->
+
+## Exception: `components/console/frame.tsx`
+
+`Frame`, and only `Frame`, may use raw layout elements. It is the console's
+framed surface — a dashed edge with corner marks and a bracketed title that
+appears notched into the top edge — and the notch cannot be built from `VStack`
+alone. It needs absolutely positioned children that paint the surrounding
+surface over the edge, and Astryx ships no primitive that does that. Astryx's
+own `docs styling` sanctions Tailwind utilities for "page layout, wrappers, and
+utility styling", which is what these are; the "No `<div>`" rule above is
+stricter than the design system it enforces.
+
+The exception is `Frame` and its parts by name. It does not generalise. Any
+other component reaching for a raw `<div>` or `<span>` for layout is drift, and
+the rule above applies to it unchanged.
+
+Two things `Frame` does **not** get an exception from, because they are the
+reason the rule exists:
+
+- No literal colour or pixel value. Every value in that file resolves to a
+  theme token or a token-backed utility, including the dashed edge, which is
+  the `frame-edge` utility in `globals.css` rather than inline CSS.
+- No `style={{…}}`.
+
+Background: `openspec/changes/adopt-console-design-register/` — proposal for
+why, design.md D3 and D5 for the reasoning, and its
+`specs/console-design-system/spec.md` for the requirement this satisfies.

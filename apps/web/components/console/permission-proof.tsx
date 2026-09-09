@@ -1,11 +1,14 @@
 "use client";
 
+import { Button } from "@astryxdesign/core/Button";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { writeRecord } from "@/lib/api";
 import { classify } from "@/lib/console/errors";
 import { LOADING_COPY, permissionStateFrom } from "@/lib/console/state";
-import { Loading, Outcome } from "./primitives";
+import { Field, Loading, Outcome } from "./primitives";
 
 /**
  * The permission proof — tasks 7.9 and 7.10, and `docs/03`'s "best judge
@@ -87,19 +90,21 @@ export function PermissionProof({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={runPermitted} disabled={busy !== null}>
-          Write a permitted record
-        </Button>
+    <VStack gap={4}>
+      <HStack gap={2} wrap="wrap">
         <Button
-          variant="outline"
+          variant="primary"
+          label="Write a permitted record"
+          onClick={runPermitted}
+          isDisabled={busy !== null}
+        />
+        <Button
+          variant="secondary"
+          label="Attempt a protected record"
           onClick={runProtected}
-          disabled={busy !== null || !protectedKey}
-        >
-          Attempt a protected record
-        </Button>
-      </div>
+          isDisabled={busy !== null || !protectedKey}
+        />
+      </HStack>
 
       {busy ? <Loading what={busy} /> : null}
 
@@ -107,13 +112,13 @@ export function PermissionProof({
       {denied ? <ProofResult label="Protected write" result={denied} /> : null}
 
       {allowed && denied ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <Text type="supporting" as="p">
           Both writes were signed by the same controller key against the same
           resolver, within the same session. The only difference between them is
           which record was addressed.
-        </p>
+        </Text>
       ) : null}
-    </div>
+    </VStack>
   );
 }
 
@@ -121,18 +126,22 @@ function ProofResult({ label, result }: { label: string; result: Result }) {
   const state = permissionStateFrom(result);
 
   if (state === "confirmed" && "after" in result) {
+    // The four values are the evidence, so they are Fields rather than a
+    // formatted blob: the same rows, the same rules, as everywhere else the
+    // console shows something it read.
     return (
-      <div className="flex flex-col gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
-        <p className="text-sm font-medium">
-          {label} — allowed by the Permissioned Resolver
-        </p>
-        <dl className="grid gap-1 font-mono text-[0.7rem] break-all text-muted-foreground">
-          <div>was: {result.before || "(empty)"}</div>
-          <div>now: {result.after}</div>
-          <div>tx: {result.transaction.hash}</div>
-          <div>actor: {result.actor}</div>
-        </dl>
-      </div>
+      <Outcome
+        tone="allowed"
+        title={`${label} — allowed by the Permissioned Resolver`}
+        action={
+          <VStack gap={0}>
+            <Field label="Was" value={result.before || "(empty)"} />
+            <Field label="Now" value={result.after} />
+            <Field label="Transaction" value={result.transaction.hash} />
+            <Field label="Actor" value={result.actor} />
+          </VStack>
+        }
+      />
     );
   }
 

@@ -1,11 +1,16 @@
 "use client";
 
+import { Button } from "@astryxdesign/core/Button";
+import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { VStack } from "@astryxdesign/core/VStack";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { discover } from "@/lib/api";
 import { classify, EMPTY_STATES } from "@/lib/console/errors";
 import { graphStateFrom, LOADING_COPY } from "@/lib/console/state";
-import { Absent, Badge, Empty, Loading, Outcome, Panel } from "./primitives";
+import { Absent, Badge, Empty, Loading, Outcome, Frame } from "./primitives";
 
 /**
  * Screen 3 — Discover.
@@ -15,6 +20,13 @@ import { Absent, Badge, Empty, Loading, Outcome, Panel } from "./primitives";
  * cites — task 7.11. That pairing is the whole claim: an explanation nobody can
  * check against data is a sentence, and this one is validated server-side
  * before it arrives.
+ *
+ * These stay framed cards rather than becoming table rows. `AGENTS.md` reserves
+ * rows for uniform data and points inconsistent content at a list or card
+ * layout, and a discovery result is not uniform: the reason is a paragraph of
+ * varying length, the validation row drops entirely when no registry exists,
+ * and the cited fields differ per agent. A table would truncate the one part of
+ * this screen the product is actually claiming.
  */
 
 type Result = Awaited<ReturnType<typeof discover>>;
@@ -51,27 +63,36 @@ export function DiscoverForm() {
     result !== null && "error" in result.ranking && result.ranking.error;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <input
+    <VStack gap={6}>
+      <HStack gap={3} wrap="wrap" align="end">
+        <TextInput
+          label="Query"
+          isLabelHidden
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
           onKeyDown={(e) => {
             if (e.key === "Enter") void run();
           }}
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring"
           placeholder="Find a trustworthy research agent with MCP support"
+          width="100%"
+          xstyle={undefined}
         />
-        <div className="flex gap-2">
-          <Button onClick={() => void run()} disabled={busy}>
-            Search
-          </Button>
+        <HStack gap={2}>
+          <Button
+            variant="primary"
+            label="Search"
+            onClick={() => void run()}
+            isDisabled={busy}
+          />
           {/* An explicit refresh that bypasses the browse cache — task 4.14. */}
-          <Button variant="outline" onClick={() => void run(true)} disabled={busy}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+          <Button
+            variant="secondary"
+            label="Refresh"
+            onClick={() => void run(true)}
+            isDisabled={busy}
+          />
+        </HStack>
+      </HStack>
 
       {busy ? <Loading what={LOADING_COPY.discovery} /> : null}
 
@@ -102,14 +123,14 @@ export function DiscoverForm() {
             />
           ) : null}
 
-          <div className="flex flex-col gap-4">
+          <VStack gap={4}>
             {result.results.map((agent) => (
-              <Panel
+              <Frame
                 key={agent.graphId}
                 title={agent.ensName ?? agent.name ?? agent.graphId}
                 subtitle={agent.name ?? undefined}
               >
-                <div className="flex flex-wrap gap-2">
+                <HStack gap={2} wrap="wrap">
                   <Badge tone="neutral">ERC 8004 #{agent.agentId}</Badge>
                   {agent.mcpEndpoint ? (
                     <Badge tone="good">MCP available</Badge>
@@ -132,60 +153,80 @@ export function DiscoverForm() {
                       validation {agent.signals.validation.completed} completed
                     </Badge>
                   ) : null}
-                </div>
+                </HStack>
 
                 {!agent.signals.validation.available ? (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
+                  <Text type="supporting" as="p">
                     {EMPTY_STATES.noValidation.detail}
-                  </p>
+                  </Text>
                 ) : null}
 
                 {agent.reason ? (
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xs font-medium">Why this agent</p>
-                    <p className="text-sm leading-relaxed">{agent.reason}</p>
-                  </div>
+                  <VStack gap={1}>
+                    <Text type="label">Why this agent</Text>
+                    <Text as="p">{agent.reason}</Text>
+                  </VStack>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">
-                    Unranked — the ranking step did not run, so there is no
-                    reason to show.
-                  </p>
+                  <Absent what="the ranking step did not run, so there is no reason to show" />
                 )}
 
-                <details className="text-xs text-muted-foreground">
-                  <summary className="cursor-pointer">
-                    Evidence — the exact fields this reason cites
-                  </summary>
-                  <ul className="mt-2 flex flex-col gap-1 font-mono text-[0.65rem]">
-                    {agent.citedFields.map((field) => (
-                      <li key={field}>· {field}</li>
+                <Collapsible
+                  defaultIsOpen={false}
+                  trigger={
+                    <Text type="supporting">
+                      Evidence — the exact fields this reason cites
+                    </Text>
+                  }
+                >
+                  {/*
+                    A VStack of mono lines rather than List/ListItem: Astryx's
+                    ListItem takes a `label` string, and these need the code
+                    face and break-all so a subgraph id or an owner address
+                    wraps instead of escaping the frame.
+                  */}
+                  <VStack gap={1}>
+                    {[
+                      ...agent.citedFields,
+                      `chain ${result.dataSource.chainId}`,
+                      `subgraph ${result.dataSource.subgraphId}`,
+                      `queried ${result.dataSource.fetchedAt}`,
+                      `owner ${agent.owner}`,
+                      ...(agent.mcpEndpoint ? [`mcp ${agent.mcpEndpoint}`] : []),
+                    ].map((line) => (
+                      <Text
+                        key={line}
+                        type="code"
+                        size="2xs"
+                        color="secondary"
+                        hasTabularNumbers
+                        wordBreak="break-all"
+                      >
+                        {line}
+                      </Text>
                     ))}
-                    <li>· chain {result.dataSource.chainId}</li>
-                    <li>· subgraph {result.dataSource.subgraphId}</li>
-                    <li>· queried {result.dataSource.fetchedAt}</li>
-                    <li>· owner {agent.owner}</li>
-                    {agent.mcpEndpoint ? <li>· mcp {agent.mcpEndpoint}</li> : null}
-                  </ul>
-                </details>
-              </Panel>
+                  </VStack>
+                </Collapsible>
+              </Frame>
             ))}
-          </div>
+          </VStack>
 
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <p>
+          <Frame title="result provenance">
+            <Text type="supporting" as="p">
               {result.candidateCount} candidate
               {result.candidateCount === 1 ? "" : "s"} from {result.rawCount} raw
               results · {result.excluded.length} excluded by the server-side
               filter · ranked by {result.ranking.model ?? "no model"}
-            </p>
-            <p>
+            </Text>
+            <Text type="supporting" as="p">
               Source: {result.dataSource.provider} · chain{" "}
               {result.dataSource.chainId} · subgraph{" "}
-              <span className="font-mono">{result.dataSource.subgraphId}</span> ·
-              read {result.dataSource.fetchedAt}
+              <Text type="code" size="2xs">
+                {result.dataSource.subgraphId}
+              </Text>{" "}
+              · read {result.dataSource.fetchedAt}
               {result.dataSource.cached ? " · served from cache" : ""}
-            </p>
-            <p>
+            </Text>
+            <Text type="supporting" as="p">
               Explanation check:{" "}
               {result.explanationValid ? (
                 <Badge tone="good">every cited field present</Badge>
@@ -195,10 +236,10 @@ export function DiscoverForm() {
                   {result.explanationProblems.length === 1 ? "" : "s"}
                 </Badge>
               )}
-            </p>
-          </div>
+            </Text>
+          </Frame>
         </>
       ) : null}
-    </div>
+    </VStack>
   );
 }

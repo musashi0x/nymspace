@@ -1,6 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import * as z from "zod";
 import type { Address } from "@nymspace/core";
+import { isValidLabel } from "../provisioning";
 
 /**
  * Schemas and helpers shared by the product routes.
@@ -30,6 +31,32 @@ export const permissionGrantSchema = z.object({
 export const recordWriteSchema = z.object({
   key: z.string().min(1),
   value: z.string(),
+});
+
+/**
+ * What `POST /v1/agents` accepts.
+ *
+ * Endpoints are named by protocol, never by record key. A body carrying a raw
+ * key could name the ENSIP 25 binding, and `docs/02` Flow 4 is explicit that
+ * the agent controller does not receive permission to rewrite it — so the keys
+ * are derived server-side and this shape cannot express the dangerous request.
+ *
+ * `delegate` defaults to false. A fleet needs at least one name whose
+ * controller holds no grant, and defaulting the other way would quietly make
+ * every created agent a delegated one.
+ */
+export const agentCreateSchema = z.object({
+  label: z
+    .string()
+    .refine(isValidLabel, "lowercase letters, digits and internal hyphens only"),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  role: z.string().min(1),
+  controller: addressSchema,
+  endpoints: z
+    .object({ mcp: z.url().optional(), a2a: z.url().optional() })
+    .default({}),
+  delegate: z.boolean().optional().default(false),
 });
 
 export const paymentSchema = z.object({

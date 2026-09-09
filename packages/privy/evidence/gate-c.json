@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-09T05:56:29.597Z",
+  "ranAt": "2026-09-09T14:08:22.447Z",
   "gate": "C",
   "go": true,
   "facts": {
@@ -39,8 +39,8 @@
     },
     "allowedResult": {
       "status": "executed",
-      "transactionHash": "0xff4989cdae039f5a7e75b13be49b7b6eda9198c13e75321b74c852cb24b99ded",
-      "requestId": "8bd7e9ce-f2af-49b7-bc55-df6160b6b153"
+      "transactionHash": "0x8fb1d4f69a5ab5a01b63a402a25079ca99e66c37d6649a8acaaf28a2916f50e6",
+      "requestId": "3647be3f-9310-4287-a00d-1123a443ce95"
     },
     "limitRaised": {
       "policyId": "p8ep2ucnuqvkpylmsu31koh0",
@@ -50,8 +50,8 @@
     },
     "afterRaiseResult": {
       "status": "executed",
-      "transactionHash": "0x031ca123991541437d92d952b242b924f150240ff0a86af56a079858583a95bc",
-      "requestId": "08c627c0-40cb-4912-920d-00ce36f9f584"
+      "transactionHash": "0x5eb3923cd3d2e04e531dc64a03c0e32a2c578ff4e80478dfa8accaf17dba61a8",
+      "requestId": "da338d23-f30f-4502-bafe-a51184ffddd3"
     },
     "limitRestored": {
       "policyId": "p8ep2ucnuqvkpylmsu31koh0",
@@ -97,7 +97,7 @@
       "n": 3,
       "name": "the under-limit payment executes, holding wallet and recipient constant",
       "passed": true,
-      "detail": "0xff4989cdae039f5a7e75b13be49b7b6eda9198c13e75321b74c852cb24b99ded"
+      "detail": "0x8fb1d4f69a5ab5a01b63a402a25079ca99e66c37d6649a8acaaf28a2916f50e6"
     },
     {
       "n": 4,

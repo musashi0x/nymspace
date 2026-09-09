@@ -14,9 +14,19 @@ import { previewAgainstLimit } from "@nymspace/privy";
 import {
   ORGANIZATION_ID,
   REGISTRATION_CHAIN_ID,
+  type Deps,
   type DepsEnv,
 } from "../deps";
 import {
+  agentIdFor,
+  assertLabelAvailable,
+  LabelUnavailableError,
+  PROVISIONING_PHASE,
+  provisionAgent,
+  type ProvisionContext,
+} from "../provisioning";
+import {
+  agentCreateSchema,
   agentNotFound,
   describeDenial,
   paymentSchema,
@@ -69,6 +79,164 @@ export const agents = new Hono<DepsEnv>()
       })),
       // Local rows, so this is the store's own read rather than a chain read —
       // said explicitly so the console does not label it live.
+      source: "store" as const,
+      readAt: readAt(),
+    });
+  })
+
+  //////////////////////////////////////////////////////////////////////////
+  // Create — organization-signed, idempotent, and slower than a response
+  //////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Four transactions on Sepolia outlast any request a browser will hold open,
+   * so this answers 202 with the agent id and keeps provisioning. The screen
+   * follows `GET /:id/provisioning`, which reads the activity log rather than
+   * a promise, so a reload or a restart does not lose the run.
+   *
+   * Idempotent: re-posting a label the organization already owns repairs
+   * whatever is missing and spends nothing on what is not. That is a property
+   * of `provisionAgent`, not of this handler, and it is why the retry after a
+   * partial failure is the documented recovery rather than a support question.
+   */
+  .post("/", zValidator("json", agentCreateSchema), async (c) => {
+    const deps = c.var.deps;
+    const body = c.req.valid("json");
+    const agentId = agentIdFor(body.label);
+    const ensName = `${body.label}.${deps.parentName}`;
+
+    // Read the owner before answering. Provisioning continues after the
+    // response, so a stranger's label discovered in there would be a rejection
+    // nobody is waiting on, reported after the caller was told 202.
+    try {
+      await assertLabelAvailable(deps, body.label);
+    } catch (error) {
+      if (error instanceof LabelUnavailableError) {
+        return c.json(
+          {
+            status: "unavailable" as const,
+            label: error.label,
+            owner: error.owner,
+            reason: `${ensName} is already owned by another account`,
+            readAt: readAt(),
+          },
+          409,
+        );
+      }
+      throw error;
+    }
+
+    // The row and its five tracks exist before the response, so the screen the
+    // caller is about to poll has something to read on its first request.
+    await deps.store.upsertAgent({
+      id: agentId,
+      organizationId: ORGANIZATION_ID,
+      slug: body.label,
+      ensName,
+      controllerAddress: body.controller,
+    });
+
+    void provisionAgent(provisionContext(deps), {
+      label: body.label,
+      name: body.name,
+      description: body.description,
+      role: body.role,
+      controller: body.controller,
+      endpoints: body.endpoints,
+      delegate: body.delegate,
+    }).catch(async (error: unknown) => {
+      // A provisioning run that dies after the response would otherwise be
+      // invisible: the tracks would sit at their initial values with nothing
+      // saying why, and the screen would poll forever.
+      await deps.store.setProvisioning(agentId, { ens: "failed" }).catch(() => {});
+      await deps.store
+        .recordEvent({
+          organizationId: ORGANIZATION_ID,
+          agentId,
+          source: "ens",
+          type: "ens.action.denied",
+          status: "failed",
+          occurredAt: readAt(),
+          summary: `Provisioning ${ensName} stopped`,
+          evidence: {
+            source: "ens",
+            txHash: `0x${"0".repeat(64)}`,
+            contractAddress: deps.resolver,
+          },
+          metadata: {
+            phase: PROVISIONING_PHASE,
+            reason: error instanceof Error ? error.message.split("\n")[0]! : String(error),
+          },
+        })
+        .catch(() => {});
+    });
+
+    return c.json(
+      {
+        id: agentId,
+        ensName,
+        slug: body.label,
+        status: "provisioning" as const,
+        readAt: readAt(),
+      },
+      202,
+    );
+  })
+
+  //////////////////////////////////////////////////////////////////////////
+  // Provisioning progress — the five tracks, and the steps behind them
+  //////////////////////////////////////////////////////////////////////////
+
+  /**
+   * The steps are the activity log, filtered to this agent. There is no
+   * provisioning-run table and no stream held in a component: the events were
+   * already being written with their transaction hashes, and reading them back
+   * is what makes a reload mid-provision rebuild rather than restart.
+   *
+   * `complete` is false while the ENS track is still moving. The other four
+   * tracks are not part of that answer — an agent with a verified binding and
+   * no wallet is not failed, it is financially unprovisioned, and creation
+   * never claimed to touch those.
+   */
+  .get("/:id/provisioning", async (c) => {
+    const { store } = c.var.deps;
+    const id = c.req.param("id");
+    const agent = await store.getAgent(id);
+    if (!agent) agentNotFound(id);
+
+    const events = await store.listActivity({
+      organizationId: ORGANIZATION_ID,
+      agentId: agent.id,
+      limit: 100,
+    });
+
+    const steps = events
+      // Both conditions. The type says what happened; the phase says it
+      // happened during a provisioning run rather than during a later endpoint
+      // update or a permission proof, which write the same two types.
+      .filter(
+        (event) =>
+          PROVISIONING_TYPES.has(event.type) &&
+          phaseOf(event.metadata) === PROVISIONING_PHASE,
+      )
+      // The log is newest first; a step list reads in the order it happened.
+      .reverse()
+      .map((event) => ({
+        what: event.summary,
+        status: event.status,
+        // Narrowed rather than asserted: `ActivityEvidence` is a union per
+        // source, and a provisioning step's evidence is always an ENS one.
+        txHash: event.evidence.source === "ens" ? event.evidence.txHash : null,
+        readBack: readBackOf(event.metadata),
+        occurredAt: event.occurredAt,
+      }));
+
+    return c.json({
+      id: agent.id,
+      ensName: agent.ensName,
+      tracks: agent.provisioning,
+      steps,
+      complete: agent.provisioning.ens === "active" || agent.provisioning.ens === "failed",
       source: "store" as const,
       readAt: readAt(),
     });
@@ -484,3 +652,46 @@ export const agents = new Hono<DepsEnv>()
     // error would put it on the same path as an outage — `docs/11`.
     return c.json({ ...result, readAt: readAt() });
   });
+
+//////////////////////////////////////////////////////////////////////////////
+// Helpers
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The event types a provisioning run writes.
+ *
+ * Named rather than inferred, so an unrelated event on the same agent — a
+ * payment, a later record edit — does not appear in the create screen's step
+ * list as though the run were still going.
+ */
+const PROVISIONING_TYPES: ReadonlySet<string> = new Set([
+  "agent.created",
+  "ens.resolver.attached",
+  "ens.record.updated",
+  "ens.permission.granted",
+  "ens.action.denied",
+]);
+
+function phaseOf(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const value = (metadata as Record<string, unknown>)["phase"];
+  return typeof value === "string" ? value : null;
+}
+
+function readBackOf(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const value = (metadata as Record<string, unknown>)["readBack"];
+  return typeof value === "string" ? value : null;
+}
+
+function provisionContext(deps: Deps): ProvisionContext {
+  return {
+    ens: deps.ens,
+    store: deps.store,
+    organizationId: ORGANIZATION_ID,
+    parentName: deps.parentName,
+    registry: deps.registry,
+    resolver: deps.resolver,
+    organization: deps.organization,
+  };
+}

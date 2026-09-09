@@ -1,11 +1,16 @@
 "use client";
 
+import { Button } from "@astryxdesign/core/Button";
+import { Grid } from "@astryxdesign/core/Grid";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { VStack } from "@astryxdesign/core/VStack";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { previewPayment, sendPayment } from "@/lib/api";
 import { classify } from "@/lib/console/errors";
 import { financialStateFrom, LOADING_COPY } from "@/lib/console/state";
-import { Loading, Outcome } from "./primitives";
+import { Field, Frame, Loading, Outcome } from "./primitives";
 
 /**
  * Screens 4 and 5 — the task request and the policy denial.
@@ -74,60 +79,61 @@ export function TaskRequest({
   const state = result ? financialStateFrom(result) : "idle";
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Task</span>
-          <input
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Budget (wei)</span>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
-            inputMode="numeric"
-            className="rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring"
-          />
-        </label>
-      </div>
+    <VStack gap={4}>
+      <Grid columns={{ minWidth: 220, max: 2 }} gap={3}>
+        <TextInput label="Task" value={task} onChange={setTask} />
+        {/*
+          No `inputMode` — Astryx's TextInput does not expose it. The filter in
+          onChange is what actually keeps this numeric, and it did before too:
+          the attribute only ever picked the phone keyboard.
+        */}
+        <TextInput
+          label="Budget (wei)"
+          value={amount}
+          onChange={(next) => setAmount(next.replace(/\D/g, ""))}
+        />
+      </Grid>
 
-      <p className="font-mono text-[0.7rem] text-muted-foreground">
+      <Text type="code" size="sm" color="secondary" hasTabularNumbers>
         {ensName} → {recipient} · {formatEth(amount || "0")} ETH
-      </p>
+      </Text>
 
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={runPreview} disabled={busy !== null}>
-          Preview policy
-        </Button>
-        <Button onClick={execute} disabled={busy !== null}>
-          Execute
-        </Button>
-      </div>
+      <HStack gap={2} wrap="wrap">
+        <Button
+          variant="secondary"
+          label="Preview policy"
+          onClick={runPreview}
+          isDisabled={busy !== null}
+        />
+        <Button
+          variant="primary"
+          label="Execute"
+          onClick={execute}
+          isDisabled={busy !== null}
+        />
+      </HStack>
 
       {busy ? <Loading what={busy} /> : null}
 
       {preview ? (
-        <div className="flex flex-col gap-1 rounded-lg border border-border bg-muted/30 p-3">
-          <p className="text-sm font-medium">Privy policy</p>
-          <dl className="grid gap-1 font-mono text-[0.7rem] text-muted-foreground">
-            <div>requested: {formatEth(preview.requestedWei)} ETH</div>
-            <div>limit: {formatEth(preview.limitWei)} ETH (read from the live policy)</div>
-            <div>rule: {preview.policySummary.ruleName}</div>
-            <div>expected: {preview.expected}</div>
-          </dl>
-          <p className="text-xs text-muted-foreground">
-            Informational. Privy enforces the limit on the signing path — this
-            preview cannot allow or block anything.
-          </p>
-        </div>
+        <Frame
+          title="privy policy"
+          subtitle="Informational. Privy enforces the limit on the signing path — this preview cannot allow or block anything."
+        >
+          <Field label="Requested" value={`${formatEth(preview.requestedWei)} ETH`} />
+          <Field
+            label="Limit"
+            value={`${formatEth(preview.limitWei)} ETH`}
+            source="privy policy"
+            readAt={new Date().toISOString()}
+          />
+          <Field label="Rule" value={preview.policySummary.ruleName} />
+          <Field label="Expected" value={preview.expected} />
+        </Frame>
       ) : null}
 
       {result ? <PaymentOutcome result={result} state={state} amount={amount} /> : null}
-    </div>
+    </VStack>
   );
 }
 
@@ -142,35 +148,35 @@ function PaymentOutcome({
 }) {
   if (state === "executed" && "transactionHash" in result) {
     return (
-      <div className="flex flex-col gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
-        <p className="text-sm font-medium">Payment executed</p>
-        <p className="font-mono text-[0.7rem] break-all text-muted-foreground">
-          {result.transactionHash}
-        </p>
-      </div>
+      <Outcome
+        tone="allowed"
+        title="Payment executed"
+        detail={result.transactionHash}
+      />
     );
   }
 
   if (state === "denied") {
     const error = classify(result as { status?: string; reason?: string });
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-4">
-        <p className="text-sm font-medium">Payment blocked</p>
-        <dl className="grid gap-1 font-mono text-[0.7rem] text-muted-foreground">
-          <div>requested: {formatEth(amount)} ETH</div>
-          <div>policy: amount limit</div>
-          <div>decision: denied</div>
-        </dl>
-        <p className="text-sm">No funds moved.</p>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {"reason" in result ? String(result.reason) : error.detail}
-        </p>
-        {/*
-          No "request higher authority" button. docs/03 and docs/08 both forbid
-          simulating an approval path that is not implemented, and a button that
-          does nothing is worse than an absent one — it claims a capability.
-        */}
-      </div>
+      // `proof`, not `fault`. This is the policy doing its job, and docs/03 is
+      // explicit that a denial is not a generic red error.
+      //
+      // No "request higher authority" button. docs/03 and docs/08 both forbid
+      // simulating an approval path that is not implemented, and a button that
+      // does nothing is worse than an absent one — it claims a capability.
+      <Outcome
+        tone="proof"
+        title="Payment blocked — no funds moved"
+        detail={"reason" in result ? String(result.reason) : error.detail}
+        action={
+          <VStack gap={0}>
+            <Field label="Requested" value={`${formatEth(amount)} ETH`} />
+            <Field label="Policy" value="amount limit" />
+            <Field label="Decision" value="denied" />
+          </VStack>
+        }
+      />
     );
   }
 

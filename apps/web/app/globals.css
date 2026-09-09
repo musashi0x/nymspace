@@ -10,7 +10,13 @@
    The pre-Astryx landing page still uses Tailwind; see the note in AGENTS.md. */
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
-@import "@astryxdesign/theme-neutral/theme.css";
+/* The owned theme, replacing `@astryxdesign/theme-neutral`. This is the built
+   output of `theme.ts` (`pnpm exec astryx theme build theme.ts`), imported as
+   static CSS rather than generated at runtime: a runtime `defineTheme` injects
+   its component overrides after hydration, so the first paint would ship
+   untokenised tables. `astryx theme build --check theme.ts` fails when this
+   file is stale against its source. */
+@import "../nymspace.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -179,4 +185,288 @@
 .dark {
   --tile-neutral-bg: #f2f2f2;
   --tile-neutral-fg: #0a0a0a;
+}
+
+/* ── Frame ────────────────────────────────────────────────────────────────
+   The console's framed surface, in the register of mdx-graphs.kshv.me.
+
+   The edge is four background gradients rather than a `border`, and that is
+   load-bearing rather than stylistic. `border-style: dashed` draws a pattern
+   the browser picks and cannot be interrupted; painting the edge as an image
+   is what lets the corner marks and the title sit on top of it and appear to
+   notch it. 2px on, 5px off, 1px thick — the reference's own values.
+
+   Every colour here is a theme token. `--astryx-theme-nymspace-color-frame`
+   is declared in `theme.ts` as a theme-local role aliasing `--color-border`,
+   so it follows light and dark without a second definition.
+
+   See openspec/changes/adopt-console-design-register/design.md. */
+
+@utility frame-edge {
+  background-image:
+    repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(to bottom, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(to bottom, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+  background-repeat: repeat-x, repeat-y, repeat-x, repeat-y;
+  background-position: 0 0, 100% 0, 0 100%, 0 0;
+  background-size: 100% 1px, 1px 100%, 100% 1px, 1px 100%;
+}
+
+/* A single horizontal rule in the same dash rhythm, so a divider inside a
+   frame reads as part of the frame rather than as a second border style. */
+@utility frame-rule {
+  height: 1px;
+  background-image: repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+}
+
+/* A field separator in the frame's rhythm. Painted at the bottom edge rather
+   than as a border so a row of fields reads as the same dash pattern as the
+   frame around them, instead of a solid hairline inside a dashed box. */
+@utility frame-rule-below {
+  background-image: repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 100% 1px;
+}
+
+@utility frame-ink {
+  color: var(--astryx-theme-nymspace-color-frame);
+}
+
+/* Surfaces, and the punch.
+
+   Corner marks and the title paint the surface behind the frame so the edge
+   disappears underneath them. The reference hardcodes the page background
+   because in prose a figure only ever sits on the page; a console has more
+   than one surface, and the failure is invisible on the default one.
+
+   These same utilities paint a surface and punch a hole in a frame sitting on
+   it, deliberately. One name for both makes "the punch equals the surface"
+   true by construction rather than by two definitions agreeing. Painting the
+   console shell with `surface-body` and passing `surface="body"` to a Frame
+   inside it cannot drift.
+
+   Only opaque surfaces exist. `--color-background-muted` is a translucent
+   overlay (`#0536590C` light, `#1111127F` dark), and painting a translucent
+   colour over the edge leaves the edge showing through — a punch that does not
+   punch. A frame that wants to sit on a muted block should replace that block
+   rather than nest inside it. */
+@utility surface-body {
+  background-color: var(--color-background-body);
+}
+
+@utility surface-card {
+  background-color: var(--color-background-card);
+}
+
+/* ── Scroll affordances ───────────────────────────────────────────────────
+   The console conceals scrollbars and keeps the scrolling.
+
+   `overflow: hidden` is the wrong fix and is deliberately not used anywhere
+   here: it removes the scrolling, not the bar, turning a scrollable region
+   into a truncated one. The two rules below suppress the affordance only —
+   wheel, trackpad, keyboard and programmatic scroll are untouched.
+
+   Both an engine's standard property and its vendor pseudo-element are
+   needed: `scrollbar-width` covers Gecko, `::-webkit-scrollbar` covers
+   WebKit and Blink. Between them no supported engine still paints a bar.
+
+   The descendant rules matter as much as the element's own. The scrollers
+   the console cares about are mostly not ours — Astryx's Table owns its
+   horizontal scroll wrapper and CodeBlock owns its vertical one — so a
+   utility that only styled the element it sits on would conceal nothing.
+
+   See openspec/changes/polish-console-ui/design.md D3. */
+
+@utility scroll-quiet {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  & * {
+    scrollbar-width: none;
+  }
+
+  & *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The document's own bar, concealed for the same reason.
+
+   Applied to `html` rather than by making the console shell a scroll
+   container. A full-viewport scroller only receives arrow and space keys
+   while focus is inside it; with focus on the body the browser scrolls the
+   document instead, and the shell would sit still. Concealing the document
+   bar keeps the document as the scroller, so keyboard scrolling works
+   exactly as it did before. */
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+/* Overflow, as a state rather than a bar.
+
+   A concealed edge removes the only signal that content continues, so the
+   edge carries a fade instead. The shell is the positioned parent; the
+   scroller inside it is what actually moves, and a pseudo-element on the
+   scroller would scroll away with the content.
+
+   `--scroll-edge-surface` is the surface the fade resolves to, defaulting to
+   the console shell's own. A caller painting a different surface overrides
+   the one custom property rather than redefining the gradient — the same
+   arrangement `surface-body` / `surface-card` use for the Frame punch. */
+@utility scroll-shell {
+  position: relative;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  /* The inline-end edge, for a horizontally scrolling region. */
+  &::after {
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: 3rem;
+    background-image: linear-gradient(
+      to left,
+      var(--scroll-edge-surface, var(--color-background-body)),
+      transparent
+    );
+  }
+
+  &[data-overflow-inline="true"]::after {
+    opacity: 1;
+  }
+
+  /* The block-end edge, for a vertically scrolling region. */
+  &::before {
+    inset-inline: 0;
+    inset-block-end: 0;
+    height: 2rem;
+    background-image: linear-gradient(
+      to top,
+      var(--scroll-edge-surface, var(--color-background-body)),
+      transparent
+    );
+  }
+
+  &[data-overflow-block="true"]::before {
+    opacity: 1;
+  }
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────
+   Same contract as `word-tile-in` above: `animation-fill-mode: both`, and
+   the resting state is the readable one. A row whose animation never runs —
+   prerender, dead JS, backgrounded tab — must be visible and in position,
+   not stuck at `opacity: 0`.
+
+   `transform` and `opacity` only, so a full window of rows animates off the
+   main thread.
+
+   The stagger step is 18ms and `--row-index` is the row's position within
+   its arriving batch, not in the list. At the reference's 120ms a window of
+   40 rows would take 4.8 seconds to finish arriving, which is not motion,
+   it is a wait; and an index that kept counting across batches would start
+   the second batch two seconds late. 18ms × 39 caps the tail at ~0.7s.
+
+   See design.md D4. */
+@keyframes row-enter {
+  from {
+    transform: translateY(0.25rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@utility row-enter {
+  animation: row-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--row-index, 0) * 18ms);
+}
+
+@keyframes view-enter {
+  from {
+    transform: translateY(0.375rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@utility view-enter {
+  animation: view-enter 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-enter,
+  .view-enter {
+    animation: none;
+  }
+
+  .scroll-shell::before,
+  .scroll-shell::after {
+    transition: none;
+  }
+}
+
+/* Rows arriving in a window.
+
+   The animation is declared once for every body row, which is what makes it
+   correct rather than merely convenient. A CSS animation runs when an element
+   mounts; React reuses the `<tr>` elements already on screen (the tables key
+   their rows by id), so appending a batch animates exactly the new rows and
+   leaves the existing ones at their resting state. There is no "is this row
+   new" flag anywhere, because the DOM already knows.
+
+   Astryx's `Table` exposes no per-row className in data-driven mode, so the
+   `--row-index` property cannot be set on a row. `nth-child(40n + k)` gets the
+   same result from the other direction: the modulo is the window, so position
+   within the arriving batch is what the selector matches, and the stagger
+   resets every batch without anything tracking batches.
+
+   The first ten of each batch step by 18ms; everything past that shares the
+   180ms tail. Below the tenth row of a batch the difference is not perceptible
+   and is usually below the fold, and a flat tail is what bounds the total —
+   40 steps would be a wait rather than an entrance.
+
+   See design.md D4 and tasks 2.3 / 3.3. */
+@utility row-window {
+  & tbody tr {
+    animation: row-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 180ms;
+  }
+
+  & tbody tr:nth-child(40n + 1) { animation-delay: 0ms; }
+  & tbody tr:nth-child(40n + 2) { animation-delay: 18ms; }
+  & tbody tr:nth-child(40n + 3) { animation-delay: 36ms; }
+  & tbody tr:nth-child(40n + 4) { animation-delay: 54ms; }
+  & tbody tr:nth-child(40n + 5) { animation-delay: 72ms; }
+  & tbody tr:nth-child(40n + 6) { animation-delay: 90ms; }
+  & tbody tr:nth-child(40n + 7) { animation-delay: 108ms; }
+  & tbody tr:nth-child(40n + 8) { animation-delay: 126ms; }
+  & tbody tr:nth-child(40n + 9) { animation-delay: 144ms; }
+  & tbody tr:nth-child(40n + 10) { animation-delay: 162ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-window tbody tr {
+    animation: none;
+  }
 }

@@ -50,6 +50,14 @@ export interface Deps {
   controller: Address;
   resolver: Address;
   registry: Address;
+  /**
+   * `<parent>.eth`, the name every agent is a subname of.
+   *
+   * Resolved here from the deployment config rather than read from a row: the
+   * parent is where authority starts, and taking it from the store would let a
+   * database edit reparent the fleet.
+   */
+  parentName: string;
 }
 
 /** The context shape every product route sees. */
@@ -108,6 +116,7 @@ export async function buildDeps(): Promise<Deps> {
     controller: chain.controller,
     resolver: deployed.permissionedResolver,
     registry: deployed.parentRegistry,
+    parentName: `${deployed.parentLabel}.eth`,
   };
   return cached;
 }

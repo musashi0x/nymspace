@@ -231,6 +231,55 @@ pnpm audit:secrets                         # nothing committed, nothing in a bun
 any failure — three attempts of which two succeeded is not three consecutive
 clean runs.
 
+## Diagrams
+
+Three of them, in [`diagram/`](./diagram). Each is a committed pair: the
+`.excalidraw` JSON is the editable source, the `.png` beside it is the render.
+Open the JSON at [excalidraw.com](https://excalidraw.com) or in the VS Code
+Excalidraw extension.
+
+**The authority model** — one name resolves, three authorities answer, and the
+coordination store sits past a dashed boundary because it owns nothing anyone
+has to trust. Source: [`architecture.excalidraw`](./diagram/architecture.excalidraw).
+
+![The nymspace authority model](./diagram/architecture.png)
+
+The other two are reference sheets rather than arguments, so they are collapsed
+here to keep this page scannable.
+
+<details>
+<summary><b>The request workflow</b> — which service answers each endpoint, the fixed order of a write, and what each signing key may do</summary>
+
+<br>
+
+Source: [`workflow.excalidraw`](./diagram/workflow.excalidraw).
+
+![The nymspace request workflow](./diagram/workflow.png)
+
+</details>
+
+<details>
+<summary><b>Every service and what it owns</b> — all nine roles, method by method, read off the classes rather than the spec</summary>
+
+<br>
+
+Source: [`services.excalidraw`](./diagram/services.excalidraw).
+
+![Every nymspace service and what it owns](./diagram/services.png)
+
+</details>
+
+They are generated with the
+[excalidraw-diagram](https://github.com/coleam00/excalidraw-diagram-skill)
+coding-agent skill rather than drawn by hand. The skill is not vendored here,
+because `.claude/` is gitignored, so `AGENTS.md` carries the per-clone install,
+the two upstream fixes it needs before it renders, and the type-scale rule that
+keeps the output readable.
+
+Diagrams *inside* `docs/` stay mermaid. They diff as text and render on GitHub
+with no build step, which is what a spec figure needs. Excalidraw is for
+explainer images, where the layout itself is carrying the argument.
+
 ## License
 
 MIT

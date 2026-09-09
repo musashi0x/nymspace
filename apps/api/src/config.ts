@@ -19,7 +19,12 @@ export interface ApiConfig {
 }
 
 export function apiConfig(): ApiConfig {
-  const port = Number(process.env.API_PORT ?? 3112);
+  /**
+   * `API_PORT` first so a developer's `.env` keeps deciding locally, then
+   * `PORT`, which is what a platform injects — Railway assigns it per
+   * deployment and a process that ignores it never receives traffic.
+   */
+  const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3112);
   if (!Number.isSafeInteger(port) || port <= 0) {
     throw new Error(`API_PORT must be a positive integer, got: ${port}`);
   }

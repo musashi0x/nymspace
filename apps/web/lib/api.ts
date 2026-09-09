@@ -195,3 +195,33 @@ export async function fetchCommitActivity() {
   if (!res.ok) throw requestFailed(res.status);
   return res.json();
 }
+
+/**
+ * Create an agent. Answers 202 — provisioning outlives the request.
+ *
+ * A label someone else owns comes back as a described outcome rather than a
+ * thrown error, for the reason the record and payment calls do the same: the
+ * name being taken is an answer about the world, not a fault in the request.
+ * The caller renders it; nothing here decides it is exceptional.
+ */
+export async function createAgent(body: {
+  label: string;
+  name: string;
+  description: string;
+  role: string;
+  controller: string;
+  endpoints: { mcp?: string; a2a?: string };
+  delegate?: boolean;
+}) {
+  const res = await api.v1.agents.$post({ json: body });
+  if (res.status === 409) return res.json();
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/** The five tracks and the steps behind them, rebuilt from the activity log. */
+export async function fetchProvisioning(id: string) {
+  const res = await api.v1.agents[":id"].provisioning.$get({ param: { id } });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}

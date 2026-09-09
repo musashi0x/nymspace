@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useMounted } from "@/lib/use-mounted";
 
 const SunIcon = () => (
   <svg
@@ -36,11 +37,10 @@ const MoonIcon = () => (
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
 
   // The server cannot know the viewer's theme, so render a neutral shell until
   // the client has resolved it. Otherwise the icon hydrates wrong.
-  React.useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const isDark = resolvedTheme === "dark";
 

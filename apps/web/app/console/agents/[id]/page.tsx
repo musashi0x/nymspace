@@ -1,3 +1,8 @@
+import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchIdentity, fetchPermissions, fetchWallet } from "@/lib/api";
@@ -7,6 +12,7 @@ import {
   VERIFICATION_LABELS,
   type VerificationState,
 } from "@/lib/console/state";
+import { AuthorityMatrix } from "@/components/console/authority-matrix";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
 import {
@@ -15,7 +21,7 @@ import {
   Empty,
   Field,
   Outcome,
-  Panel,
+  Frame,
 } from "@/components/console/primitives";
 
 /**
@@ -50,25 +56,28 @@ export default async function AgentPage({
   const verdict = VERIFICATION_LABELS[verification];
 
   return (
-    <main className="flex flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <Link
-          href="/console"
-          className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-        >
-          ← fleet
+    <VStack as="main" gap={8} width="100%" className="min-w-0">
+      <VStack as="header" gap={2}>
+        <Link href="/console">
+          <Text type="code" size="xsm" color="secondary">
+            ← FLEET
+          </Text>
         </Link>
-        <h1 className="font-mono text-2xl">{identity.ensName}</h1>
-        <div className="flex flex-wrap gap-2">
+        <Heading level={1}>
+          <Text type="code" size="2xl">
+            {identity.ensName}
+          </Text>
+        </Heading>
+        <HStack gap={2} wrap="wrap">
           <Badge tone={state === "active" ? "good" : state === "rpc_error" ? "neutral" : "warn"}>
             {state}
           </Badge>
           <Badge tone={verdict.tone}>{verdict.label}</Badge>
-        </div>
-      </header>
+        </HStack>
+      </VStack>
 
       {/* ── Identity ───────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Identity"
         subtitle="Read from ENSv2 during this request. ENS is the source; nothing here is a stored profile."
       >
@@ -78,11 +87,12 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
-        <Field
-          label="Controller"
-          value={identity.controller}
-          source="store"
-        />
+        {/*
+          No `source`. The controller is held by the coordination store, and
+          `CLAUDE.md` is explicit that the store is not an authority — dressing
+          a stored value in provenance claims a read that never happened.
+        */}
+        <Field label="Controller" value={identity.controller} />
         <Field
           label="Registry"
           value={identity.registry}
@@ -95,10 +105,10 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
-      </Panel>
+      </Frame>
 
       {/* ── Manifest ───────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Agent manifest"
         subtitle="ENSIP 26 text records, assembled per request. There is no manifest object — change a record on chain and the next load differs, with no invalidation step."
       >
@@ -124,10 +134,10 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
-      </Panel>
+      </Frame>
 
       {/* ── Verification ───────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="ENSIP 25 verification"
         subtitle="Checked registry-to-ENS: the registration's claim first, then whether ENS confirms it."
       >
@@ -173,47 +183,19 @@ export default async function AgentPage({
             detail="This agent has no registry entry, so there is no claim for ENS to confirm."
           />
         )}
-      </Panel>
+      </Frame>
 
       {/* ── Authority ──────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Authority"
         subtitle="Every cell is a hasRoles read against the resolver's own fallback chain. The intended policy is a table in the spec; this is what the contracts actually say."
       >
         {permissions ? (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="py-2 font-normal">Capability</th>
-                    <th className="py-2 font-normal">Agent controller</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono text-[0.75rem]">
-                  {Object.entries(permissions.recordPermissions).map(([key, allowed]) => (
-                    <tr key={key} className="border-b border-border/40">
-                      <td className="py-2 pr-4 break-all">{key}</td>
-                      <td className="py-2">
-                        <Badge tone={allowed ? "good" : "bad"}>
-                          {allowed ? "Allowed" : "Denied"}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                  {Object.entries(permissions.registryPermissions).map(([key, allowed]) => (
-                    <tr key={key} className="border-b border-border/40">
-                      <td className="py-2 pr-4">{key} (registry)</td>
-                      <td className="py-2">
-                        <Badge tone={allowed ? "good" : "bad"}>
-                          {allowed ? "Allowed" : "Denied"}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <AuthorityMatrix
+              recordPermissions={permissions.recordPermissions}
+              registryPermissions={permissions.registryPermissions}
+            />
 
             {/*
               Task 7.7. A wrong resource derivation and a genuine denial are the
@@ -221,40 +203,59 @@ export default async function AgentPage({
               is the control that ran in the same request through the same code
               path and came back allowed.
             */}
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">
-                Positive control, same request:{" "}
-                <span className="font-mono">{permissions.control.account}</span>{" "}
-                on <span className="font-mono">{permissions.control.key}</span> →{" "}
-                <Badge tone={permissions.control.allowed ? "good" : "bad"}>
-                  {permissions.control.allowed ? "Allowed" : "Denied"}
-                </Badge>
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {permissions.control.allowed
+            <Frame
+              title="positive control"
+              subtitle={
+                permissions.control.allowed
                   ? "The read path works, so the denials above are answers rather than failures."
-                  : "The control failed, so no denial on this page can be trusted — the read path itself is wrong."}
-              </p>
-            </div>
+                  : "The control failed, so no denial on this page can be trusted — the read path itself is wrong."
+              }
+            >
+              <Field label="Account" value={permissions.control.account} />
+              <Field label="Capability" value={permissions.control.key} />
+              <Field
+                label="Result"
+                value={
+                  <Badge tone={permissions.control.allowed ? "good" : "bad"}>
+                    {permissions.control.allowed ? "Allowed" : "Denied"}
+                  </Badge>
+                }
+                mono={false}
+              />
+            </Frame>
 
-            <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer">
-                Resources queried ({permissions.queries.length} cells,{" "}
-                {permissions.source})
-              </summary>
-              <ul className="mt-2 flex flex-col gap-2 font-mono text-[0.65rem] break-all">
+            <Collapsible
+              defaultIsOpen={false}
+              trigger={
+                <Text type="supporting">
+                  Resources queried ({permissions.queries.length} cells,{" "}
+                  {permissions.source})
+                </Text>
+              }
+            >
+              <VStack gap={2}>
                 {permissions.queries.map((q) => (
-                  <li key={q.cell}>
-                    {q.cell}
-                    <ul className="ml-3 text-muted-foreground/70">
+                  <VStack key={q.cell} gap={0.5}>
+                    <Text type="code" size="2xs" wordBreak="break-all">
+                      {q.cell}
+                    </Text>
+                    <VStack gap={0} paddingInlineStart={3}>
                       {q.resources.map((r) => (
-                        <li key={r}>{r}</li>
+                        <Text
+                          key={r}
+                          type="code"
+                          size="2xs"
+                          color="secondary"
+                          wordBreak="break-all"
+                        >
+                          {r}
+                        </Text>
                       ))}
-                    </ul>
-                  </li>
+                    </VStack>
+                  </VStack>
                 ))}
-              </ul>
-            </details>
+              </VStack>
+            </Collapsible>
           </>
         ) : (
           <Outcome
@@ -263,10 +264,10 @@ export default async function AgentPage({
             detail="The permission matrix could not be read. Nothing about this agent's authority has been established either way."
           />
         )}
-      </Panel>
+      </Frame>
 
       {/* ── Permission proof ───────────────────────────────────────────── */}
-      <Panel
+      <Frame
         title="Permission proof"
         subtitle="Two writes from the same controller key, seconds apart. One it was granted, one it never was."
       >
@@ -280,10 +281,10 @@ export default async function AgentPage({
           protectedKey={"key" in identity.ensip25 ? identity.ensip25.key : undefined}
           currentValue={identity.records.mcp}
         />
-      </Panel>
+      </Frame>
 
       {/* ── Financial ──────────────────────────────────────────────────── */}
-      <Panel
+      <Frame
         id="task"
         title="Financial authority"
         subtitle="A Privy wallet under one amount policy. The limit is read from the live policy, never from a constant."
@@ -325,7 +326,7 @@ export default async function AgentPage({
             detail={EMPTY_STATES.noWallet.detail}
           />
         )}
-      </Panel>
-    </main>
+      </Frame>
+    </VStack>
   );
 }

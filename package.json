@@ -21,6 +21,7 @@
     "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts"
   },
   "devDependencies": {
+    "@nymspace/api": "workspace:*",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
     "@nymspace/graph": "workspace:*",
@@ -29,6 +30,7 @@
     "@types/node": "^24",
     "@types/pg": "^8.23.1",
     "pg": "^8.23.0",
+    "railway": "^3.11.0",
     "tsx": "^4.20.6",
     "turbo": "^2.5.8",
     "typescript": "^5",
