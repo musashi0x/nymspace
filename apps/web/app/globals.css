@@ -259,3 +259,169 @@
 @utility surface-card {
   background-color: var(--color-background-card);
 }
+
+/* ── Scroll affordances ───────────────────────────────────────────────────
+   The console conceals scrollbars and keeps the scrolling.
+
+   `overflow: hidden` is the wrong fix and is deliberately not used anywhere
+   here: it removes the scrolling, not the bar, turning a scrollable region
+   into a truncated one. The two rules below suppress the affordance only —
+   wheel, trackpad, keyboard and programmatic scroll are untouched.
+
+   Both an engine's standard property and its vendor pseudo-element are
+   needed: `scrollbar-width` covers Gecko, `::-webkit-scrollbar` covers
+   WebKit and Blink. Between them no supported engine still paints a bar.
+
+   The descendant rules matter as much as the element's own. The scrollers
+   the console cares about are mostly not ours — Astryx's Table owns its
+   horizontal scroll wrapper and CodeBlock owns its vertical one — so a
+   utility that only styled the element it sits on would conceal nothing.
+
+   See openspec/changes/polish-console-ui/design.md D3. */
+
+@utility scroll-quiet {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  & * {
+    scrollbar-width: none;
+  }
+
+  & *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The document's own bar, concealed for the same reason.
+
+   Applied to `html` rather than by making the console shell a scroll
+   container. A full-viewport scroller only receives arrow and space keys
+   while focus is inside it; with focus on the body the browser scrolls the
+   document instead, and the shell would sit still. Concealing the document
+   bar keeps the document as the scroller, so keyboard scrolling works
+   exactly as it did before. */
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+/* Overflow, as a state rather than a bar.
+
+   A concealed edge removes the only signal that content continues, so the
+   edge carries a fade instead. The shell is the positioned parent; the
+   scroller inside it is what actually moves, and a pseudo-element on the
+   scroller would scroll away with the content.
+
+   `--scroll-edge-surface` is the surface the fade resolves to, defaulting to
+   the console shell's own. A caller painting a different surface overrides
+   the one custom property rather than redefining the gradient — the same
+   arrangement `surface-body` / `surface-card` use for the Frame punch. */
+@utility scroll-shell {
+  position: relative;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  /* The inline-end edge, for a horizontally scrolling region. */
+  &::after {
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: 3rem;
+    background-image: linear-gradient(
+      to left,
+      var(--scroll-edge-surface, var(--color-background-body)),
+      transparent
+    );
+  }
+
+  &[data-overflow-inline="true"]::after {
+    opacity: 1;
+  }
+
+  /* The block-end edge, for a vertically scrolling region. */
+  &::before {
+    inset-inline: 0;
+    inset-block-end: 0;
+    height: 2rem;
+    background-image: linear-gradient(
+      to top,
+      var(--scroll-edge-surface, var(--color-background-body)),
+      transparent
+    );
+  }
+
+  &[data-overflow-block="true"]::before {
+    opacity: 1;
+  }
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────
+   Same contract as `word-tile-in` above: `animation-fill-mode: both`, and
+   the resting state is the readable one. A row whose animation never runs —
+   prerender, dead JS, backgrounded tab — must be visible and in position,
+   not stuck at `opacity: 0`.
+
+   `transform` and `opacity` only, so a full window of rows animates off the
+   main thread.
+
+   The stagger step is 18ms and `--row-index` is the row's position within
+   its arriving batch, not in the list. At the reference's 120ms a window of
+   40 rows would take 4.8 seconds to finish arriving, which is not motion,
+   it is a wait; and an index that kept counting across batches would start
+   the second batch two seconds late. 18ms × 39 caps the tail at ~0.7s.
+
+   See design.md D4. */
+@keyframes row-enter {
+  from {
+    transform: translateY(0.25rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@utility row-enter {
+  animation: row-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--row-index, 0) * 18ms);
+}
+
+@keyframes view-enter {
+  from {
+    transform: translateY(0.375rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@utility view-enter {
+  animation: view-enter 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-enter,
+  .view-enter {
+    animation: none;
+  }
+
+  .scroll-shell::before,
+  .scroll-shell::after {
+    transition: none;
+  }
+}
