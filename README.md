@@ -128,17 +128,22 @@ Copy `.env.example` to `.env.local` and set:
 
 **Deployment**
 
-The site is deployed on Railway and redeploys automatically on every push to
-`main`. Commit data refreshes on its own too: the page re-reads the GitHub API
-60 seconds after the last read, so new commits appear without a redeploy or any
-manual step.
+There isn't one right now. The Railway app this section used to describe
+returns `Application not found` from Railway's edge — the application is gone,
+not misrouted — so the demo runs locally. `docs/22_LOCAL_DEMO_RUNBOOK.md` is
+the bring-up.
 
-One thing that does need setting up by hand: `GITHUB_TOKEN` must be set in the
-Railway environment. Unauthenticated GitHub API access is 60 requests/hour for
-the whole server — shared across every visitor — which a public page will
-exhaust quickly. With a token it is 5,000/hour. A classic token with **no
-scopes** is enough for a public repo. Without one, the page will intermittently
-show "Commit data unavailable" instead of the graph.
+Commit data still refreshes on its own wherever the site runs: the page
+re-reads the GitHub API 60 seconds after the last read, so new commits appear
+with no redeploy and no manual step.
+
+`GITHUB_TOKEN` matters more locally than it did hosted. Unauthenticated GitHub
+API access is 60 requests/hour for the whole machine — shared with every other
+tool on it — and a laptop running a dev server exhausts that quickly. With a
+token it is 5,000/hour. A classic token with **no scopes** is enough for a
+public repo. Without one the page says "Commit data unavailable" rather than
+drawing an empty graph, which is the intended behaviour but not what you want
+on camera.
 
 It tracks this project's own repo,
 [`musashi0x/nymspace`](https://github.com/musashi0x/nymspace), so every commit

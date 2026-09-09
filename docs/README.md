@@ -95,6 +95,8 @@ If this does not work, stop and fix ENSv2 before building the rest.
 | `18_IMPLEMENTATION_CHECKLIST.md` | Build checklist |
 | `19_ENV_AND_CONFIG.md` | Environment variables and runtime config |
 | `20_SOURCES.md` | Current technical references checked on 2026 09 08 |
+| `21_ARCHITECTURE_DECISIONS.md` | ADRs |
+| `22_LOCAL_DEMO_RUNBOOK.md` | Cold-start bring-up for the local demo |
 
 ## Product name
 
