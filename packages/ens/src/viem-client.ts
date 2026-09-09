@@ -32,56 +32,17 @@ const CHAINS: Record<number, Chain> = {
   [baseSepolia.id]: baseSepolia,
 };
 
-/**
- * Thrown when a write is attempted on a client built without signing keys.
- *
- * Its own class so a route can answer 503 with an explanation rather than
- * surfacing a 500 that reads like a bug.
- */
-export class NoSignerError extends Error {
-  constructor(signer: Signer) {
-    super(
-      `No signing key configured for the ${signer}. This client was built ` +
-        `read-only: set ENSV2_ORGANIZATION_PRIVATE_KEY and ` +
-        `ENSV2_AGENT_CONTROLLER_PRIVATE_KEY to enable writes.`,
-    );
-    this.name = "NoSignerError";
-  }
-}
-
-/**
- * Either both private keys, or just the two addresses.
- *
- * The addresses-only form exists because reads need to know *who* to check
- * permissions for, not how to sign as them. Requiring keys for that made every
- * read route — including ones that only touch Postgres — unusable by anyone
- * without the funded signers: a teammate, CI, or a judge cloning the repo.
- */
-export type ViemChainClientOptions = {
+export interface ViemChainClientOptions {
   rpcUrl: string;
   chainId: number;
-} & (
-  | {
-      /** 0x-prefixed testnet private keys. Never production key material. */
-      organizationKey: Hex;
-      controllerKey: Hex;
-      organizationAddress?: never;
-      controllerAddress?: never;
-    }
-  | {
-      organizationKey?: never;
-      controllerKey?: never;
-      /** Read-only: the accounts to check authority for, not to sign with. */
-      organizationAddress: Address;
-      controllerAddress: Address;
-    }
-);
+  /** 0x-prefixed testnet private keys. Never production key material. */
+  organizationKey: Hex;
+  controllerKey: Hex;
+}
 
 export interface ViemChainClient extends ChainClient {
   readonly organization: Address;
   readonly controller: Address;
-  /** False when built from addresses only: reads work, writes throw. */
-  readonly canSign: boolean;
   addressOf(signer: Signer): Address;
   getCode(address: Address): Promise<Hex | undefined>;
   getBalance(address: Address): Promise<bigint>;
@@ -102,58 +63,38 @@ export function createViemChainClient(
   const transport = http(options.rpcUrl);
   const publicClient = createPublicClient({ chain, transport }) as PublicClient;
 
-  // Narrow on the property itself rather than a boolean: a `canSign` variable
-  // does not narrow the discriminated union for the compiler.
-  const accounts =
-    options.organizationKey !== undefined
-      ? ({
-          organization: privateKeyToAccount(options.organizationKey),
-          controller: privateKeyToAccount(options.controllerKey),
-        } as const)
-      : undefined;
+  const accounts = {
+    organization: privateKeyToAccount(options.organizationKey),
+    controller: privateKeyToAccount(options.controllerKey),
+  } as const;
 
-  const addresses: Record<Signer, Address> = accounts
-    ? {
-        organization: accounts.organization.address,
-        controller: accounts.controller.address,
-      }
-    : {
-        organization: options.organizationAddress as Address,
-        controller: options.controllerAddress as Address,
-      };
-
-  const canSign = accounts !== undefined;
-
-  if (addresses.organization === addresses.controller) {
+  if (accounts.organization.address === accounts.controller.address) {
     throw new Error(
-      "The organization and controller are the same account. The spike " +
+      "The organization and controller keys are the same account. The spike " +
         "would prove nothing: every denial would be a self-denial.",
     );
   }
 
-  const wallets: Record<Signer, WalletClient> | undefined = accounts
-    ? {
-        organization: createWalletClient({
-          account: accounts.organization,
-          chain,
-          transport,
-        }),
-        controller: createWalletClient({
-          account: accounts.controller,
-          chain,
-          transport,
-        }),
-      }
-    : undefined;
+  const wallets: Record<Signer, WalletClient> = {
+    organization: createWalletClient({
+      account: accounts.organization,
+      chain,
+      transport,
+    }),
+    controller: createWalletClient({
+      account: accounts.controller,
+      chain,
+      transport,
+    }),
+  };
 
   return {
-    organization: addresses.organization,
-    controller: addresses.controller,
-    canSign,
+    organization: accounts.organization.address,
+    controller: accounts.controller.address,
     publicClient,
 
     addressOf(signer) {
-      return addresses[signer];
+      return accounts[signer].address;
     },
 
     async readContract(request) {
@@ -167,7 +108,6 @@ export function createViemChainClient(
 
     async writeContract(request) {
       const signer: Signer = request.as ?? "organization";
-      if (!accounts || !wallets) throw new NoSignerError(signer);
       // Simulate first: a revert then arrives as a decoded custom error with
       // the contract's own name for it, rather than as an opaque failed
       // receipt. The negative proofs depend on being able to read why.

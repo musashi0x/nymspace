@@ -7,7 +7,6 @@
  */
 
 export * from "./types";
-export * from "./agent-inspector";
 export * from "./erc7930";
 export { publicEnv, type PublicEnv } from "./env.public";
 export { MissingEnvError } from "./env.shared";

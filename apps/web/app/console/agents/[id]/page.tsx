@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { publicEnv } from "@nymspace/core";
 import { fetchIdentity, fetchPermissions, fetchWallet } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
 import {
@@ -8,7 +7,6 @@ import {
   VERIFICATION_LABELS,
   type VerificationState,
 } from "@/lib/console/state";
-import { DelegationControls } from "@/components/console/delegation-controls";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
 import {
@@ -257,19 +255,6 @@ export default async function AgentPage({
                 ))}
               </ul>
             </details>
-
-            {/*
-              Grant and revoke. Routed through the wallet when the organization
-              is connected, and through the server-signed route when it is not
-              — the same transaction either way, but only one of them is a
-              person's decision rather than a key this process holds.
-            */}
-            <DelegationControls
-              agentId={id}
-              controller={identity.controller}
-              organization={publicEnv().organizationAddress}
-              recordKeys={Object.keys(permissions.recordPermissions)}
-            />
           </>
         ) : (
           <Outcome

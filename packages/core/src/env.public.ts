@@ -15,7 +15,6 @@ const source = {
   NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID,
   NEXT_PUBLIC_SEPOLIA_RPC_URL: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL,
   NEXT_PUBLIC_PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID,
-  NEXT_PUBLIC_ORGANIZATION_ADDRESS: process.env.NEXT_PUBLIC_ORGANIZATION_ADDRESS,
 };
 
 export interface PublicEnv {
@@ -24,12 +23,6 @@ export interface PublicEnv {
   chainId: number;
   sepoliaRpcUrl?: string;
   privyAppId?: string;
-  /**
-   * The organization's account. A public on-chain address, not a secret —
-   * the browser needs it to tell an operator their wallet is connected as
-   * the wrong account *before* they approve a signature.
-   */
-  organizationAddress?: string;
 }
 
 let cached: PublicEnv | undefined;
@@ -52,7 +45,6 @@ export function publicEnv(): PublicEnv {
     chainId: requireInt(source, "NEXT_PUBLIC_CHAIN_ID"),
     sepoliaRpcUrl: optional(source, "NEXT_PUBLIC_SEPOLIA_RPC_URL"),
     privyAppId: optional(source, "NEXT_PUBLIC_PRIVY_APP_ID"),
-    organizationAddress: optional(source, "NEXT_PUBLIC_ORGANIZATION_ADDRESS"),
   };
   return cached;
 }

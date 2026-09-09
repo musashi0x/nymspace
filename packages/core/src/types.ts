@@ -25,12 +25,9 @@ export const AGENT_TEXT_KEYS = [
 export type AgentTextKey = (typeof AGENT_TEXT_KEYS)[number];
 
 /**
- * Superseded by `CapabilityRow` in ./agent-inspector, which the Agent Inspector
- * uses. A plain boolean cannot say whether a read failed, and cannot say which
- * EAC scope granted the permission — both of which the spike proved the UI has
- * to distinguish. Kept only until nothing references it.
- *
- * @deprecated Use `AgentSnapshot["authority"]`.
+ * Live permission state for one controller over one agent name, as read from
+ * chain. Per docs/05_ENSV2_IMPLEMENTATION.md these are never derived from a
+ * local flag — every value is a chain read.
  */
 export interface AgentPermissions {
   controller: Address;
