@@ -1,5 +1,6 @@
 import { Badge as AstryxBadge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
+import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -214,5 +215,106 @@ export function Empty({
 }) {
   return (
     <EmptyState title={title} description={detail} actions={action} isCompact />
+  );
+}
+
+/**
+ * How tall evidence gets before it scrolls inside itself.
+ *
+ * `CodeBlock` handles its own overflow and Astryx is explicit that it should
+ * not be nested in a scroll container, so this is a prop rather than a wrapper.
+ */
+const EVIDENCE_MAX_HEIGHT = "20rem";
+
+/**
+ * Serialize for display, or say why not.
+ *
+ * The replacer exists because `JSON.stringify` drops a `BigInt` by throwing,
+ * and wei amounts are the one value in this product most likely to arrive as
+ * one. A cycle still throws, and that is the case the fallback is for.
+ *
+ * `JSON.stringify` also returns `undefined` — the value, not the string — for
+ * a function or a bare `undefined`, which is why the result is checked rather
+ * than trusted.
+ */
+function serialize(
+  value: unknown,
+): { ok: true; json: string } | { ok: false; text: string } {
+  try {
+    const json = JSON.stringify(
+      value,
+      (_key, v: unknown) => (typeof v === "bigint" ? `${v.toString()}n` : v),
+      2,
+    );
+    return json === undefined
+      ? { ok: false, text: String(value) }
+      : { ok: true, json };
+  } catch {
+    return { ok: false, text: String(value) };
+  }
+}
+
+/**
+ * Structured evidence, rendered as a value rather than as a string.
+ *
+ * This replaced `JSON.stringify(row.evidence)` in a cell. That call produced
+ * one unbroken line with no highlighting and nothing to copy, which is the
+ * least readable presentation available for the field carrying the product's
+ * actual claim — `docs/09` spends its whole length arguing that provenance is
+ * the point.
+ *
+ * `container="section"` because this sits inside a `Frame`. A card border
+ * inside a dashed frame is two edges arguing about where the boundary is.
+ *
+ * Absence goes through `Absent`, not through an empty code block. Evidence
+ * that was never carried and evidence that is an empty object are different
+ * facts, and an empty `{}` renders as `{}`.
+ */
+export function Evidence({
+  value,
+  label = "Evidence",
+}: {
+  value: unknown;
+  label?: string;
+}) {
+  if (value === undefined || value === null) {
+    return <Field label={label} value={<Absent what="no evidence was carried" />} />;
+  }
+
+  const result = serialize(value);
+
+  if (!result.ok) {
+    return (
+      <Field
+        label={label}
+        value={
+          <>
+            <Text type="supporting" size="sm" as="p">
+              This evidence could not be serialized as JSON — shown as text.
+            </Text>
+            <Text type="code" size="sm" wordBreak="break-all">
+              {result.text}
+            </Text>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <VStack gap={2} paddingBlock={2} className="frame-rule-below last:bg-none">
+      <Text type="supporting" size="sm">
+        {label}
+      </Text>
+      <CodeBlock
+        code={result.json}
+        language="json"
+        container="section"
+        size="sm"
+        isWrapped
+        width="100%"
+        maxHeight={EVIDENCE_MAX_HEIGHT}
+      />
+    </VStack>
   );
 }
