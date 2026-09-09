@@ -4,6 +4,7 @@ import {
   Table,
   pixel,
   proportional,
+  useTableStickyColumns,
   type TableColumn,
 } from "@astryxdesign/core/Table";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -126,9 +127,9 @@ const COLUMNS: TableColumn<FleetRow>[] = [
   {
     key: "actions",
     header: "",
-    width: pixel(140),
+    width: pixel(180),
     renderCell: (row) => (
-      <HStack gap={3}>
+      <HStack gap={3} wrap="wrap">
         <Link href={`/console/agents/${row.id}`}>
           <Text type="body" size="sm">
             Inspect
@@ -151,6 +152,12 @@ const COLUMNS: TableColumn<FleetRow>[] = [
 ];
 
 export function FleetTable({ agents }: { agents: FleetRow[] }) {
+  // Seven columns do not fit a narrow viewport, so the table scrolls inside its
+  // own wrapper. Pinning the name is what keeps that readable: scrolled to the
+  // financial column with the name gone, every row looks the same and the five
+  // states stop belonging to anyone.
+  const sticky = useTableStickyColumns<FleetRow>({ startKeys: ["ensName"] });
+
   return (
     <Table
       data={agents}
@@ -160,6 +167,7 @@ export function FleetTable({ agents }: { agents: FleetRow[] }) {
       dividers="none"
       hasHover
       verticalAlign="top"
+      plugins={{ sticky }}
     />
   );
 }

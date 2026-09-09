@@ -56,5 +56,5 @@
 - [x] 5.1 `pnpm typecheck`
 - [x] 5.2 `pnpm lint` — was blocked and is not any more. Next 16 removed `next lint`, so the stale script read its own name as a project directory and nothing in the repo was linted. Fixed separately in `4350c75`, which also replaced this change's `useState`+`useEffect` mount gate with `useMounted` to satisfy `react-hooks/set-state-in-effect`. Passes
 - [x] 5.3 `pnpm --filter @nymspace/web build`
-- [ ] 5.4 Visual pass across all four console screens in light and dark mode
-- [ ] 5.5 Visual pass on `app/page.tsx`, which the theme swap changes without this change touching it
+- [x] 5.4 Visual pass across all four console screens in light and dark mode
+- [x] 5.5 Visual pass on `app/page.tsx`. The theme swap left it alone after all — it renders from shadcn tokens, and only the console shell paints the Astryx body surface, so the landing page is unchanged in both modes

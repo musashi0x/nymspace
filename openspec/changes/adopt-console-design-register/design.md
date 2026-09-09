@@ -82,6 +82,9 @@ The fleet table declares six `proportional()` columns and one `pixel(140)`, givi
 **D17: Discovery results stay framed cards.**
 `AGENTS.md` reserves rows for uniform data and points inconsistent content at a list or card layout. Fleet agents, activity events and authority cells are uniform and became tables. A discovery result is not: the ranking reason is a paragraph of varying length, the validation row disappears entirely when no registry exists on the network, and the cited fields differ per agent. A table would truncate the reason, which is the one thing this screen is actually claiming.
 
+**D18: The agent name column is pinned.**
+Seven columns do not fit a narrow viewport, so the fleet table scrolls inside its own wrapper — which is correct, and unreadable without a pin. Scrolled to the financial column with the name gone, every row looks identical and the five states stop belonging to anyone. `useTableStickyColumns` holds the name at the start edge. Found by scrolling the table in dark mode rather than by reading it.
+
 ## Risks / Trade-offs
 
 - **The theme swap is a whole-app visual change.** Replacing `theme-neutral` with an owned theme repaints the landing page too, which this change does not otherwise touch. Verify `app/page.tsx` and `app/astryx-check/page.tsx` after the swap, not just the console.
