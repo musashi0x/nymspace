@@ -3,8 +3,8 @@
  *
  * `POST /v1/agents/:id/permissions/prepare` returns calldata that nothing has
  * yet executed. Until a wallet broadcasts it, the only claim we can make is
- * "the API produced 522 bytes" — which is not a claim about correctness. Bad
- * calldata is 522 bytes too.
+ * "the API produced 260 bytes" — which is not a claim about correctness. Bad
+ * calldata is 260 bytes too.
  *
  * `eth_call` costs nothing and needs no key. It answers the two questions that
  * actually matter before a human is asked to sign:
