@@ -42,8 +42,8 @@
 
 ## 4. Gate
 
-- [ ] 4.1 `pnpm typecheck`, `pnpm lint`, `pnpm test`
-- [ ] 4.2 Create an agent against Sepolia from the screen and confirm the inspector reads it back: resolver set, `agent-context` present, controller granted on the endpoint keys only
+- [x] 4.1 `pnpm typecheck`, `pnpm lint`, `pnpm test`
+- [ ] 4.2 (needs the principal's go-ahead — spends testnet ETH and registers a name for a year) Create an agent against Sepolia from the screen and confirm the inspector reads it back: resolver set, `agent-context` present, controller granted on the endpoint keys only
 - [ ] 4.3 Re-post the same label and confirm every step reports skipped and no transaction is sent
 - [ ] 4.4 Reload mid-provision and confirm the step list rebuilds from the activity log — design D3
 - [ ] 4.5 Confirm the created agent's controller is denied the ENSIP 25 key in the permission proof
