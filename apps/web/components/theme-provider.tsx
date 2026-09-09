@@ -2,8 +2,8 @@
 
 import { Theme } from "@astryxdesign/core/theme";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import type * as React from "react";
+import { useMounted } from "@/lib/use-mounted";
 // The built theme object, not `theme.ts` itself: the source is the input to
 // `astryx theme build`, and the generated module is what pairs with the static
 // CSS imported in globals.css.
@@ -28,8 +28,9 @@ import { nymspaceTheme } from "@/nymspace";
  *
  * and React does not patch attribute mismatches. Holding `mode` at undefined
  * until after mount makes the first client render match the server, and the
- * effect then corrects it. `suppressHydrationWarning` on <html> does not reach
- * this element, so the gate is the fix rather than a workaround for a warning.
+ * render that follows hydration corrects it. `suppressHydrationWarning` on
+ * <html> does not reach this element, so the gate is the fix rather than a
+ * workaround for a warning.
  *
  * Residual cost: for one frame, a viewer whose stored choice differs from their
  * OS preference sees Astryx components resolve against the OS. `<html>` itself
@@ -39,9 +40,7 @@ import { nymspaceTheme } from "@/nymspace";
  */
 function AstryxBridge({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const mode =
     mounted && (resolvedTheme === "dark" || resolvedTheme === "light")

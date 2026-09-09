@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useMounted } from "@/lib/use-mounted";
 
 const SunIcon = () => (
   <svg
@@ -33,25 +34,6 @@ const MoonIcon = () => (
     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
   </svg>
 );
-
-// Never fires — the value it reports is constant per environment, so there is
-// nothing to subscribe to. Kept at module scope so the store is not re-subscribed
-// on every render.
-const subscribeToNothing = () => () => {};
-
-/**
- * False on the server and through hydration, true afterwards. The setState-in-an-
- * effect version of this reads the same but schedules a second render pass, which
- * `react-hooks/set-state-in-effect` flags; `useSyncExternalStore` gets the server
- * and client snapshots to differ without that.
- */
-function useMounted() {
-  return React.useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
-}
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
