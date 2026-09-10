@@ -59,10 +59,10 @@ export interface ScrollMaskProps {
   className?: string;
 }
 
-const clamp = (v: number, lo: number, hi: number) =>
+export const clamp = (v: number, lo: number, hi: number) =>
   v < lo ? lo : v > hi ? hi : v;
 
-const glide = (t: number) => t * t * (3 - 2 * t);
+export const glide = (t: number) => t * t * (3 - 2 * t);
 
 const ramp = (p: number, from: number, to: number) =>
   clamp((p - from) / Math.max(1e-6, to - from), 0, 1);
@@ -79,10 +79,10 @@ const escapeText = (raw: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-type Sheet = { image: string; size: string; position: string };
+export type Sheet = { image: string; size: string; position: string };
 type Layer = [string, string, string];
 
-const VOID: Sheet = {
+export const VOID: Sheet = {
   image: "linear-gradient(rgba(0,0,0,0), rgba(0,0,0,0))",
   size: "100% 100%",
   position: "0% 0%",
@@ -121,7 +121,7 @@ const falloff = (p: number, f: number) => {
   return stops.join(", ");
 };
 
-const irisSheet = (p: number, f: number, ox: number, oy: number): Sheet => {
+export const irisSheet = (p: number, f: number, ox: number, oy: number): Sheet => {
   const stops = falloff(p, f);
   if (!stops) return VOID;
   return gather([
@@ -133,7 +133,7 @@ const irisSheet = (p: number, f: number, ox: number, oy: number): Sheet => {
   ]);
 };
 
-const wipeSheet = (p: number, f: number, angle: number): Sheet => {
+export const wipeSheet = (p: number, f: number, angle: number): Sheet => {
   const stops = falloff(p, f);
   if (!stops) return VOID;
   return gather([
@@ -141,7 +141,7 @@ const wipeSheet = (p: number, f: number, angle: number): Sheet => {
   ]);
 };
 
-const curtainSheet = (p: number, f: number): Sheet => {
+export const curtainSheet = (p: number, f: number): Sheet => {
   const stops = falloff(p, f);
   if (!stops) return VOID;
   return gather([
