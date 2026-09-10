@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CommitActivity } from "@/components/commit-activity";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { RepoStats } from "@/components/repo-stats";
 import { WordTiles } from "@/components/word-tiles";
 import { getActivity, REVALIDATE_SECONDS } from "@nymspace/github";
 
@@ -78,6 +79,8 @@ export default async function Home() {
         ) : (
           <CommitActivity data={data} />
         )}
+
+        <RepoStats data={data} />
 
         {data.truncated && (
           <p className="text-xs text-muted-foreground">

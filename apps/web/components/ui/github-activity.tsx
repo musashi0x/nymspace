@@ -323,7 +323,34 @@ const ContributionGrid = ({
   const [hovered, setHovered] = React.useState<HoveredDay>();
 
   const cap = Math.min(weeks.length, weeksFor(months));
-  const visible = weeks.slice(-Math.min(cap, columns ?? cap));
+  /**
+   * Every week in range, not only the weeks that fit.
+   *
+   * This used to slice down to the measured column count, which quietly turned
+   * a narrow viewport into a shorter history: on a phone the caption still read
+   * "in the last 53 weeks" while the grid drew 19 of them, and nothing on the
+   * page said so. Cutting data to fit a box is the one edit this page cannot
+   * make — the whole claim is that the squares are the commits.
+   *
+   * The columns measurement is kept, but only to decide layout: when they all
+   * fit the row centres as before, and when they do not the row scrolls.
+   */
+  const visible = weeks.slice(-cap);
+  const fits = columns === undefined || visible.length <= columns;
+
+  /**
+   * Start at the newest week when the row overflows.
+   *
+   * Left is the default scroll position and left is the oldest history, which
+   * for a build log is the least interesting end — and on a young repository it
+   * is empty, so the card opens on blank squares and reads as broken. That was
+   * the original report.
+   */
+  const scroller = React.useRef<HTMLDivElement>(null);
+  useIsoLayoutEffect(() => {
+    const el = scroller.current;
+    if (el && !fits) el.scrollLeft = el.scrollWidth;
+  }, [fits, visible.length]);
   const sweepEnd = (visible.length - 1) * COLUMN_STAGGER + CELL_FADE.duration;
 
   const hover = (day: Contribution) => (event: React.PointerEvent) => {
@@ -339,9 +366,17 @@ const ContributionGrid = ({
       aria-label={label}
       className="relative"
     >
+      {/* One scroll container for both rows, so the month labels stay over the
+          weeks they name. Two scrollers would drift apart the moment either is
+          touched. `scroll-pl-*` is deliberate: the newest week is the one worth
+          landing on, and it is the rightmost column. */}
+      <div
+        ref={scroller}
+        className="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
       {showMonths && (
         <motion.div
-          className="flex justify-center"
+          className={cn("flex w-max", fits && "mx-auto")}
           style={{ gap, marginBottom: gap }}
           initial={
             reduceMotion
@@ -371,7 +406,7 @@ const ContributionGrid = ({
       )}
 
       <div
-        className="flex justify-center overflow-hidden"
+        className={cn("flex w-max", fits && "mx-auto")}
         style={{ gap }}
         onPointerLeave={() => setHovered(undefined)}
       >
@@ -418,6 +453,7 @@ const ContributionGrid = ({
             ))}
           </div>
         ))}
+      </div>
       </div>
 
       <AnimatePresence>
