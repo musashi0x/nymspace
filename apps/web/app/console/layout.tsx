@@ -21,6 +21,7 @@ const NAV = [
   { href: "/console", label: "Fleet" },
   { href: "/console/discover", label: "Discover" },
   { href: "/console/activity", label: "Activity" },
+  { href: "/console/chat", label: "Ask" },
 ] as const;
 
 export default function ConsoleLayout({ children }: LayoutProps<"/console">) {

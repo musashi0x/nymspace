@@ -10,6 +10,7 @@ import { agents } from "./routes/agents";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
 import { traffic } from "./routes/traffic";
+import { chat } from "./routes/chat";
 
 /**
  * Builds the application. Separate from `index.ts` so importing it binds no
@@ -46,6 +47,7 @@ const DEPENDENT_ROUTES = [
   "/v1/discover",
   "/v1/activity",
   "/v1/traffic",
+  "/v1/chat",
 ] as const;
 
 export function createApp(config: ApiConfig, deps?: Deps) {
@@ -85,7 +87,8 @@ export function createApp(config: ApiConfig, deps?: Deps) {
     .route("/v1/discover", discover)
     .route("/v1/activity", activity)
     .route("/v1/github", github)
-    .route("/v1/traffic", traffic);
+    .route("/v1/traffic", traffic)
+    .route("/v1/chat", chat);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
