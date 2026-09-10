@@ -6,7 +6,6 @@
     "dev": "next dev --port 3111",
     "build": "next build",
     "start": "next start --port 3111",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

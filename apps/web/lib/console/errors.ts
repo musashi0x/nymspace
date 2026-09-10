@@ -18,6 +18,7 @@ export type ErrorKind =
   | "rpc_unavailable"
   | "indexing_pending"
   | "provider_error"
+  | "not_configured"
   | "unknown";
 
 export interface ConsoleError {
@@ -61,10 +62,37 @@ export const ERROR_COPY: Record<ErrorKind, Omit<ConsoleError, "detail">> = {
     tone: "fault",
     action: "This is not an empty market — the query never reached the subgraph.",
   },
+  /**
+   * The fallback, worded so it still says something true.
+   *
+   * The generic apologies this replaces are the shape `docs/03` and task #88
+   * both rule out: they tell the operator nothing they did not already know
+   * from the box being there, and they read identically whether the agent was
+   * refused, the RPC timed out, or a bug threw. This says which of those it is
+   * *not* — the classifier did not recognise it, so no verdict about the
+   * agent should be read into it.
+   */
+  /**
+   * A capability this deployment does not have, which is not a fault of the
+   * agent, the chain, or the operator.
+   *
+   * It gets its own kind because the fallback was calling it unrecognised
+   * while the API was returning a 503 that named the exact variable to set.
+   * "We do not know what happened" and "you have not configured writes" are
+   * different sentences, and only one of them is actionable.
+   */
+  not_configured: {
+    kind: "not_configured",
+    title: "Writes are not configured",
+    tone: "waiting",
+    action: "Nothing was attempted on chain, so no authority was tested.",
+  },
   unknown: {
     kind: "unknown",
-    title: "Something failed",
+    title: "Unrecognised failure",
     tone: "fault",
+    action:
+      "This was not classified as a policy denial, so it says nothing about the agent's authority. The raw response is above.",
   },
 };
 
@@ -81,8 +109,20 @@ export function classify(outcome: {
   source?: string;
   reason?: string;
   error?: string;
+  /** Present when the API knows what the operator must change. */
+  remedy?: string;
 }): ConsoleError {
   const detail = outcome.reason ?? outcome.error ?? "";
+
+  // Checked before the denial cases: a deployment with no signing key never
+  // reached a contract, so nothing it returns is a verdict about authority.
+  if (outcome.remedy || /no signing key|not configured/i.test(detail)) {
+    return {
+      ...ERROR_COPY.not_configured,
+      detail,
+      ...(outcome.remedy && { action: outcome.remedy }),
+    };
+  }
 
   if (outcome.status === "denied" && outcome.source === "ensv2") {
     return { ...ERROR_COPY.identity_policy, detail };

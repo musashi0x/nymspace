@@ -13,9 +13,17 @@ pnpm install
 pnpm dev          # turbo run dev — web + api together
 pnpm build
 pnpm typecheck    # tsc --noEmit across every workspace
-pnpm lint         # next lint (web only; no other package defines lint)
 pnpm test         # vitest run across workspaces that define it
 pnpm check        # env:check + conditions:check — the two custom invariants
+```
+
+There is deliberately no `lint` script. Next 16 removed `next lint`, and this
+app has no ESLint config or dependency — so the command documented here until
+2026-09-10 parsed `lint` as a directory name and failed on every run. A command
+that is documented and does not work is worse than an absent one. Adding ESLint
+back is a real task, not a rename.
+
+```bash
 ```
 
 `@nymspace/store` talks to a real Postgres, so `pnpm test` needs one running:

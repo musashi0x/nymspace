@@ -73,7 +73,14 @@ export function DiscoverForm() {
         </div>
       </div>
 
-      {busy ? <Loading what={LOADING_COPY.discovery} /> : null}
+      {/*
+        The board specifies this exact string for "Graph read in progress"
+        (task #88), so it is used verbatim rather than paraphrased. Note the
+        wording describes waiting on the index rather than querying it — worth
+        revisiting with whoever wrote the copy, but not worth silently
+        diverging from an acceptance criterion.
+      */}
+      {busy ? <Loading what={LOADING_COPY.graph} /> : null}
 
       {state === "provider_error" ? (
         <Outcome

@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/console/primitives";
+import { Badge, Loading, Outcome } from "@/components/console/primitives";
+import { classify, type ConsoleError } from "@/lib/console/errors";
+import { LOADING_COPY } from "@/lib/console/state";
 import { useOrganizationWallet } from "@/components/console/organization-wallet";
 import { apiBaseUrl } from "@/lib/api";
 import {
@@ -34,11 +36,20 @@ import {
  * cannot fix — MetaMask has no API for it — so that one is stated plainly.
  */
 
-type Outcome =
+type Result =
   | { kind: "idle" }
   | { kind: "busy"; step: string }
   | { kind: "ok"; message: string; txHash?: string }
-  | { kind: "error"; message: string };
+  /**
+   * Classified, not raw.
+   *
+   * This panel writes to ENSv2, so its most likely failure is an EAC denial —
+   * the control plane refusing an unauthorized write, which is the product's
+   * central proof rather than a fault. Rendering that in the same red box as an
+   * RPC timeout would tell the operator the system broke at the moment it
+   * worked, so the copy and tone both come from `classify` (`docs/03`).
+   */
+  | { kind: "problem"; error: ConsoleError };
 
 export function DelegationControls({
   agentId,
@@ -53,7 +64,7 @@ export function DelegationControls({
 }) {
   const router = useRouter();
   const { account, status, refresh } = useOrganizationWallet(organization);
-  const [outcome, setOutcome] = React.useState<Outcome>({ kind: "idle" });
+  const [result, setResult] = React.useState<Result>({ kind: "idle" });
   const [active, setActive] = React.useState<string>();
   const [busy, setBusy] = React.useState(false);
 
@@ -61,7 +72,7 @@ export function DelegationControls({
 
   async function run(recordKey: string, grant: boolean) {
     setActive(`${recordKey}:${grant}`);
-    setOutcome({ kind: "busy", step: "Preparing" });
+    setResult({ kind: "busy", step: LOADING_COPY.ens });
     try {
       if (signer === "wallet") await viaWallet(recordKey, grant);
       else await viaServer(recordKey, grant);
@@ -70,13 +81,7 @@ export function DelegationControls({
       // mutated client-side, which is why the matrix cannot drift from chain.
       router.refresh();
     } catch (cause) {
-      setOutcome({
-        kind: "error",
-        message:
-          cause instanceof WalletError || cause instanceof Error
-            ? cause.message
-            : "The change did not complete.",
-      });
+      setResult(toResult(cause));
     } finally {
       setActive(undefined);
     }
@@ -92,19 +97,19 @@ export function DelegationControls({
       grant,
     });
 
-    setOutcome({ kind: "busy", step: "Waiting for your wallet" });
+    setResult({ kind: "busy", step: "Waiting for your wallet" });
     const txHash = await sendPrepared({
       transaction: prepared.transaction,
       expectedSigner: prepared.expectedSigner,
     });
 
-    setOutcome({ kind: "busy", step: "Waiting for the receipt" });
+    setResult({ kind: "busy", step: LOADING_COPY.transaction });
     const confirmed = await post<{ status: string }>(
       `/v1/agents/${agentId}/permissions/confirm`,
       { controller, recordKey, grant, txHash, signer: account },
     );
 
-    setOutcome(
+    setResult(
       confirmed.status === "confirmed"
         ? {
             kind: "ok",
@@ -112,27 +117,33 @@ export function DelegationControls({
             txHash,
           }
         : {
-            kind: "error",
-            message: `The transaction mined but reverted. ${recordKey} is unchanged.`,
+            kind: "problem",
+            error: {
+              ...classify({ status: confirmed.status, source: "ensv2" }),
+              detail: `The transaction mined but did not take effect. ${recordKey} is unchanged.`,
+            },
           },
     );
   }
 
   async function viaServer(recordKey: string, grant: boolean) {
-    setOutcome({ kind: "busy", step: "Signing on the server" });
-    const result = await post<{ status?: string }>(
+    setResult({ kind: "busy", step: LOADING_COPY.ens });
+    const response = await post<{ status?: string; source?: string }>(
       `/v1/agents/${agentId}/permissions`,
       { controller, recordKey, grant },
     );
-    setOutcome(
-      result.status === "confirmed"
+    setResult(
+      response.status === "confirmed"
         ? {
             kind: "ok",
             message: `${grant ? "Granted" : "Revoked"} ${recordKey} — the server signed it.`,
           }
         : {
-            kind: "error",
-            message: "The server could not complete the change.",
+            kind: "problem",
+            error: classify({
+              status: response.status,
+              source: response.source,
+            }),
           },
     );
   }
@@ -143,10 +154,7 @@ export function DelegationControls({
       await fn();
       await refresh();
     } catch (cause) {
-      setOutcome({
-        kind: "error",
-        message: cause instanceof WalletError ? cause.message : "Wallet error.",
-      });
+      setResult(toResult(cause));
     } finally {
       setBusy(false);
     }
@@ -190,7 +198,7 @@ export function DelegationControls({
         ))}
       </ul>
 
-      <Result outcome={outcome} />
+      <ResultView result={result} />
     </div>
   );
 }
@@ -278,27 +286,46 @@ function ActionButton({
   );
 }
 
-function Result({ outcome }: { outcome: Outcome }) {
-  if (outcome.kind === "idle") return null;
-
-  if (outcome.kind === "busy") {
-    return <p className="text-xs text-muted-foreground">{outcome.step}…</p>;
+/**
+ * Turn anything thrown into a classified result.
+ *
+ * A rejection in the wallet is not a failure — the operator changed their mind,
+ * and the panel should go quiet rather than show them a red box for doing so.
+ * Everything else is classified on the API's own structured fields where they
+ * exist, and only falls back to message text when they do not.
+ */
+function toResult(cause: unknown): Result {
+  if (cause instanceof WalletError && cause.kind === "rejected") {
+    return { kind: "idle" };
   }
+  if (cause instanceof ApiError) {
+    return { kind: "problem", error: classify(cause.body) };
+  }
+  return {
+    kind: "problem",
+    error: classify({ error: cause instanceof Error ? cause.message : "" }),
+  };
+}
 
-  if (outcome.kind === "ok") {
+function ResultView({ result }: { result: Result }) {
+  if (result.kind === "idle") return null;
+
+  if (result.kind === "busy") return <Loading what={result.step} />;
+
+  if (result.kind === "ok") {
     return (
       <p className="text-xs text-emerald-600 dark:text-emerald-400">
-        {outcome.message}
-        {outcome.txHash && (
+        {result.message}
+        {result.txHash && (
           <>
             {" "}
             <a
-              href={`https://sepolia.etherscan.io/tx/${outcome.txHash}`}
+              href={`https://sepolia.etherscan.io/tx/${result.txHash}`}
               target="_blank"
               rel="noreferrer"
               className="font-mono underline underline-offset-2"
             >
-              {outcome.txHash.slice(0, 10)}…
+              {result.txHash.slice(0, 10)}…
             </a>
           </>
         )}
@@ -306,7 +333,38 @@ function Result({ outcome }: { outcome: Outcome }) {
     );
   }
 
-  return <p className="text-xs text-destructive">{outcome.message}</p>;
+  return (
+    <Outcome
+      tone={result.error.tone}
+      title={result.error.title}
+      detail={result.error.detail || undefined}
+      action={result.error.action}
+    />
+  );
+}
+
+/**
+ * Carries the API's parsed body, not just a message.
+ *
+ * `classify` keys on `status` and `source` because the API already decoded the
+ * revert and named the policy. Throwing a bare `Error` would discard that and
+ * force a second classifier here, working from prose, free to disagree with the
+ * first — which is how an EAC denial ends up rendered as a generic fault.
+ */
+class ApiError extends Error {
+  constructor(
+    readonly body: {
+      status?: string;
+      source?: string;
+      reason?: string;
+      error?: string;
+      remedy?: string;
+    },
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -316,11 +374,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const parsed = (await res.json().catch(() => ({}))) as T & {
+    status?: string;
+    source?: string;
+    reason?: string;
     error?: string;
     remedy?: string;
   };
   if (!res.ok) {
-    throw new Error(
+    throw new ApiError(
+      parsed,
       [parsed.error ?? `Request failed (${res.status})`, parsed.remedy]
         .filter(Boolean)
         .join(" "),

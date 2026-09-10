@@ -6,7 +6,6 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
     "test": "turbo run test",
     "env:check": "tsx --conditions=react-server scripts/check-env-declarations.ts",
     "conditions:check": "tsx --conditions=react-server scripts/check-server-conditions.ts",

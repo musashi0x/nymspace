@@ -77,9 +77,6 @@
       ],
       "outputs": []
     },
-    "lint": {
-      "outputs": []
-    },
     "test": {
       "dependsOn": [
         "^test"
