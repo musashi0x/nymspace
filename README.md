@@ -128,10 +128,10 @@ Copy `.env.example` to `.env.local` and set:
 
 **Deployment**
 
-There isn't one right now. The Railway app this section used to describe
-returns `Application not found` from Railway's edge — the application is gone,
-not misrouted — so the demo runs locally. `docs/22_LOCAL_DEMO_RUNBOOK.md` is
-the bring-up.
+`docs/22_DEPLOYMENT.md` describes the Railway estate — Postgres, `apps/api`
+and `apps/web`, declared in `.railway/railway.ts` so a deploy is a reviewable
+diff. `docs/23_LOCAL_DEMO_RUNBOOK.md` is the laptop bring-up used for demo
+rehearsal.
 
 Commit data still refreshes on its own wherever the site runs: the page
 re-reads the GitHub API 60 seconds after the last read, so new commits appear

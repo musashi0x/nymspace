@@ -1,11 +1,19 @@
 # Local Demo Runbook
 
-The demo runs locally. There is no hosted deployment — the Railway app the
-README once described returns `Application not found` from Railway's edge, and
-standing up a fresh one days before a deadline would put an unrehearsed
-deployment between the demo and the judges.
+How to bring the demo up on a laptop. `docs/15_DEMO_SCRIPT.md` is the
+narrative; `docs/22_DEPLOYMENT.md` is the hosted estate.
 
-`docs/15_DEMO_SCRIPT.md` is the narrative. This is the bring-up.
+Running locally is a choice about rehearsal, not a verdict on the deployment.
+An earlier draft of this file claimed the Railway app no longer existed,
+reading its edge `404` as a missing application. That was wrong, and
+`docs/22_DEPLOYMENT.md` has the correct diagnosis: the *service* was healthy
+and answering its own healthcheck, while the generated domain record carried
+`targetPort: null` — a dead edge record in front of a live container. A
+container that cannot be reached answers `502`, so a `404` there points at the
+domain, not the app.
+
+The reason to rehearse locally is that a demo should not depend on a hop
+nobody has practised, not that there is nowhere to deploy.
 
 ## Quick start
 
