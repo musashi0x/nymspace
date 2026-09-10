@@ -8,6 +8,7 @@ import { activity } from "./routes/activity";
 import { agents } from "./routes/agents";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
+import { traffic } from "./routes/traffic";
 
 /**
  * Builds the application. Separate from `index.ts` so importing it binds no
@@ -25,6 +26,26 @@ import { github } from "./routes/github";
  * disappears from the typed client, which is the one failure this arrangement
  * exists to prevent.
  */
+/**
+ * The routes that read `c.var.deps`, listed once.
+ *
+ * Previously eight hand-written `app.use` lines, two per route. Mounting a
+ * ninth route without remembering to add its pair does not fail to compile and
+ * does not fail to serve — the handler runs with `c.var.deps` undefined and
+ * throws on the first destructure, which surfaces as a 500 with the generic
+ * body `errorHandler` is supposed to produce for real faults. That cost an
+ * afternoon once; a list is cheaper than the comment explaining it.
+ *
+ * `/health` and `/v1/github` are absent on purpose: neither touches a
+ * dependency, and a liveness check that needs an RPC and a database reports
+ * their health rather than its own.
+ */
+const DEPENDENT_ROUTES = [
+  "/v1/agents",
+  "/v1/discover",
+  "/v1/activity",
+] as const;
+
 export function createApp(config: ApiConfig, deps?: Deps) {
   const app = new Hono<DepsEnv>();
 
@@ -45,12 +66,10 @@ export function createApp(config: ApiConfig, deps?: Deps) {
    * RPC and a database to answer is reporting their health rather than its own,
    * and would report this process as down whenever Sepolia is slow.
    */
-  app.use("/v1/agents/*", withDeps(deps));
-  app.use("/v1/agents", withDeps(deps));
-  app.use("/v1/discover/*", withDeps(deps));
-  app.use("/v1/discover", withDeps(deps));
-  app.use("/v1/activity/*", withDeps(deps));
-  app.use("/v1/activity", withDeps(deps));
+  for (const path of DEPENDENT_ROUTES) {
+    app.use(path, withDeps(deps));
+    app.use(`${path}/*`, withDeps(deps));
+  }
 
   const routes = app
     .get("/health", (c) =>
@@ -63,7 +82,8 @@ export function createApp(config: ApiConfig, deps?: Deps) {
     .route("/v1/agents", agents)
     .route("/v1/discover", discover)
     .route("/v1/activity", activity)
-    .route("/v1/github", github);
+    .route("/v1/github", github)
+    .route("/v1/traffic", traffic);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
