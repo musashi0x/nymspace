@@ -1,4 +1,10 @@
-# Nymspace
+<!-- Two files and a <picture> rather than one SVG with a prefers-color-scheme
+     media query: GitHub strips <style> from rendered SVG, so a mark that
+     switches its own fill works in a browser tab and turns invisible here. -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/brand/wordmark-dark.svg">
+  <img alt="Nymspace" src="apps/web/public/brand/wordmark-light.svg" width="156">
+</picture>
 
 > I would make ENS the identity layer, then choose partners that naturally become the data and execution layers.
 
