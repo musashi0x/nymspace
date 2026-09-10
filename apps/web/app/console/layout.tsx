@@ -25,6 +25,7 @@ const NAV = [
   { href: "/console", label: "Fleet" },
   { href: "/console/new", label: "New agent" },
   { href: "/console/discover", label: "Discover" },
+  { href: "/console/approvals", label: "Approvals" },
   { href: "/console/activity", label: "Activity" },
 ] as const;
 

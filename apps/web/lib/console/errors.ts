@@ -15,6 +15,7 @@
 export type ErrorKind =
   | "identity_policy"
   | "financial_policy"
+  | "not_configured"
   | "rpc_unavailable"
   | "indexing_pending"
   | "provider_error"
@@ -42,6 +43,25 @@ export const ERROR_COPY: Record<ErrorKind, Omit<ConsoleError, "detail">> = {
     title: "Blocked by financial policy",
     tone: "proof",
     action: "No funds moved. The payment never reached a chain.",
+  },
+  /**
+   * No signing key, which is not the resolver saying no.
+   *
+   * `describeDenial` wraps every failed write, including one that never
+   * reached a chain because the client was built read-only. That answer
+   * carries `source: "ensv2"` like a real refusal does, and the only thing
+   * separating them is `status` — so without this kind, a missing environment
+   * variable renders as "Something failed" at best and as the control plane
+   * refusing the operator at worst. Those are opposite facts about an agent's
+   * authority, and an approval gate is exactly where confusing them costs the
+   * most.
+   */
+  not_configured: {
+    kind: "not_configured",
+    title: "Writes are not configured on this deployment",
+    tone: "waiting",
+    action:
+      "Nothing was sent and nothing was refused. Set the signing key to enable writes.",
   },
   rpc_unavailable: {
     kind: "rpc_unavailable",
@@ -92,6 +112,11 @@ export function classify(outcome: {
   }
   if (outcome.status === "indexing_pending") {
     return { ...ERROR_COPY.indexing_pending, detail };
+  }
+  // Checked before the RPC test below, because NoSignerError's message names
+  // the environment variables and would otherwise be read as an RPC fault.
+  if (/no signing key|read-only|NoSignerError/i.test(detail)) {
+    return { ...ERROR_COPY.not_configured, detail };
   }
   if (/rpc|timed out|ECONN|unreachable/i.test(detail)) {
     // An RPC fault must never be shown as a denial: one says the agent is not
