@@ -5,5 +5,6 @@
   </g>
   <text x="42" y="21.5" fill="#0a0a0a"
         font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, &quot;Liberation Mono&quot;, monospace"
-        font-size="14" letter-spacing="2.6">NYMSPACE</text>
+        font-size="14" letter-spacing="2.6"
+        textLength="85.5" lengthAdjust="spacingAndGlyphs">NYMSPACE</text>
 </svg>
