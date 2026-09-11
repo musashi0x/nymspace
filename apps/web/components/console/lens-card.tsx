@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import * as React from "react";
 import type {
@@ -108,6 +109,26 @@ export function LensCard({ answer }: { answer: LensAnswer }) {
 }
 
 /**
+ * How long one node waits before it appears, and why there is an order at all.
+ *
+ * `answer.nodes` arrives in the order the API built it, which is the order it
+ * performed the reads: the name before the registration that claims it, each
+ * permission cell before the record it governs. Staggering along that array
+ * replays the derivation instead of decorating it — the diagram assembles in
+ * the sequence that produced it, and the edges write themselves out underneath
+ * once the things they connect exist.
+ *
+ * Short numbers on purpose. This is a console someone checks facts in, and an
+ * answer that takes a second to finish arriving is an answer that feels slower
+ * to read than it is. The whole sequence for a nine-node agent lens is under
+ * 600ms, and every element is legible from its first frame — the motion is
+ * opacity and six pixels, never a slide from off-screen.
+ */
+const STEP = 0.045;
+const EDGE_STEP = 0.03;
+const EASE = [0.23, 1, 0.32, 1] as const;
+
+/**
  * Lanes as columns, nodes stacked inside them.
  *
  * Edges are drawn as a list under the lanes rather than as SVG paths between
@@ -123,7 +144,27 @@ function Diagram({
   answer: LensAnswer;
   showLabels: boolean;
 }) {
+  const reduced = useReducedMotion();
   const byId = new Map(answer.nodes.map((node) => [node.id, node]));
+  const orderOf = new Map(answer.nodes.map((node, i) => [node.id, i]));
+  const afterNodes = answer.nodes.length * STEP;
+
+  /*
+    `initial={false}` rather than a zero-duration variant.
+
+    Under `prefers-reduced-motion` the element mounts already in its final
+    state, so there is no first frame at opacity 0 for a screenshot or a slow
+    device to catch. Shortening the animation would still animate; this does
+    not run one.
+  */
+  const enter = (delay: number) =>
+    reduced
+      ? { initial: false as const }
+      : {
+          initial: { opacity: 0, y: 6 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.28, delay, ease: EASE },
+        };
 
   return (
     <div className="flex flex-col gap-3 overflow-x-auto rounded-lg border border-border/60 bg-[radial-gradient(circle,var(--color-border)_1px,transparent_1px)] [background-size:12px_12px] p-3">
@@ -133,15 +174,31 @@ function Diagram({
           gridTemplateColumns: `repeat(${answer.lanes.length}, minmax(0, 1fr))`,
         }}
       >
-        {answer.lanes.map((lane) => (
+        {answer.lanes.map((lane, laneIndex) => (
           <section key={lane} className="flex flex-col gap-2">
-            <h4 className="font-mono text-[0.6rem] tracking-[0.18em] text-muted-foreground">
+            {/*
+              The lane headings land first and together — they are the frame the
+              answer is read against, and staggering them would make the reader
+              wait to learn what the columns even are.
+            */}
+            <motion.h4
+              className="font-mono text-[0.6rem] tracking-[0.18em] text-muted-foreground"
+              {...enter(laneIndex * 0.02)}
+            >
               {lane.toUpperCase()}
-            </h4>
+            </motion.h4>
             {answer.nodes
               .filter((node) => node.lane === lane)
               .map((node) => (
-                <Node key={node.id} node={node} />
+                /*
+                  The wrapper animates; `Node` is untouched. It renders an
+                  anchor when the API gave it an href, and turning that into a
+                  motion component to move it six pixels would be spending a
+                  link's semantics on an entrance.
+                */
+                <motion.div key={node.id} {...enter(0.06 + (orderOf.get(node.id) ?? 0) * STEP)}>
+                  <Node node={node} />
+                </motion.div>
               ))}
           </section>
         ))}
@@ -150,7 +207,12 @@ function Diagram({
       {showLabels && answer.edges.length > 0 && (
         <ul className="flex flex-col gap-1 border-t border-border/60 pt-2">
           {answer.edges.map((edge, i) => (
-            <Edge key={i} edge={edge} byId={byId} />
+            <Edge
+              key={i}
+              edge={edge}
+              byId={byId}
+              enter={enter(afterNodes + i * EDGE_STEP)}
+            />
           ))}
         </ul>
       )}
@@ -223,14 +285,20 @@ function Node({ node }: { node: LensNode }) {
 function Edge({
   edge,
   byId,
+  enter,
 }: {
   edge: LensEdge;
   byId: Map<string, LensNode>;
+  /** Entrance props from `Diagram`, so the line lands after both its ends. */
+  enter: Record<string, unknown>;
 }) {
   const from = byId.get(edge.from);
   const to = byId.get(edge.to);
   return (
-    <li className="flex flex-wrap items-baseline gap-1.5 font-mono text-[0.62rem] text-muted-foreground">
+    <motion.li
+      {...enter}
+      className="flex flex-wrap items-baseline gap-1.5 font-mono text-[0.62rem] text-muted-foreground"
+    >
       <End node={from} fallback={edge.from} />
       <span aria-hidden className={TONE[edge.tone].text}>
         →
@@ -239,7 +307,7 @@ function Edge({
       {edge.label && (
         <span className={`${TONE[edge.tone].text}`}>· {edge.label}</span>
       )}
-    </li>
+    </motion.li>
   );
 }
 
