@@ -64,14 +64,26 @@ export interface ServerEnv {
   };
   privy: {
     appSecret?: string;
+    /** The agent's signing key — the authority the policy caps. */
     authorizationKeyId?: string;
     authorizationPrivateKey?: string;
     policyId?: string;
+    agentSignerId?: string;
+    /**
+     * The organization's key, which owns the wallet and is not bound by the
+     * agent's cap. Optional, and its absence is a product state: with no
+     * authority above the agent there is no approval path to offer.
+     */
+    ownerKeyId?: string;
+    ownerPrivateKey?: string;
+    ownerPolicyId?: string;
   };
   demo: {
     allowedPaymentAmount?: string;
     deniedPaymentAmount?: string;
     paymentTokenAddress?: string;
+    paymentTokenSymbol?: string;
+    paymentTokenDecimals?: string;
     paymentRecipient?: string;
   };
 }
@@ -133,11 +145,17 @@ export function serverEnv(): ServerEnv {
       authorizationKeyId: optional(source, "PRIVY_AUTHORIZATION_KEY_ID"),
       authorizationPrivateKey: optional(source, "PRIVY_AUTHORIZATION_PRIVATE_KEY"),
       policyId: optional(source, "PRIVY_POLICY_ID"),
+      agentSignerId: optional(source, "PRIVY_AGENT_SIGNER_ID"),
+      ownerKeyId: optional(source, "PRIVY_OWNER_KEY_ID"),
+      ownerPrivateKey: optional(source, "PRIVY_OWNER_PRIVATE_KEY"),
+      ownerPolicyId: optional(source, "PRIVY_OWNER_POLICY_ID"),
     },
     demo: {
       allowedPaymentAmount: optional(source, "DEMO_ALLOWED_PAYMENT_AMOUNT"),
       deniedPaymentAmount: optional(source, "DEMO_DENIED_PAYMENT_AMOUNT"),
       paymentTokenAddress: optional(source, "DEMO_PAYMENT_TOKEN_ADDRESS"),
+      paymentTokenSymbol: optional(source, "DEMO_PAYMENT_TOKEN_SYMBOL"),
+      paymentTokenDecimals: optional(source, "DEMO_PAYMENT_TOKEN_DECIMALS"),
       paymentRecipient: optional(source, "DEMO_PAYMENT_RECIPIENT"),
     },
   };

@@ -1,3 +1,5 @@
+import { formatAmount, type TokenSpec } from "./token";
+
 /**
  * Policy and payment types.
  *
@@ -11,12 +13,18 @@
 export type Caip2 = `eip155:${number}`;
 
 export interface PaymentRequest {
-  /** Amount in wei, as a decimal string. */
+  /** Amount in the token's base units, as a decimal string. */
   amount: string;
   recipient: string;
   caip2: Caip2;
-  /** Absent for a native transfer. */
-  tokenAddress?: string;
+  /**
+   * Absent for a native transfer.
+   *
+   * The whole spec, not an address: the decimals are what turn `5` on screen
+   * into `5000000` on the wire, and a client that has the address but not the
+   * decimals is one lookup away from sending five millionths of a dollar.
+   */
+  token?: TokenSpec;
   /** Free text the operator attached. The research agent's "task". */
   memo?: string;
 }
@@ -29,10 +37,10 @@ export interface PaymentRequest {
  * Collapsing them would make the demo's central proof indistinguishable from a
  * bug, which is the failure mode `docs/11` exists to prevent.
  *
- * `pending_approval` is modelled and never produced. `docs/08` forbids
- * simulating an approval system that is not implemented, so nothing in this
- * change returns it — but the type exists so a caller's exhaustive switch keeps
- * compiling when it does.
+ * `pending_approval` is produced only when a higher authority is actually
+ * configured to execute it — `docs/08` forbids simulating an approval system
+ * that is not implemented, and design.md D6 derives the affordance from the
+ * configuration rather than from a flag.
  */
 export type PaymentResult =
   | { status: "executed"; transactionHash: string; requestId?: string }
@@ -50,10 +58,24 @@ export type PaymentResult =
 export interface PolicyLimit {
   policyId: string;
   name: string;
-  /** Maximum transfer value in wei, as a decimal string. */
-  maxValueWei: string;
+  /** Maximum transfer in the token's base units, as a decimal string. */
+  maxAmount: string;
+  /**
+   * What the limit is denominated in. `null` is native ETH.
+   *
+   * Carried rather than assumed, because the same policy shape constrains a
+   * six-decimal token and an eighteen-decimal one, and a limit rendered in the
+   * wrong one is off by twelve orders of magnitude in the direction that looks
+   * fine.
+   */
+  token: TokenSpec | null;
   /** The rule the limit was read from, for the evidence drawer. */
   ruleName: string;
+}
+
+/** `1000000` under a USDC limit → `1 USDC`. */
+export function describeLimit(limit: PolicyLimit): string {
+  return formatAmount(limit.maxAmount, limit.token);
 }
 
 /**
@@ -67,10 +89,16 @@ export interface PolicyLimit {
 export function previewAgainstLimit(
   request: PaymentRequest,
   limit: PolicyLimit,
-): { withinLimit: boolean; requestedWei: string; limitWei: string } {
+): {
+  withinLimit: boolean;
+  requestedAmount: string;
+  limitAmount: string;
+  token: TokenSpec | null;
+} {
   return {
-    withinLimit: BigInt(request.amount) <= BigInt(limit.maxValueWei),
-    requestedWei: request.amount,
-    limitWei: limit.maxValueWei,
+    withinLimit: BigInt(request.amount) <= BigInt(limit.maxAmount),
+    requestedAmount: request.amount,
+    limitAmount: limit.maxAmount,
+    token: limit.token,
   };
 }

@@ -131,7 +131,7 @@ export async function fetchWallet(id: string) {
 /** Informational only. Privy still decides. */
 export async function previewPayment(
   id: string,
-  body: { amount: string; recipient: string; memo?: string },
+  body: { amount: string; recipient: string; token?: string; memo?: string },
 ) {
   const res = await api.v1.agents[":id"].payments.preview.$post({
     param: { id },
@@ -144,13 +144,28 @@ export async function previewPayment(
 /** Four typed outcomes, all of them HTTP 200. Never throws on a denial. */
 export async function sendPayment(
   id: string,
-  body: { amount: string; recipient: string; memo?: string },
+  body: { amount: string; recipient: string; token?: string; memo?: string },
 ) {
   const res = await api.v1.agents[":id"].payments.$post({
     param: { id },
     json: body,
   });
   if (!res.ok) throw new Error(`payment request failed: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Execute a denied payment under the organization owner's key.
+ *
+ * Takes the id of the denial, not the payment fields: the amount that executes
+ * is the one that was refused, read from the recorded request server-side. An
+ * approval that carried its own amount would approve whatever the browser sent.
+ */
+export async function approvePayment(id: string, requestId: string) {
+  const res = await api.v1.agents[":id"].payments[":requestId"].approve.$post({
+    param: { id, requestId },
+  });
+  if (!res.ok) throw requestFailed(res.status);
   return res.json();
 }
 

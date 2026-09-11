@@ -15,7 +15,8 @@ import { PrivyError, normalisePrivyError } from "./wallet";
 const limit: PolicyLimit = {
   policyId: "pol_1",
   name: "Demo limit",
-  maxValueWei: "1000000000000000", // 0.001 ETH
+  maxAmount: "1000000000000000", // 0.001 ETH
+  token: null,
   ruleName: "Restrict native transfers to 1000000000000000 wei",
 };
 
@@ -82,15 +83,16 @@ describe("a policy rejection is a denial, not a failure", () => {
     if (result.status === "failed") expect(result.reason).toBe("fetch failed");
   });
 
-  it("never returns pending_approval, because no approval system exists", () => {
+  it("never invents pending_approval from a provider error", () => {
     const outcomes = [
       normalisePrivyError(new PrivyError("x", 403, {})),
       normalisePrivyError(new PrivyError("x", 400, { message: "policy" })),
       normalisePrivyError(new PrivyError("x", 500, {})),
       normalisePrivyError(new Error("boom")),
     ];
-    // docs/08 forbids simulating an approval path that is not implemented. The
-    // type models it; nothing in this change produces it.
+    // docs/08 forbids simulating an approval path. `pending_approval` is
+    // produced by the approval route, where a second authority actually acts —
+    // never by reinterpreting a denial as a pending request.
     expect(outcomes.every((o) => o.status !== "pending_approval")).toBe(true);
   });
 });
@@ -99,7 +101,7 @@ describe("the preview is a preview, not an authority", () => {
   it("reports a request under the limit as within it", () => {
     const preview = previewAgainstLimit(request("100000000000000"), limit);
     expect(preview.withinLimit).toBe(true);
-    expect(preview.limitWei).toBe(limit.maxValueWei);
+    expect(preview.limitAmount).toBe(limit.maxAmount);
   });
 
   it("reports a request over the limit as outside it", () => {
@@ -108,7 +110,7 @@ describe("the preview is a preview, not an authority", () => {
   });
 
   it("treats the limit as inclusive, matching the policy's lte operator", () => {
-    const preview = previewAgainstLimit(request(limit.maxValueWei), limit);
+    const preview = previewAgainstLimit(request(limit.maxAmount), limit);
     // `lte`, so exactly the limit is allowed. An exclusive preview would show a
     // denial the provider does not produce.
     expect(preview.withinLimit).toBe(true);
@@ -119,6 +121,6 @@ describe("the preview is a preview, not an authority", () => {
     const preview = previewAgainstLimit(request(huge), limit);
     // Number() would round this and could compare equal to the limit.
     expect(preview.withinLimit).toBe(false);
-    expect(preview.requestedWei).toBe(huge);
+    expect(preview.requestedAmount).toBe(huge);
   });
 });

@@ -66,13 +66,49 @@ PRIVY_APP_SECRET=
 PRIVY_AUTHORIZATION_KEY_ID=
 PRIVY_AUTHORIZATION_PRIVATE_KEY=
 PRIVY_POLICY_ID=
+PRIVY_AGENT_SIGNER_ID=
+PRIVY_OWNER_KEY_ID=
+PRIVY_OWNER_PRIVATE_KEY=
+PRIVY_OWNER_POLICY_ID=
 
 # Demo
 DEMO_ALLOWED_PAYMENT_AMOUNT=
 DEMO_DENIED_PAYMENT_AMOUNT=
 DEMO_PAYMENT_TOKEN_ADDRESS=
+DEMO_PAYMENT_TOKEN_SYMBOL=
+DEMO_PAYMENT_TOKEN_DECIMALS=
 DEMO_PAYMENT_RECIPIENT=
 ```
+
+### The two Privy authorities
+
+`PRIVY_AUTHORIZATION_*` is the **agent's** signing key — the one the policy
+caps. `PRIVY_OWNER_*` is the organization's, which owns the wallet and is not
+bound by the agent's cap. Privy evaluates only the acting signer's override
+policy, so which key signs a request decides which limit applies.
+
+The owner pair is optional, and its absence is a product state rather than a
+misconfiguration: with no authority above the agent there is no approval path,
+so a denial offers none. `docs/08` forbids simulating an approval system that is
+not implemented, and deriving the affordance from these two variables is how
+that survives someone forgetting a feature flag.
+
+`pnpm provision:signers --create-keys` generates the owner key and prints it
+once. Nothing writes it into `.env` for you — a script that edits that file is a
+script that can overwrite a key still in use.
+
+### Demo amounts are in base units
+
+`DEMO_ALLOWED_PAYMENT_AMOUNT` and `DEMO_DENIED_PAYMENT_AMOUNT` are decimal
+strings in the **token's** base units: 5 USDC is `5000000`. An amount written as
+though it were whole tokens still executes, returns a hash, and renders as a
+success while moving a millionth of what the screen says.
+
+Leave `DEMO_PAYMENT_TOKEN_ADDRESS` empty to pay in native ETH — the fallback
+`docs/08`'s cut line names. Any token other than the known Base Sepolia USDC
+deployment must state `DEMO_PAYMENT_TOKEN_SYMBOL` and
+`DEMO_PAYMENT_TOKEN_DECIMALS` as well, because a guessed decimals figure is
+wrong by orders of magnitude in the direction that still looks plausible.
 
 ## Rules
 

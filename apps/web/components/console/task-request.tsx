@@ -7,7 +7,8 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useState } from "react";
-import { previewPayment, sendPayment } from "@/lib/api";
+import { formatAmount, fromBaseUnits, toBaseUnits } from "@nymspace/core";
+import { approvePayment, previewPayment, sendPayment } from "@/lib/api";
 import { classify } from "@/lib/console/errors";
 import { financialStateFrom, LOADING_COPY } from "@/lib/console/state";
 import { Field, Frame, Loading, Outcome } from "./primitives";
@@ -23,49 +24,99 @@ import { Field, Frame, Loading, Outcome } from "./primitives";
  * displayed limit and submits anyway, and Privy still refuses — so the honest
  * label for this number is "what we expect", and calling it anything stronger
  * would invite the reader to trust the browser over the provider.
+ *
+ * The budget is typed in the token's own units — `5`, not `5000000`. The
+ * conversion is `@nymspace/core`'s, the same code the server uses, because a
+ * browser that scaled by eighteen decimals against a six-decimal token would
+ * submit an amount four orders of magnitude too small and get a hash back.
  */
 
 type PaymentResult = Awaited<ReturnType<typeof sendPayment>>;
 type Preview = Awaited<ReturnType<typeof previewPayment>>;
 
-function formatEth(wei: string): string {
-  const value = BigInt(wei);
-  const whole = value / 10n ** 18n;
-  const frac = (value % 10n ** 18n).toString().padStart(18, "0").replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : `${whole}`;
-}
+/**
+ * The token as the API sends it — an unbranded address, because it arrived as
+ * JSON. The formatting functions read only the symbol and the decimals.
+ */
+type PolicyToken = { address: string; symbol: string; decimals: number };
 
 export function TaskRequest({
   agentId,
   ensName,
   recipient,
-  suggestedAmountWei,
+  limitAmount,
+  token,
 }: {
   agentId: string;
   ensName: string;
   recipient: string;
-  suggestedAmountWei: string;
+  /** The live policy limit, in base units. */
+  limitAmount: string;
+  /** What the policy is denominated in. `null` is native ETH. */
+  token: PolicyToken | null;
 }) {
+  const symbol = token?.symbol ?? "ETH";
+
   const [task, setTask] = useState("Review ENSv2 adoption");
-  const [amount, setAmount] = useState(suggestedAmountWei);
+  const [budget, setBudget] = useState(() => fromBaseUnits(limitAmount, token));
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState<PaymentResult | null>(null);
+  const [approval, setApproval] = useState<Awaited<
+    ReturnType<typeof approvePayment>
+  > | null>(null);
+
+  /**
+   * An unparseable budget is a local error, not a request.
+   *
+   * Sending it would produce a 400 the operator reads as a policy problem, and
+   * the one thing this screen must never blur is the line between "your input
+   * was wrong" and "the boundary held".
+   */
+  let amount: string | null = null;
+  let amountError: string | null = null;
+  try {
+    amount = toBaseUnits(budget || "0", token).toString();
+  } catch (error) {
+    amountError = error instanceof Error ? error.message : String(error);
+  }
+
+  function reset() {
+    setResult(null);
+    setApproval(null);
+  }
 
   async function runPreview() {
+    if (!amount) return;
     setBusy(LOADING_COPY.policy);
-    setResult(null);
+    reset();
     try {
-      setPreview(await previewPayment(agentId, { amount, recipient, memo: task }));
+      setPreview(
+        await previewPayment(agentId, {
+          amount,
+          recipient,
+          ...(token && { token: token.address }),
+          memo: task,
+        }),
+      );
     } finally {
       setBusy(null);
     }
   }
 
   async function execute() {
+    if (!amount) return;
     setBusy(LOADING_COPY.transaction);
+    setApproval(null);
     try {
-      setResult(await sendPayment(agentId, { amount, recipient, memo: task }));
+      setResult(
+        await sendPayment(agentId, {
+          amount,
+          recipient,
+          ...(token && { token: token.address }),
+          memo: task,
+        }),
+      );
     } catch (error) {
       setResult({
         status: "failed",
@@ -76,7 +127,18 @@ export function TaskRequest({
     }
   }
 
+  async function escalate(requestId: string) {
+    setBusy(LOADING_COPY.transaction);
+    try {
+      setApproval(await approvePayment(agentId, requestId));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const state = result ? financialStateFrom(result) : "idle";
+  const escalation =
+    result && "escalation" in result ? result.escalation : undefined;
 
   return (
     <VStack gap={4}>
@@ -88,14 +150,18 @@ export function TaskRequest({
           the attribute only ever picked the phone keyboard.
         */}
         <TextInput
-          label="Budget (wei)"
-          value={amount}
-          onChange={(next) => setAmount(next.replace(/\D/g, ""))}
+          label={`Budget (${symbol})`}
+          value={budget}
+          onChange={(next) => setBudget(next.replace(/[^\d.]/g, ""))}
+          {...(amountError && {
+            status: { type: "error" as const, message: amountError },
+          })}
         />
       </Grid>
 
       <Text type="code" size="sm" color="secondary" hasTabularNumbers>
-        {ensName} → {recipient} · {formatEth(amount || "0")} ETH
+        {ensName} → {recipient} ·{" "}
+        {amount ? formatAmount(amount, token) : `— ${symbol}`}
       </Text>
 
       <HStack gap={2} wrap="wrap">
@@ -103,13 +169,13 @@ export function TaskRequest({
           variant="secondary"
           label="Preview policy"
           onClick={runPreview}
-          isDisabled={busy !== null}
+          isDisabled={busy !== null || amount === null}
         />
         <Button
           variant="primary"
           label="Execute"
           onClick={execute}
-          isDisabled={busy !== null}
+          isDisabled={busy !== null || amount === null}
         />
       </HStack>
 
@@ -120,19 +186,36 @@ export function TaskRequest({
           title="privy policy"
           subtitle="Informational. Privy enforces the limit on the signing path — this preview cannot allow or block anything."
         >
-          <Field label="Requested" value={`${formatEth(preview.requestedWei)} ETH`} />
+          <Field
+            label="Requested"
+            value={formatAmount(preview.requestedAmount, preview.token)}
+          />
           <Field
             label="Limit"
-            value={`${formatEth(preview.limitWei)} ETH`}
+            value={formatAmount(preview.limitAmount, preview.limitToken)}
             source="privy policy"
-            readAt={new Date().toISOString()}
+            readAt={preview.readAt}
           />
           <Field label="Rule" value={preview.policySummary.ruleName} />
           <Field label="Expected" value={preview.expected} />
         </Frame>
       ) : null}
 
-      {result ? <PaymentOutcome result={result} state={state} amount={amount} /> : null}
+      {result ? (
+        <PaymentOutcome
+          result={result}
+          state={state}
+          amount={amount ?? "0"}
+          token={token}
+          {...(escalation &&
+            !approval && {
+              onEscalate: () => escalate(escalation.requestId),
+              escalationLabel: escalation.authority,
+            })}
+        />
+      ) : null}
+
+      {approval ? <ApprovalOutcome approval={approval} token={token} /> : null}
     </VStack>
   );
 }
@@ -141,10 +224,16 @@ function PaymentOutcome({
   result,
   state,
   amount,
+  token,
+  onEscalate,
+  escalationLabel,
 }: {
   result: PaymentResult;
   state: ReturnType<typeof financialStateFrom>;
   amount: string;
+  token: PolicyToken | null;
+  onEscalate?: () => void;
+  escalationLabel?: string;
 }) {
   if (state === "executed" && "transactionHash" in result) {
     return (
@@ -162,18 +251,29 @@ function PaymentOutcome({
       // `proof`, not `fault`. This is the policy doing its job, and docs/03 is
       // explicit that a denial is not a generic red error.
       //
-      // No "request higher authority" button. docs/03 and docs/08 both forbid
-      // simulating an approval path that is not implemented, and a button that
-      // does nothing is worse than an absent one — it claims a capability.
+      // The approval button appears only when the API sent an escalation
+      // reference, which it does only when an owner key is configured. docs/03
+      // and docs/08 both forbid simulating an approval path — a button that
+      // does nothing is worse than an absent one, because it claims a
+      // capability.
       <Outcome
         tone="proof"
         title="Payment blocked — no funds moved"
         detail={"reason" in result ? String(result.reason) : error.detail}
         action={
-          <VStack gap={0}>
-            <Field label="Requested" value={`${formatEth(amount)} ETH`} />
-            <Field label="Policy" value="amount limit" />
-            <Field label="Decision" value="denied" />
+          <VStack gap={2}>
+            <VStack gap={0}>
+              <Field label="Requested" value={formatAmount(amount, token)} />
+              <Field label="Policy" value="amount limit on the agent's signer" />
+              <Field label="Decision" value="denied" />
+            </VStack>
+            {onEscalate ? (
+              <Button
+                variant="secondary"
+                label={`Request ${escalationLabel ?? "owner"} approval`}
+                onClick={onEscalate}
+              />
+            ) : null}
           </VStack>
         }
       />
@@ -187,6 +287,50 @@ function PaymentOutcome({
       title={error.title}
       detail={"reason" in result ? String(result.reason) : undefined}
       action={error.action}
+    />
+  );
+}
+
+/**
+ * The same request, executed by a different authority.
+ *
+ * Shown beneath the denial rather than replacing it. The denial is the proof,
+ * and a screen that swapped it for a success would be claiming the payment was
+ * always fine.
+ */
+function ApprovalOutcome({
+  approval,
+  token,
+}: {
+  approval: Awaited<ReturnType<typeof approvePayment>>;
+  token: PolicyToken | null;
+}) {
+  if (approval.status === "executed" && "transactionHash" in approval) {
+    return (
+      <Outcome
+        tone="allowed"
+        title={`Executed by the ${approval.authority}`}
+        detail={approval.transactionHash}
+        action={
+          <VStack gap={0}>
+            <Field label="Approved" value={approval.approvedRequestId} />
+            <Field
+              label="Authority"
+              value="organization owner key — not bound by the agent's policy"
+            />
+            <Field label="Token" value={token?.symbol ?? "ETH"} />
+          </VStack>
+        }
+      />
+    );
+  }
+
+  const error = classify(approval as { status?: string; reason?: string });
+  return (
+    <Outcome
+      tone={error.tone}
+      title="The approval did not execute"
+      detail={"reason" in approval ? String(approval.reason) : error.detail}
     />
   );
 }

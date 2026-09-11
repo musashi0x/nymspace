@@ -309,23 +309,58 @@ missing, rather than showing an order nothing produced.
 Responsibilities:
 
 * Create or load an agent server wallet
-* Attach and read the policies that constrain it
-* Read the live spend limit rather than a recorded copy of it
-* Execute a payment
+* Attach and read the policies that constrain it, per wallet and per signer
+* Read the live spend limit rather than a recorded copy of it, in the units of
+  the token it constrains
+* Execute a payment, as whichever authority the client holds a key for
 * Normalise a policy rejection into application state instead of discarding it
+
+One client, one authority. The instance that sends the agent's payments holds
+the agent's authorization key; the instance that executes an approved payment
+holds the organization owner's. Privy evaluates only the acting signer's
+override policy, so which key signs is what decides which limit applies —
+`withKey` is therefore the whole of the escalation mechanism.
 
 ```ts
 class PrivyClient implements PrivyWalletPort {
-  createWallet(params: { policyIds?: string[] }): Promise<PrivyWallet>;
+  withKey(key: AuthorizationKey): PrivyClient;
+
+  createWallet(params: {
+    policyIds?: string[];
+    ownerId?: string;
+    additionalSigners?: WalletSigner[];
+  }): Promise<PrivyWallet>;
   getWallet(walletId: string): Promise<PrivyWallet>;
   listWallets(): Promise<PrivyWallet[]>;
   setWalletPolicies(walletId: string, policyIds: string[]): Promise<PrivyWallet>;
+  createKeyQuorum(params: {
+    displayName: string;
+    publicKeyDer: string;
+    threshold?: number;
+  }): Promise<{ id: string }>;
+  setWalletSigners(
+    walletId: string,
+    params: { ownerId?: string; additionalSigners: WalletSigner[] },
+  ): Promise<PrivyWallet>;
+
+  createTokenPolicy(params: {
+    name: string;
+    token: TokenSpec;
+    maxAmount: bigint;
+  }): Promise<PolicyLimit>;
   createAmountPolicy(params: { name: string; maxValueWei: bigint }): Promise<PolicyLimit>;
   getPolicyLimit(policyId: string): Promise<PolicyLimit>;
-  updateAmountPolicy(policyId: string, maxValueWei: bigint): Promise<PolicyLimit>;
+  updatePolicyLimit(policyId: string, maxAmount: bigint): Promise<PolicyLimit>;
+
   sendPayment(walletId: string, request: PaymentRequest): Promise<PaymentResult>;
 }
 ```
+
+`PolicyLimit` carries the token it is denominated in, never a bare number:
+USDC has six decimals and ETH has eighteen, and a limit rendered in the wrong
+one is wrong by twelve orders of magnitude in the direction that still looks
+plausible. The arithmetic itself lives in `@nymspace/core` so the console and
+the server scale amounts with the same code.
 
 ### Coordination store — `Store`
 

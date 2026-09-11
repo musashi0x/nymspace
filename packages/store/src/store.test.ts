@@ -335,6 +335,30 @@ describe("activity is one log with per-source provenance", () => {
     expect(await store.resolveEvent(randomUUID(), { status: "success" })).toBeUndefined();
   });
 
+  /**
+   * Reading one event back by id is what makes an approval an approval of the
+   * request that was denied: the amount comes from the row, never from the
+   * client that is asking for it to be approved.
+   */
+  it("reads a single event back by id, with its recorded request", async () => {
+    const id = randomUUID();
+    await store.recordEvent({
+      id,
+      ...base,
+      source: "privy",
+      type: "privy.payment.denied",
+      status: "denied",
+      summary: "over-limit payment denied",
+      evidence: { source: "privy", requestId: "req-2", policyDecision: "denied" },
+      metadata: { amount: "100000000", recipient: `0x${"b".repeat(40)}` },
+    });
+
+    const event = await store.getEvent(id);
+    expect(event?.status).toBe("denied");
+    expect(event?.metadata).toMatchObject({ amount: "100000000" });
+    expect(await store.getEvent(randomUUID())).toBeUndefined();
+  });
+
   it("filters by agent, source, type, and status independently", async () => {
     await store.upsertAgent(agentFixture("trader"));
     const at = (minutes: number) =>

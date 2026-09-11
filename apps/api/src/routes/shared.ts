@@ -18,10 +18,17 @@ export const addressSchema = z
   .regex(/^0x[0-9a-fA-F]{40}$/, "must be a 20-byte address")
   .transform((value) => value as Address);
 
-/** Wei as a decimal string. Never a number — 2^53 is not enough for wei. */
-export const weiSchema = z
+/**
+ * An amount in the token's base units, as a decimal string.
+ *
+ * Never a number: 2^53 is not enough for wei, and a JSON number is a float
+ * before it is anything else. The unit is the *token's* base unit, which is why
+ * the payment schema carries the token alongside it — `5000000` is five dollars
+ * or five femto-ether depending on a field that is not this one.
+ */
+export const baseUnitsSchema = z
   .string()
-  .regex(/^\d+$/, "must be a decimal string in wei");
+  .regex(/^\d+$/, "must be a decimal string in the token's base units");
 
 export const permissionGrantSchema = z.object({
   controller: addressSchema,
@@ -60,9 +67,19 @@ export const agentCreateSchema = z.object({
   delegate: z.boolean().optional().default(false),
 });
 
+/**
+ * `token` is the address, matched against the configured one by the handler.
+ *
+ * Optional, defaulting to the configured token — but an *unrecognised* token is
+ * a 400 rather than a fallback to native. `docs/10` puts the token in the
+ * contract, and the previous shape accepted no token at all while
+ * `PaymentRequest` declared one, so "pay 5 USDC" became "send 5 wei of ETH"
+ * with no error anywhere.
+ */
 export const paymentSchema = z.object({
-  amount: weiSchema,
+  amount: baseUnitsSchema,
   recipient: addressSchema,
+  token: addressSchema.optional(),
   memo: z.string().optional(),
 });
 
@@ -108,6 +125,21 @@ export function readAt(): string {
  */
 export function agentNotFound(id: string): never {
   throw new HTTPException(404, { message: `agent ${id} not found` });
+}
+
+/**
+ * The token named in a request is not the token this deployment pays in.
+ *
+ * A 400 rather than a silent substitution. The failure this prevents is the one
+ * the old code had: a token the client asked for, a native transfer the server
+ * sent, and a success on screen for a payment nobody requested.
+ */
+export function unknownToken(requested: string, configured: string | null): never {
+  throw new HTTPException(400, {
+    message: configured
+      ? `token ${requested} is not the configured payment token (${configured})`
+      : `token ${requested} was requested but this deployment pays in native ETH`,
+  });
 }
 
 export function walletNotProvisioned(id: string): never {

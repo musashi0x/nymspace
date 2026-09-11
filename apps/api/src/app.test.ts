@@ -286,6 +286,235 @@ describe("the product routes, against injected dependencies", () => {
       reason: "RPC request denied due to policy violation",
     });
   });
+
+  //////////////////////////////////////////////////////////////////////////
+  // The token, and the authority that may exceed the limit
+  //////////////////////////////////////////////////////////////////////////
+
+  const USDC = {
+    address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    symbol: "USDC",
+    decimals: 6,
+    // `as const`, so the address keeps its literal type and satisfies the
+    // branded `Address` without a cast in five places.
+  } as const;
+
+  const walletStore = (extra: Record<string, unknown> = {}) =>
+    ({
+      getAgent: async () => agent,
+      getFinancialAuthority: async () => ({
+        agentId: agent.id,
+        privyWalletId: "wallet-1",
+        walletAddress: "0x310207D93403aE037ee2DF7812d69d58D112C1ca",
+        policyId: "pol_1",
+      }),
+      recordEvent: async (event: Record<string, unknown>) => ({
+        ...event,
+        id: "event-1",
+      }),
+      ...extra,
+    }) as unknown as Deps["store"];
+
+  const pay = (app: ReturnType<typeof appWith>, body: Record<string, unknown>) =>
+    app.fetch(
+      new Request("http://api.test/v1/agents/agent-research/payments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  it("sends the configured token rather than a native transfer", async () => {
+    let sent: { token?: { symbol: string }; amount?: string } = {};
+    const app = appWith({
+      store: walletStore(),
+      paymentToken: USDC,
+      privy: {
+        sendPayment: async (_id: string, request: typeof sent) => {
+          sent = request;
+          return { status: "executed" as const, transactionHash: "0xhash" };
+        },
+      } as unknown as Deps["privy"],
+    });
+
+    const res = await pay(app, {
+      amount: "5000000",
+      recipient: "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+    });
+
+    expect(res.status).toBe(200);
+    expect(sent.token?.symbol).toBe("USDC");
+    expect(sent.amount).toBe("5000000");
+  });
+
+  /**
+   * The bug this replaces: `tokenAddress` was declared by the type, ignored by
+   * the client, and absent from the schema, so a request naming a token
+   * produced a native transfer, a real hash, and a success on screen.
+   */
+  it("refuses a token it is not configured to pay in", async () => {
+    let touched = false;
+    const app = appWith({
+      store: walletStore(),
+      paymentToken: USDC,
+      privy: {
+        sendPayment: async () => {
+          touched = true;
+          return { status: "executed" as const, transactionHash: "0xhash" };
+        },
+      } as unknown as Deps["privy"],
+    });
+
+    const res = await pay(app, {
+      amount: "5000000",
+      recipient: "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+      token: "0x0000000000000000000000000000000000000BAd",
+    });
+
+    expect(res.status).toBe(400);
+    expect(touched).toBe(false);
+  });
+
+  it("offers no approval path when no owner key is configured", async () => {
+    const app = appWith({
+      store: walletStore(),
+      paymentToken: USDC,
+      privyOwner: undefined,
+      privy: {
+        sendPayment: async () => ({
+          status: "denied" as const,
+          reason: "RPC request denied due to policy violation",
+        }),
+      } as unknown as Deps["privy"],
+    });
+
+    const body = (await (
+      await pay(app, {
+        amount: "100000000",
+        recipient: "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+      })
+    ).json()) as Record<string, unknown>;
+
+    // docs/08: do not offer an approval path that is not implemented. With no
+    // second key there is no second authority, and the response says so by
+    // omission rather than by a flag.
+    expect(body["status"]).toBe("denied");
+    expect(body["escalation"]).toBeUndefined();
+  });
+
+  it("offers one when an owner key exists, referencing the recorded denial", async () => {
+    const app = appWith({
+      store: walletStore(),
+      paymentToken: USDC,
+      privyOwner: {} as unknown as Deps["privyOwner"],
+      privy: {
+        sendPayment: async () => ({
+          status: "denied" as const,
+          reason: "RPC request denied due to policy violation",
+        }),
+      } as unknown as Deps["privy"],
+    });
+
+    const body = (await (
+      await pay(app, {
+        amount: "100000000",
+        recipient: "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+      })
+    ).json()) as { status: string; escalation?: { requestId: string } };
+
+    expect(body.status).toBe("denied");
+    expect(body.escalation?.requestId).toBe("event-1");
+  });
+
+  it("approves by re-sending the recorded request under the owner's key", async () => {
+    let sent: Record<string, unknown> = {};
+    let resolved: Record<string, unknown> | undefined;
+
+    const app = appWith({
+      store: walletStore({
+        getEvent: async () => ({
+          id: "event-1",
+          agentId: agent.id,
+          status: "denied",
+          metadata: {
+            amount: "100000000",
+            recipient: "0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9",
+            tokenAddress: USDC.address,
+          },
+        }),
+        resolveEvent: async (_id: string, patch: Record<string, unknown>) => {
+          resolved = patch;
+          return {};
+        },
+      }),
+      paymentToken: USDC,
+      privyOwner: {
+        sendPayment: async (_id: string, request: Record<string, unknown>) => {
+          sent = request;
+          return { status: "executed" as const, transactionHash: "0xowner" };
+        },
+      } as unknown as Deps["privyOwner"],
+      privy: {} as unknown as Deps["privy"],
+    });
+
+    const res = await app.fetch(
+      new Request(
+        "http://api.test/v1/agents/agent-research/payments/event-1/approve",
+        { method: "POST" },
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    // The amount comes from the denial, never from the approving client — an
+    // approval of whatever the client says it approved is not an approval.
+    expect(sent["amount"]).toBe("100000000");
+    expect(await res.json()).toMatchObject({
+      status: "executed",
+      transactionHash: "0xowner",
+      approvedRequestId: "event-1",
+    });
+    // The denial is untouched; the pending approval is what resolves.
+    expect(resolved?.["status"]).toBe("success");
+  });
+
+  it("refuses to approve when no owner key is configured", async () => {
+    const app = appWith({
+      store: walletStore(),
+      privyOwner: undefined,
+      privy: {} as unknown as Deps["privy"],
+    });
+
+    const res = await app.fetch(
+      new Request(
+        "http://api.test/v1/agents/agent-research/payments/event-1/approve",
+        { method: "POST" },
+      ),
+    );
+    expect(res.status).toBe(409);
+  });
+
+  it("refuses to approve an event that is not a denial of this agent's", async () => {
+    const app = appWith({
+      store: walletStore({
+        getEvent: async () => ({
+          id: "event-1",
+          agentId: "agent-trader",
+          status: "denied",
+          metadata: {},
+        }),
+      }),
+      privyOwner: { sendPayment: async () => ({}) } as unknown as Deps["privyOwner"],
+      privy: {} as unknown as Deps["privy"],
+    });
+
+    const res = await app.fetch(
+      new Request(
+        "http://api.test/v1/agents/agent-research/payments/event-1/approve",
+        { method: "POST" },
+      ),
+    );
+    expect(res.status).toBe(404);
+  });
 });
 
 /**

@@ -37,6 +37,14 @@ Privy policies can enforce constraints such as:
 
 For the hackathon, choose one amount based constraint.
 
+**Built:** one `ALLOW` rule with two conditions — `ethereum_transaction.to`
+equals the USDC contract, and `ethereum_calldata` `transfer.amount` is `lte` the
+limit, decoded with the ERC 20 ABI. Privy defaults to `DENY` when no rule
+matches, so a single `ALLOW` rule is a whitelist: this signer may transfer this
+one token, up to this much, and may do nothing else — not a native transfer, not
+`approve`, not a different token. A rule on the transaction's `value` field says
+none of that.
+
 ## MVP policy
 
 Conceptually:
@@ -102,6 +110,17 @@ Otherwise stop at a real denial.
 
 Do not simulate an approval system that is not implemented.
 
+**Built:** the affordance is derived from the configuration, not from a flag.
+With `PRIVY_OWNER_KEY_ID` and `PRIVY_OWNER_PRIVATE_KEY` set, a denial carries an
+escalation reference and the console offers the action; without them the denial
+carries nothing and the console offers nothing. Approving re-sends the amount,
+recipient and token recorded at the time of the denial — not a payload the
+browser sends back — signed by the owner's key.
+
+The denial remains in the timeline. The approval is a separate pending event
+that resolves in place, because replacing the denial with a success would be a
+timeline claiming the payment was always fine.
+
 ## Wallet ownership
 
 Choose one model and document it.
@@ -124,6 +143,27 @@ Good for:
 * agent can act offline inside policy
 
 Pick based on whichever setup reaches a working policy controlled transaction fastest.
+
+### Chosen: organization-owned wallet, agent as a restricted additional signer
+
+The wallet's owner is a key quorum the organization holds. The agent is an
+additional signer whose `override_policy_ids` carry the cap. Privy evaluates
+only the acting signer's override policy, which makes three things true that a
+wallet-level policy cannot:
+
+* The cap is on **the agent's authority**, so "the agent cannot spend more than
+  this" is literally true rather than a statement about the application
+  restraining itself.
+* The agent cannot reconfigure itself. Changing a signer is a wallet update, and
+  wallet updates require the owner.
+* The escalation below is real: the owner's key executes the identical request
+  the agent's key was refused.
+
+The cost is that every request against the wallet must now be signed — an
+unsigned caller carries no authority, which is the intended outcome and also the
+thing that breaks first if a deployment is missing a key. `pnpm
+provision:signers` makes the change; `pnpm provision:wallet` alone leaves the
+older wallet-level arrangement, which still denies correctly and claims less.
 
 ## Security separation
 
