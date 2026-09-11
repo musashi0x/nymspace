@@ -580,6 +580,25 @@ html::-webkit-scrollbar {
    40 steps would be a wait rather than an entrance.
 
    See design.md D4 and tasks 2.3 / 3.3. */
+/* The evidence panel sits inside the activity table's horizontal scroll
+   wrapper, so its `width: 100%` resolves against the table's full scroll
+   width rather than against the screen. At ordinary window sizes that is
+   several hundred pixels wider than the viewport, and `CodeBlock` puts its
+   copy button at the right edge of the block — which is how the button ended
+   up somewhere you had to drag the table sideways to reach.
+
+   `sticky` pins the panel to the scroll wrapper's left edge so it stays put
+   while the table scrolls underneath, and the width caps it at what is
+   actually on screen, which brings the copy button back with it. The cap is
+   `100vw` rather than a measured gutter: the overhang is the console's own
+   left inset, and the button carries enough end padding to stay clear of it. */
+@utility evidence-pane {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: min(100%, 100vw);
+}
+
 @utility row-window {
   & tbody tr {
     animation: row-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;

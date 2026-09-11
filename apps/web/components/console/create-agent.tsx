@@ -162,7 +162,17 @@ export function CreateAgent({ parentName }: { parentName: string }) {
   const [description, setDescription] = useState("");
   const [role, setRole] = useState("");
   const [controller, setController] = useState("");
-  const [controllerLocked, setControllerLocked] = useState(false);
+  /**
+   * Where the controller address came from.
+   *
+   * Three states rather than a boolean because "not yet known" and "the API
+   * could not say" render differently: the field is hidden while the read is in
+   * flight, so a form that is about to fill itself in does not flash an input
+   * the operator was never meant to touch.
+   */
+  const [controllerSource, setControllerSource] = useState<
+    "loading" | "api" | "manual"
+  >("loading");
   const [mcp, setMcp] = useState("");
   const [a2a, setA2a] = useState("");
   const [delegate, setDelegate] = useState(false);
@@ -207,9 +217,10 @@ export function CreateAgent({ parentName }: { parentName: string }) {
    * write is signed by the server key regardless, so a wrong-but-well-formed
    * address produces an agent whose every permission reads as denied.
    *
-   * On failure the field is left editable instead of blocking the form: a
-   * create screen that cannot be filled in because one read failed is worse
-   * than one that asks for the address, and `ADDRESS` still catches a bad paste.
+   * So the field is not shown at all on the ordinary path. It is rendered only
+   * when this read fails, because a create screen that cannot be filled in
+   * because one request failed is worse than one that asks for an address the
+   * operator can paste. `ADDRESS` still guards that path.
    */
   useEffect(() => {
     let live = true;
@@ -217,9 +228,11 @@ export function CreateAgent({ parentName }: { parentName: string }) {
       .then((signers) => {
         if (!live) return;
         setController(signers.controller);
-        setControllerLocked(true);
+        setControllerSource("api");
       })
-      .catch(() => {});
+      .catch(() => {
+        if (live) setControllerSource("manual");
+      });
     return () => {
       live = false;
     };
@@ -344,20 +357,21 @@ export function CreateAgent({ parentName }: { parentName: string }) {
             />
           </Grid>
 
-          {/* Its own row: 42 hex characters do not fit half of one. */}
-          <TextInput
-            label="Controller address"
-            value={controller}
-            onChange={setController}
-            isRequired
-            description={
-              controllerLocked
-                ? "The key the agent signs with. Held by this deployment, so it is read from the API rather than entered."
-                : "The key the agent itself signs with"
-            }
-            placeholder="0x…"
-            isDisabled={agentId !== null || controllerLocked}
-          />
+          {/*
+            Only when the API could not supply it. Its own row: 42 hex
+            characters do not fit half of one.
+          */}
+          {controllerSource === "manual" ? (
+            <TextInput
+              label="Controller address"
+              value={controller}
+              onChange={setController}
+              isRequired
+              description="The key the agent itself signs with"
+              placeholder="0x…"
+              isDisabled={agentId !== null}
+            />
+          ) : null}
 
           <CheckboxInput
             label="Let the controller update its own endpoint records"
