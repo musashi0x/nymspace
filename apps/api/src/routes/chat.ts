@@ -127,6 +127,14 @@ async function fleetLens(deps: Deps): Promise<ConsoleAnswer> {
   for (const agent of agents) {
     const status = agent.provisioning;
 
+    /**
+     * The ENS node carries the link, because it is the one that is the agent.
+     *
+     * The other two in this row are facts about it — a registration number, a
+     * verification verdict — and linking those would offer three doors to one
+     * room. The caption tells the reader to open an agent to read its state
+     * from chain; this is what it means.
+     */
     nodes.push({
       id: `${agent.id}:ens`,
       lane: "ENS",
@@ -134,6 +142,7 @@ async function fleetLens(deps: Deps): Promise<ConsoleAnswer> {
       sublabel: status.ens,
       badge: status.ens === "active" ? "active" : status.ens,
       tone: status.ens === "active" ? "active" : "unknown",
+      href: `/console/agents/${agent.id}`,
     });
     nodes.push({
       id: `${agent.id}:erc8004`,
@@ -290,6 +299,9 @@ async function agentLens(agentId: string, deps: Deps): Promise<ConsoleAnswer> {
     sublabel: `owner ${short(owner)}`,
     badge: verified ? "verified" : manifest.verification.status,
     tone: verified ? "verified" : "unknown",
+    // Linked here too. This answer is already about one agent, but it is where
+    // a reader decides to act — and the page is where writing lives.
+    href: `/console/agents/${agent.id}`,
   });
 
   if (agent.erc8004AgentId) {

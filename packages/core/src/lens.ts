@@ -50,6 +50,21 @@ export interface LensNode {
   /** Short status word shown on the node's corner. */
   badge?: string;
   tone: LensTone;
+  /**
+   * Where this node goes, when it stands for something with a screen.
+   *
+   * Set by the API, never derived in the browser. Node ids read like
+   * `agent-research:ens`, so a renderer could split on the colon and build the
+   * link itself — and would then be deciding which agent a node is about from
+   * a string it was handed for layout. That is the same class of mistake as
+   * inferring "denied" from a missing value: a second place that answers a
+   * question this package says only one place may answer. The API knows the
+   * agent id because it read the agent; it says so here.
+   *
+   * Absent on nodes that stand for a fact rather than a thing — a permission
+   * cell, a record value — because there is nothing to open.
+   */
+  href?: string;
 }
 
 export interface LensEdge {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import type {
   LensAnswer,
@@ -157,10 +158,24 @@ function Diagram({
   );
 }
 
+/**
+ * One node, and a link out of it when the API gave it one.
+ *
+ * The `href` is read, never derived. Node ids look like `agent-research:ens`,
+ * so this file could split on the colon and build the route itself — and would
+ * then be deciding which agent a node is about from a string it was handed for
+ * layout. Same rule as the tones above: this file chooses colour, and nothing
+ * else.
+ *
+ * A linked node is an anchor rather than a div with a click handler, so it
+ * keeps the things a link has for free — middle-click, copy address, focus
+ * order, and a status bar that shows where it goes before you commit to it.
+ */
 function Node({ node }: { node: LensNode }) {
   const tone = TONE[node.tone];
-  return (
-    <div className={`relative rounded-lg border p-2.5 ${tone.node}`}>
+
+  const body = (
+    <>
       {node.badge && (
         <span
           className={`absolute -top-2 right-2 rounded-full px-1.5 py-0.5 text-[0.6rem] font-medium ${tone.badge}`}
@@ -174,7 +189,25 @@ function Node({ node }: { node: LensNode }) {
           {node.sublabel}
         </p>
       )}
-    </div>
+    </>
+  );
+
+  if (!node.href) {
+    return (
+      <div className={`relative rounded-lg border p-2.5 ${tone.node}`}>{body}</div>
+    );
+  }
+
+  return (
+    <Link
+      href={node.href}
+      // The tone's own border on hover: an affordance drawn from the node's
+      // state rather than a colour bolted on top of it, so a denied node does
+      // not turn neutral the moment a pointer touches it.
+      className={`relative block rounded-lg border p-2.5 transition-[box-shadow,opacity] hover:opacity-90 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${tone.node}`}
+    >
+      {body}
+    </Link>
   );
 }
 
