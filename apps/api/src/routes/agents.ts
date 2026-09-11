@@ -269,6 +269,9 @@ export const agents = new Hono<DepsEnv>()
 
     return c.json({
       ensName: agent.ensName,
+      // Said by the API, which read the agent, so the console never has to
+      // split an ENS name to learn which agent it is looking at.
+      label: agent.slug,
       chainId: config.chainId,
       owner,
       controller: agent.controllerAddress,

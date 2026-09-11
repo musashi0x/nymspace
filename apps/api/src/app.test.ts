@@ -221,6 +221,37 @@ describe("the product routes, against injected dependencies", () => {
     });
   });
 
+  it("refuses a non-https MCP endpoint before any chain call", async () => {
+    let touched = false;
+    const app = appWith({
+      store: { getAgent: async () => agent } as unknown as Deps["store"],
+      ens: {
+        readText: async () => {
+          touched = true;
+          return "before";
+        },
+        writeText: async () => {
+          touched = true;
+          return "0x";
+        },
+      } as unknown as Deps["ens"],
+    });
+
+    for (const value of ["http://localhost:3112/mcp/research", "not a url"]) {
+      const res = await app.fetch(
+        new Request("http://api.test/v1/agents/agent-research/records", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ key: "agent-endpoint[mcp]", value }),
+        }),
+      );
+      expect(res.status, value).toBe(400);
+    }
+    // Refused by validation, so no read, no write, and no denial row claiming
+    // the resolver refused something it was never asked.
+    expect(touched).toBe(false);
+  });
+
   it("separates a revert with another cause from an authorization denial", async () => {
     const app = appWith({
       resolver: "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC",

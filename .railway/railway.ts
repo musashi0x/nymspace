@@ -200,6 +200,12 @@ export default defineRailway(() => {
       NEXT_PUBLIC_SEPOLIA_RPC_URL: preserve(),
       NEXT_PUBLIC_PRIVY_APP_ID: preserve(),
       NEXT_PUBLIC_API_URL: "https://${{api.RAILWAY_PUBLIC_DOMAIN}}",
+      /**
+       * Read at request time by the agent page, never inlined into the client.
+       * The permission proof writes the MCP endpoint derived from the same
+       * origin the API serves its agents on, so the two services must agree.
+       */
+      AGENT_MCP_BASE_URL: "https://${{api.RAILWAY_PUBLIC_DOMAIN}}",
 
       /**
        * Not CORS here — `app/layout.tsx` reuses `WEB_ORIGIN` as Next's

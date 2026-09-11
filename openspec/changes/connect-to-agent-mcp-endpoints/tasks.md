@@ -15,9 +15,9 @@
 
 ## 3. Endpoint derivation and the live record
 
-- [ ] 3.1 Replace the literal in `scripts/provision-fleet.ts`, `scripts/register-identity.ts`, and `permission-proof.tsx`'s fallback with `agentMcpEndpoint`
-- [ ] 3.2 Refuse a non-`https` `agent-endpoint[mcp]` value on the record-write path before building a transaction; test it
-- [ ] 3.3 Confirm no `mcp.nymspace.example` remains outside `docs/`, evidence files, and ENS spike scripts (spike scripts left as historical record)
+- [x] 3.1 Replace the literal in `scripts/provision-fleet.ts`, `scripts/register-identity.ts`, and `permission-proof.tsx`'s fallback with `agentMcpEndpoint` — scripts refuse a non-https base before spending; `provision-fleet.ts` now builds from `FLEET`; the agent page derives the proof's endpoint server-side (identity payload gains `label`), falling back to the on-chain value when the base is not https
+- [x] 3.2 Refuse a non-`https` `agent-endpoint[mcp]` value on the record-write path before building a transaction; test it — `recordWriteSchema` answers 400 before any chain call, and `EnsService.writeText` refuses as the backstop for every other caller; `packages/ens` gains a vitest config for the `react-server` condition
+- [x] 3.3 Confirm no `mcp.nymspace.example` remains outside `docs/`, evidence files, and ENS spike scripts (spike scripts left as historical record) — `verify-identity.ts` (Gate A) also converted; only `spike-ensv2.ts` remains
 
 ## 4. Outbound guard
 

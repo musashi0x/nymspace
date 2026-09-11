@@ -28,7 +28,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { requireServerEnv } from "@nymspace/core/env";
-import type { Address, Hex } from "@nymspace/core";
+import {
+  agentMcpEndpoint,
+  isPublishableEndpoint,
+  type Address,
+  type Hex,
+} from "@nymspace/core";
 import {
   EnsService,
   Erc8004Service,
@@ -183,7 +188,22 @@ async function main(): Promise<void> {
    * already there proves the read works, not the write.
    */
   const before = await ens.readText(ensName, mcpKey);
-  const next = `https://mcp.nymspace.example/research?gate-a=${Date.now()}`;
+
+  /*
+    What every endpoint write in this gate publishes: the endpoint derived from
+    `AGENT_MCP_BASE_URL` when that origin is https, otherwise the value already
+    on chain with its query stripped, which is public already. Each write adds
+    its own query so the value changes, which is all the gate needs from it.
+    Neither usable, and `writeText` refuses — assertion 2 then fails saying
+    why, rather than the gate publishing a URL nobody serves.
+  */
+  const derived = process.env["AGENT_MCP_BASE_URL"]
+    ? agentMcpEndpoint(process.env["AGENT_MCP_BASE_URL"], AGENT_SLUG)
+    : "";
+  const endpointBase = isPublishableEndpoint(derived)
+    ? derived
+    : before.split("?")[0]!;
+  const next = `${endpointBase}?gate-a=${Date.now()}`;
 
   try {
     const hash = await ens.writeText({
@@ -370,7 +390,7 @@ async function main(): Promise<void> {
         await ens.writeText({
           name: ensName,
           key: mcpKey,
-          value: `https://mcp.nymspace.example/research?e6=${Date.now()}`,
+          value: `${endpointBase}?e6=${Date.now()}`,
           as: "controller",
         });
       } catch (error) {
@@ -424,7 +444,7 @@ async function main(): Promise<void> {
       ...(agentId && { registration: { agentId, service: erc8004 } }),
     });
 
-    const mutated = `https://mcp.nymspace.example/research?manifest=${Date.now()}`;
+    const mutated = `${endpointBase}?manifest=${Date.now()}`;
     const hash = await ens.writeText({
       name: ensName,
       key: mcpKey,

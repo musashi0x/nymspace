@@ -1,7 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import * as z from "zod";
-import type { Address } from "@nymspace/core";
-import { NoSignerError } from "@nymspace/ens";
+import { isPublishableEndpoint, type Address } from "@nymspace/core";
+import { NoSignerError, agentEndpointKey } from "@nymspace/ens";
 import { isValidLabel } from "../provisioning";
 
 /**
@@ -36,10 +36,26 @@ export const permissionGrantSchema = z.object({
   grant: z.boolean(),
 });
 
-export const recordWriteSchema = z.object({
-  key: z.string().min(1),
-  value: z.string(),
-});
+/**
+ * A record write, with one rule about one key.
+ *
+ * An MCP endpoint must be https, checked here so a local `http://localhost`
+ * value is a 400 before the handler reads chain. `EnsService.writeText`
+ * refuses it too, but that refusal would land in this route's `catch`, which
+ * writes an `ens.action.denied` row, and a URL the API refused is not
+ * something the resolver denied. An empty value is allowed: clearing the
+ * record publishes no endpoint at all.
+ */
+export const recordWriteSchema = z
+  .object({
+    key: z.string().min(1),
+    value: z.string(),
+  })
+  .refine(
+    ({ key, value }) =>
+      key !== agentEndpointKey("mcp") || value === "" || isPublishableEndpoint(value),
+    { error: "an MCP endpoint written to ENS must be an https URL", path: ["value"] },
+  );
 
 /**
  * What `POST /v1/agents` accepts.

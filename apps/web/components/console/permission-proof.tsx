@@ -32,26 +32,41 @@ export function PermissionProof({
   permittedKey,
   protectedKey,
   currentValue,
+  endpoint,
 }: {
   agentId: string;
   permittedKey: string;
   /** Absent when the agent has no ERC 8004 registration to protect. */
   protectedKey?: string;
   currentValue: string | null;
+  /**
+   * The agent's MCP endpoint derived from `AGENT_MCP_BASE_URL`, or `null` when
+   * that origin is unset or not https. Computed on the server: the base is not
+   * a public variable, and the browser has no business guessing it.
+   */
+  endpoint: string | null;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [allowed, setAllowed] = useState<Result | null>(null);
   const [denied, setDenied] = useState<Result | null>(null);
 
+  /*
+    What the permitted write publishes. The derived endpoint when there is one
+    that may be published; otherwise the value already on chain, which is
+    public by definition, so rewriting it with a fresh `?proof=` publishes
+    nothing new. With neither there is nothing honest to write, and the button
+    says so rather than inventing a URL.
+  */
+  const base = endpoint || currentValue?.split("?")[0] || null;
+
   async function runPermitted() {
+    if (!base) return;
     setBusy(LOADING_COPY.transaction);
     setAllowed(null);
     try {
       // A value that changes every run. Writing the value already there would
       // confirm on chain and read back identical, proving the read works and
       // nothing about the write.
-      const base =
-        currentValue?.split("?")[0] ?? "https://mcp.nymspace.example/research";
       setAllowed(
         await writeRecord(agentId, {
           key: permittedKey,
@@ -96,7 +111,7 @@ export function PermissionProof({
           variant="primary"
           label="Write a permitted record"
           onClick={runPermitted}
-          isDisabled={busy !== null}
+          isDisabled={busy !== null || !base}
         />
         <Button
           variant="secondary"
@@ -105,6 +120,13 @@ export function PermissionProof({
           isDisabled={busy !== null || !protectedKey}
         />
       </HStack>
+
+      {!base ? (
+        <Text type="supporting" as="p">
+          No MCP endpoint to write. AGENT_MCP_BASE_URL is unset or not https on
+          this deployment, and the record is empty.
+        </Text>
+      ) : null}
 
       {busy ? <Loading what={busy} /> : null}
 
