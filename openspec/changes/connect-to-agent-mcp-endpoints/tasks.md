@@ -46,14 +46,14 @@
 
 ## 7. Console
 
-- [ ] 7.1 Change the discovery badge from `MCP available` to advertised wording; add a Connect action per result that has an endpoint
-- [ ] 7.2 Add Connect to the inspector's MCP record
-- [ ] 7.3 Render each outcome: tools as plain text with read time; identity labelled self-reported; failures as findings with stage or rule — built from Astryx components per `apps/web/AGENTS.md`
-- [ ] 7.4 Render `claim` from the connect response in both directions, labelled by direction; the console computes no comparison of its own
-- [ ] 7.5 Add the MCP intent to `apps/api/src/routes/chat.ts`, matched after the plan intents and before the agent lens, answering with a one-step `POST /v1/mcp/connect` plan for a `fleet` target; add `"none"` to `PlanStep.actor` in `packages/core/src/lens.ts` and render it as unsigned; add one matching line to `CONSOLE_SUGGESTIONS`
-- [ ] 7.6 Make `readOutcome` in `apps/web/components/console/chat-console.tsx` report connect outcomes by their status, so `unreachable`, `timeout`, `not_mcp`, `blocked` and `no_endpoint` never read as `done`
-- [ ] 7.7 Create `apps/api/src/routes/chat.test.ts` against `app.ts`: the MCP intent returns the connect plan and performs no connect; "as research, set its mcp endpoint to …" still returns the record-write plan; "show research" still returns the agent lens
-- [ ] 7.8 `pnpm typecheck` and `pnpm lint` pass; the typed client covers the new route
+- [x] 7.1 Change the discovery badge from `MCP available` to advertised wording; add a Connect action per result that has an endpoint — `MCP advertised`, neutral
+- [x] 7.2 Add Connect to the inspector's MCP record — shown only when a record exists
+- [x] 7.3 Render each outcome: tools as plain text with read time; identity labelled self-reported; failures as findings with stage or rule — built from Astryx components per `apps/web/AGENTS.md` — `McpConnect` in `components/console/mcp-connect.tsx`: handshake `allowed`, guard block `proof`, endpoint findings `waiting`, and only this API's own failure `fault`; tools as `Item` rows
+- [x] 7.4 Render `claim` from the connect response in both directions, labelled by direction; the console computes no comparison of its own — a withheld `missing` renders as "cannot tell", never "none"
+- [x] 7.5 Add the MCP intent to `apps/api/src/routes/chat.ts`, matched after the plan intents and before the agent lens, answering with a one-step `POST /v1/mcp/connect` plan for a `fleet` target; add `"none"` to `PlanStep.actor` in `packages/core/src/lens.ts` and render it as unsigned; add one matching line to `CONSOLE_SUGGESTIONS` — matched after the audit and fleet checks too
+- [x] 7.6 Make `readOutcome` in `apps/web/components/console/chat-console.tsx` report connect outcomes by their status, so `unreachable`, `timeout`, `not_mcp`, `blocked` and `no_endpoint` never read as `done`
+- [x] 7.7 Create `apps/api/src/routes/chat.test.ts` against `app.ts`: the MCP intent returns the connect plan and performs no connect; "as research, set its mcp endpoint to …" still returns the record-write plan; "show research" still returns the agent lens — also replays every `CONSOLE_SUGGESTIONS` line and asserts none is unanswered
+- [x] 7.8 `pnpm typecheck` and `pnpm lint` pass; the typed client covers the new route
 
 ## 8. Deploy, re-point, verify
 

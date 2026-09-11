@@ -279,6 +279,15 @@ function readOutcome(
   const status = typeof body["status"] === "string" ? body["status"] : undefined;
   const denied = status === "denied";
 
+  /*
+    A connect answers 200 for every outcome, so its status is read here rather
+    than falling through to "done". Without this an unreachable endpoint would
+    render as a completed step — the exact overclaim connect exists to remove.
+  */
+  if (step.path === "/v1/mcp/connect" && status) {
+    return readConnectOutcome(step, status, body);
+  }
+
   if (denied) {
     return {
       step,
@@ -314,6 +323,66 @@ function readOutcome(
     (typeof body["id"] === "string" ? String(body["id"]) : undefined);
 
   return { step, denied: false, evidence };
+}
+
+/** Titles for connect's failures, which are findings about the endpoint. */
+const CONNECT_FINDINGS: Record<string, string> = {
+  no_endpoint: "No MCP endpoint is published, so nothing was dialled",
+  unreachable: "The endpoint was unreachable",
+  timeout: "The endpoint timed out",
+  not_mcp: "The endpoint answered, but not as an MCP server",
+};
+
+function readConnectOutcome(
+  step: PlanStep,
+  status: string,
+  body: Record<string, unknown>,
+): StepOutcome {
+  if (status === "connected") {
+    const tools = Array.isArray(body["tools"]) ? body["tools"].length : 0;
+    const server =
+      body["server"] && typeof body["server"] === "object" && "name" in body["server"]
+        ? String(body["server"].name ?? "unnamed")
+        : "unnamed";
+    return {
+      step,
+      denied: false,
+      evidence: `connected — ${server} (self-reported), ${tools} tool${tools === 1 ? "" : "s"}${body["toolsTruncated"] ? ", listing truncated" : ""}`,
+    };
+  }
+
+  // The guard refusing is the control working: drawn as proof, not as a fault.
+  if (status === "blocked") {
+    return {
+      step,
+      denied: false,
+      error: {
+        ...classify({}),
+        tone: "proof",
+        title: "Blocked by the outbound guard — nothing was sent",
+        detail: typeof body["rule"] === "string" ? body["rule"] : "",
+        action: undefined,
+      },
+    };
+  }
+
+  const where =
+    typeof body["stage"] === "string"
+      ? ` at ${body["stage"]}`
+      : typeof body["httpStatus"] === "number"
+        ? ` (HTTP ${body["httpStatus"]})`
+        : "";
+  return {
+    step,
+    denied: false,
+    error: {
+      ...classify({}),
+      tone: "waiting",
+      title: `${CONNECT_FINDINGS[status] ?? `Connect ended as ${status}`}${where}`,
+      detail: typeof body["detail"] === "string" ? body["detail"] : "",
+      action: "A finding about the endpoint, not a failure of this console.",
+    },
+  };
 }
 
 function TurnView({
@@ -496,7 +565,7 @@ function StepRow({ index, step }: { index: number; step: PlanStep }) {
           {step.title}
         </Text>
         <Text type="code" size="sm" color="secondary">
-          signed by {step.actor}
+          {step.actor === "none" ? "unsigned — no key is used" : `signed by ${step.actor}`}
         </Text>
         <Button
           variant="ghost"

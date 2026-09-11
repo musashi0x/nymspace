@@ -116,6 +116,22 @@ export async function writeRecord(
   return res.json();
 }
 
+/** What connect accepts: an agent, never a URL — see `routes/mcp.ts`. */
+export type ConnectTarget =
+  | { kind: "fleet"; agentId: string }
+  | { kind: "graph"; graphAgentKey: string };
+
+/**
+ * A read-only MCP handshake against the agent's published endpoint. Every
+ * outcome, failures included, is a 200; a thrown error here is this API
+ * failing, never the endpoint.
+ */
+export async function connectMcp(target: ConnectTarget) {
+  const res = await api.v1.mcp.connect.$post({ json: { target } });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
 export async function verifyIdentity(id: string) {
   const res = await api.v1.agents[":id"].verify.$post({ param: { id } });
   if (!res.ok) throw requestFailed(res.status);

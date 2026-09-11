@@ -14,6 +14,7 @@ import {
   type VerificationState,
 } from "@/lib/console/state";
 import { AuthorityMatrix } from "@/components/console/authority-matrix";
+import { McpConnect } from "@/components/console/mcp-connect";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
 import {
@@ -135,6 +136,14 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
+        {/*
+          Connect only where there is something to dial. With no record the
+          Field above already shows the absence, and a button that could only
+          ever answer "no_endpoint" would be an action with nothing behind it.
+        */}
+        {identity.records.mcp ? (
+          <McpConnect target={{ kind: "fleet", agentId: id }} />
+        ) : null}
         <Field
           label={identity.recordKeys.a2a}
           value={

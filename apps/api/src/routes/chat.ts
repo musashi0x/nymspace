@@ -42,8 +42,9 @@ import { readAt } from "./shared";
  *   agent <name>     one agent's identity, authority and records
  *   audit <name>     that agent's lifecycle, from the activity log
  *   create / grant / write / pay    answered with a plan, never performed
+ *   mcp <name>       connect to its MCP endpoint — also a plan, unsigned
  *
- * Nothing in this file writes. The four action intents return a {@link LensPlan}
+ * Nothing in this file writes. The action intents return a {@link LensPlan}
  * naming the product routes that would do the work, and the operator's
  * confirmation is what sends them — so the chat can propose an irreversible
  * change without ever being the thing that made it.
@@ -87,6 +88,24 @@ async function route(message: string, deps: Deps): Promise<ConsoleAnswer> {
 
   if (/\b(fleet|agents|everything|all)\b/.test(text) && !nameIn(text, deps)) {
     return fleetLens(deps);
+  }
+
+  /**
+   * A question about an agent's MCP server, before the agent lens.
+   *
+   * After the plans, so "as research, set its mcp endpoint to …" stays a
+   * record write; before the lens, so "what does research's mcp serve" is not
+   * answered with a diagram of permissions. Both name the agent and say "mcp",
+   * and only word order separates them — which is why `chat.test.ts` pins
+   * all three.
+   */
+  if (
+    /\bmcp\b/.test(text) &&
+    /\b(serves?|offers?|tools?|connect|reachable|answers?|up|live|working)\b/.test(text)
+  ) {
+    const id = await matchAgent(text, deps);
+    const plan = id ? await connectPlan(id, deps) : undefined;
+    if (plan) return plan;
   }
 
   const slug = await matchAgent(text, deps);
@@ -431,6 +450,38 @@ async function paymentPlan(
     ],
     closing:
       "The preview and the outcome are separate evidence: one is the policy, the other is what the signer did with it.",
+  };
+}
+
+/**
+ * Connect, offered rather than performed (design D11).
+ *
+ * A connect is a read, but it reads somebody else's server and writes an
+ * activity row, and this file performs neither. So it is a plan of one step
+ * that no key signs, sent only when the operator runs it — to the same route
+ * the inspector's Connect button calls, through the same guard.
+ */
+async function connectPlan(id: string, deps: Deps): Promise<LensPlan | undefined> {
+  const agent = await deps.store.getAgent(id);
+  if (!agent) return undefined;
+
+  return {
+    kind: "plan",
+    title: `Connect to ${agent.ensName}'s MCP endpoint`,
+    summary:
+      "Reads the endpoint from ENS, then performs an MCP handshake and lists its tools through the outbound guard. " +
+      "No tool on the server is called, and nothing is signed.",
+    steps: [
+      {
+        title: "Handshake and list tools",
+        method: "POST",
+        path: "/v1/mcp/connect",
+        body: { target: { kind: "fleet", agentId: id } },
+        actor: "none",
+      },
+    ],
+    closing:
+      "The outcome is a claim about the endpoint at the moment it was read: connected, with what it serves, or where and why it failed.",
   };
 }
 

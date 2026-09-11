@@ -10,6 +10,7 @@ import { useState } from "react";
 import { discover } from "@/lib/api";
 import { classify, EMPTY_STATES } from "@/lib/console/errors";
 import { graphStateFrom, LOADING_COPY } from "@/lib/console/state";
+import { McpConnect } from "./mcp-connect";
 import { Absent, Badge, Empty, Loading, Outcome, Frame } from "./primitives";
 
 /**
@@ -132,8 +133,13 @@ export function DiscoverForm() {
               >
                 <HStack gap={2} wrap="wrap">
                   <Badge tone="neutral">ERC 8004 #{agent.agentId}</Badge>
+                  {/*
+                    Advertised, not available. The registration says there is
+                    an endpoint; only Connect finds out whether it answers, and
+                    live Agent0 results include localhost and dead hosts.
+                  */}
                   {agent.mcpEndpoint ? (
-                    <Badge tone="good">MCP available</Badge>
+                    <Badge tone="neutral">MCP advertised</Badge>
                   ) : (
                     <Badge tone="neutral">no MCP</Badge>
                   )}
@@ -154,6 +160,10 @@ export function DiscoverForm() {
                     </Badge>
                   ) : null}
                 </HStack>
+
+                {agent.mcpEndpoint ? (
+                  <McpConnect target={{ kind: "graph", graphAgentKey: agent.graphId }} />
+                ) : null}
 
                 {!agent.signals.validation.available ? (
                   <Text type="supporting" as="p">
