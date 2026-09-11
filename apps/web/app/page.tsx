@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CommitActivity } from "@/components/commit-activity";
+import { LandingPreloader } from "@/components/preloader/landing-preloader";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RepoStats } from "@/components/repo-stats";
 import { WordTiles } from "@/components/word-tiles";
@@ -28,7 +29,16 @@ export default async function Home() {
    * frame does not lengthen a single line of reading.
    */
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-20 px-6 py-12 sm:py-16">
+    <>
+      {/*
+        Rendered by the server page rather than mounted from an effect, so the
+        overlay is in the first HTML the browser paints. Mounting it later
+        would show the page and then cover it, which is a flash rather than a
+        preloader. It removes itself after one cycle — and, with no JavaScript
+        at all, after the failsafe animation in globals.css.
+      */}
+      <LandingPreloader />
+      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-20 px-6 py-12 sm:py-16">
       <div className="flex items-center justify-between">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
           nymspace
@@ -121,6 +131,7 @@ export default async function Home() {
           next request after {REVALIDATE_SECONDS}s. No redeploy, no manual step.
         </p>
       </footer>
-    </main>
+      </main>
+    </>
   );
 }
