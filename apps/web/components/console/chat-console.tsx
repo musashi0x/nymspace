@@ -1,5 +1,15 @@
 "use client";
 
+import { Button } from "@astryxdesign/core/Button";
+import {
+  ChatComposer,
+  ChatMessage,
+  ChatMessageBubble,
+  ChatMessageList,
+} from "@astryxdesign/core/Chat";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import * as React from "react";
 import type { ConsoleAnswer } from "@nymspace/core";
 import { LensCard } from "@/components/console/lens-card";
@@ -21,6 +31,15 @@ import { LOADING_COPY } from "@/lib/console/state";
  * Which is why a question it cannot parse renders as its own thing rather than
  * an empty diagram. "I did not understand you" and "there is nothing there" are
  * different facts, and only one of them is about the fleet.
+ *
+ * ## Built from the same parts as every other screen
+ *
+ * `ChatMessageList`, `ChatMessage`, `ChatMessageBubble` and `ChatComposer` are
+ * Astryx's own, the set `approval-chat.tsx` uses. This file arrived from
+ * another branch built from raw `div`/`p`/`form`, which `AGENTS.md` names as
+ * drift and which also meant the two chat screens in this console looked like
+ * two different products. The composer in particular was a hand-rolled input
+ * and button with no focus ring, no stop affordance and no status slot.
  */
 
 type Turn =
@@ -34,14 +53,25 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
   const [busy, setBusy] = React.useState(false);
   const endRef = React.useRef<HTMLDivElement>(null);
 
+  /**
+   * The re-entrancy guard, in a ref rather than in `busy`.
+   *
+   * `busy` is read from the render closure and the composer's disabled state
+   * only lands after a re-render, so a fast second submit would see `false`
+   * and fire a second read. Harmless here — nothing in `/v1/chat` writes — but
+   * it would interleave two answers into the transcript out of order.
+   */
+  const asking = React.useRef(false);
+
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [turns, busy]);
 
   async function ask(message: string) {
     const text = message.trim();
-    if (!text || busy) return;
+    if (!text || asking.current) return;
 
+    asking.current = true;
     setDraft("");
     setTurns((prev) => [...prev, { role: "you", text }]);
     setBusy(true);
@@ -92,48 +122,56 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
         },
       ]);
     } finally {
+      asking.current = false;
       setBusy(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4">
-        {turns.length === 0 && (
-          <Opening suggestions={suggestions} onPick={(s) => void ask(s)} />
-        )}
+    <VStack gap={4} width="100%" className="min-w-0">
+      {/*
+        `align="top"`: the default fills spare height with a spacer so a short
+        conversation sits against the composer. Inside a Frame that opens a gap
+        under the title with nothing in it.
+      */}
+      <ChatMessageList align="top" gap={6} isStreaming={busy}>
+        {turns.length === 0 ? (
+          <ChatMessage sender="assistant">
+            <ChatMessageBubble variant="ghost" width="100%">
+              <Opening suggestions={suggestions} onPick={(s) => void ask(s)} />
+            </ChatMessageBubble>
+          </ChatMessage>
+        ) : null}
 
         {turns.map((turn, i) => (
           <TurnView key={i} turn={turn} onPick={(s) => void ask(s)} />
         ))}
 
-        {busy && <Loading what={LOADING_COPY.ens} />}
-        <div ref={endRef} />
-      </div>
+        {busy ? (
+          <ChatMessage sender="assistant">
+            <ChatMessageBubble variant="ghost" width="100%">
+              <Loading what={LOADING_COPY.ens} />
+            </ChatMessageBubble>
+          </ChatMessage>
+        ) : null}
+      </ChatMessageList>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ask(draft);
-        }}
-        className="sticky bottom-4 flex gap-2 rounded-xl border border-border bg-card p-2"
-      >
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          disabled={busy}
-          placeholder="Ask about an agent, or the fleet"
-          className="flex-1 bg-transparent px-2 py-1.5 text-sm outline-none disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={busy || draft.trim().length === 0}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs transition-colors hover:bg-muted disabled:opacity-40"
-        >
-          Ask
-        </button>
-      </form>
-    </div>
+      <div ref={endRef} />
+
+      {/*
+        No stop button: `isStopShown` is for generation that can be interrupted
+        part-way, and a read either returns or fails. Offering to stop one would
+        imply a partial answer exists to keep.
+      */}
+      <ChatComposer
+        value={draft}
+        onChange={setDraft}
+        onSubmit={(value) => void ask(value)}
+        isDisabled={busy}
+        placeholder="Ask about an agent, or the fleet"
+        elevation="none"
+      />
+    </VStack>
   );
 }
 
@@ -146,33 +184,58 @@ function TurnView({
 }) {
   if (turn.role === "you") {
     return (
-      <p className="self-end rounded-2xl rounded-br-sm bg-muted px-3 py-2 text-sm">
-        {turn.text}
-      </p>
+      <ChatMessage sender="user">
+        <ChatMessageBubble>{turn.text}</ChatMessageBubble>
+      </ChatMessage>
     );
   }
 
+  /*
+    Every console answer rides in a ghost bubble at full width.
+
+    Ghost so the diagram is not a card inside a card, and `width="100%"` so it
+    spans the message column rather than the bubble's default cap — Astryx's
+    own recipe for custom in-message content.
+  */
   if (turn.role === "problem") {
     return (
-      <Outcome
-        tone={turn.error.tone}
-        title={turn.error.title}
-        detail={turn.error.detail || undefined}
-        action={turn.error.action}
-      />
+      <ChatMessage sender="assistant">
+        <ChatMessageBubble variant="ghost" width="100%">
+          <Outcome
+            tone={turn.error.tone}
+            title={turn.error.title}
+            detail={turn.error.detail || undefined}
+            action={turn.error.action}
+          />
+        </ChatMessageBubble>
+      </ChatMessage>
     );
   }
 
   if (turn.answer.kind === "unanswered") {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-4">
-        <p className="text-sm leading-relaxed">{turn.answer.message}</p>
-        <Suggestions items={turn.answer.suggestions} onPick={onPick} />
-      </div>
+      <ChatMessage sender="assistant">
+        <ChatMessageBubble variant="ghost" width="100%">
+          <VStack gap={3} width="100%" className="min-w-0">
+            <VStack maxWidth="42rem">
+              <Text type="body" as="p">
+                {turn.answer.message}
+              </Text>
+            </VStack>
+            <Suggestions items={turn.answer.suggestions} onPick={onPick} />
+          </VStack>
+        </ChatMessageBubble>
+      </ChatMessage>
     );
   }
 
-  return <LensCard answer={turn.answer} />;
+  return (
+    <ChatMessage sender="assistant">
+      <ChatMessageBubble variant="ghost" width="100%">
+        <LensCard answer={turn.answer} />
+      </ChatMessageBubble>
+    </ChatMessage>
+  );
 }
 
 function Opening({
@@ -183,15 +246,15 @@ function Opening({
   onPick: (s: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-5">
-      <p className="text-sm leading-relaxed">
-        Every answer here is assembled from a read performed when you ask —
-        ENSv2 for records and authority, the ERC 8004 registry for the
-        registration, both on their own chains. Nothing is generated, so
-        nothing is guessed.
-      </p>
+    <VStack gap={3} width="100%" className="min-w-0">
+      <VStack maxWidth="42rem">
+        <Text type="body" as="p">
+          Ask a question and the answer is drawn from what was read to answer
+          it, with the rows underneath. Try one of these.
+        </Text>
+      </VStack>
       <Suggestions items={suggestions} onPick={onPick} />
-    </div>
+    </VStack>
   );
 }
 
@@ -203,17 +266,16 @@ function Suggestions({
   onPick: (s: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <HStack gap={2} wrap="wrap">
       {items.map((item) => (
-        <button
+        <Button
           key={item}
-          type="button"
+          variant="secondary"
+          size="sm"
+          label={item}
           onClick={() => onPick(item)}
-          className="rounded-full border border-border px-3 py-1 text-xs transition-colors hover:bg-muted"
-        >
-          {item}
-        </button>
+        />
       ))}
-    </div>
+    </HStack>
   );
 }
