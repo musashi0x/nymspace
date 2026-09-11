@@ -1,6 +1,7 @@
 import {
   createPublicClient,
   createWalletClient,
+  getAddress,
   http,
   type Chain,
   type PublicClient,
@@ -102,26 +103,46 @@ export function createViemChainClient(
   const transport = http(options.rpcUrl);
   const publicClient = createPublicClient({ chain, transport }) as PublicClient;
 
-  // Narrow on the property itself rather than a boolean: a `canSign` variable
-  // does not narrow the discriminated union for the compiler.
-  const accounts =
+  /**
+   * Accounts and addresses resolved in one branch, on the discriminant itself.
+   *
+   * One branch because the narrowing only survives inside it: `options` is a
+   * discriminated union, and a second `accounts ? … : …` further down tests a
+   * *different* variable, so the compiler has already forgotten which variant
+   * it holds. That is what the `as Address` casts here were hiding.
+   *
+   * The addresses-only side is checksummed rather than cast, for two reasons.
+   * The guard below compares the two as strings — both used to come from
+   * `privateKeyToAccount`, which always returns EIP-55 output, so `===` was a
+   * safe identity test; addresses read from the environment carry whatever
+   * case someone pasted, and one account written two ways would slip past the
+   * very check that exists to stop the organization and the controller being
+   * the same account. `getAddress` also throws on a malformed value, so a
+   * truncated paste fails here rather than reading back later as a permission
+   * matrix in which every cell is denied.
+   */
+  const resolved =
     options.organizationKey !== undefined
-      ? ({
-          organization: privateKeyToAccount(options.organizationKey),
-          controller: privateKeyToAccount(options.controllerKey),
-        } as const)
-      : undefined;
+      ? (() => {
+          const organization = privateKeyToAccount(options.organizationKey);
+          const controller = privateKeyToAccount(options.controllerKey);
+          return {
+            accounts: { organization, controller } as const,
+            addresses: {
+              organization: organization.address,
+              controller: controller.address,
+            } as Record<Signer, Address>,
+          };
+        })()
+      : {
+          accounts: undefined,
+          addresses: {
+            organization: getAddress(options.organizationAddress),
+            controller: getAddress(options.controllerAddress),
+          } as Record<Signer, Address>,
+        };
 
-  const addresses: Record<Signer, Address> = accounts
-    ? {
-        organization: accounts.organization.address,
-        controller: accounts.controller.address,
-      }
-    : {
-        organization: options.organizationAddress as Address,
-        controller: options.controllerAddress as Address,
-      };
-
+  const { accounts, addresses } = resolved;
   const canSign = accounts !== undefined;
 
   if (addresses.organization === addresses.controller) {

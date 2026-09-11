@@ -467,6 +467,20 @@ export const agents = new Hono<DepsEnv>()
       });
     } catch (error) {
       const outcome = describeDenial(error, resolver);
+
+      /**
+       * A write that never reached the resolver leaves no mark on the log.
+       *
+       * The activity log is the agent's history, and `ens.action.denied` is a
+       * claim about authority. Writing that row for a missing signing key would
+       * put "Controller was denied agent-context" in a permanent record of
+       * something the controller was never refused — a lie that outlives the
+       * screen that showed it, and one a later audit has no way to unpick.
+       */
+      if (outcome.status === "not_configured") {
+        return c.json({ ...outcome, key, before });
+      }
+
       await store.recordEvent({
         organizationId: ORGANIZATION_ID,
         agentId: agent.id,
