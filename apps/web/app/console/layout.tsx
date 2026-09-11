@@ -46,6 +46,23 @@ export const metadata = {
 
 export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
   return (
+    /*
+      The surface paints the viewport; the content is what is centred.
+
+      These were one element, so `surface-body` was painted only across the
+      72rem column. On anything wider that left the console as a lighter slab
+      — rgb(16,16,24) in dark — floating on the body's near-black, with a
+      visible band down each side and another under the fold. In light it was
+      the reverse: a tinted stripe between two white margins, the body still
+      wearing the landing page's shadcn `--background`. Two grounds that were
+      never meant to be seen together, and the seam moved with the viewport.
+
+      Splitting them means the surface has no width of its own to disagree
+      about: it fills, and `maxWidth` constrains only the column inside it.
+
+      A VStack rather than a div: `AGENTS.md` gives the raw-layout exception to
+      `Frame` by name, and nothing here needs one.
+    */
     <VStack width="100%" minHeight="100vh" className="surface-body">
       <VStack
         gap={8}

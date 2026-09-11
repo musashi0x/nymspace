@@ -393,3 +393,74 @@ describe("activity is one log with per-source provenance", () => {
     ).rejects.toThrow(/secret-shaped key/);
   });
 });
+
+describe("page views", () => {
+  /**
+   * Asserted as deltas, not absolutes.
+   *
+   * `pageViewStats` aggregates the whole table and `page_views` hangs off no
+   * organization, so the `beforeEach` cascade does not reach it. The obvious
+   * fix — truncate in setup — would delete real traffic from whatever database
+   * the suite is pointed at, which on this project is the same one the demo
+   * uses. Measuring the change instead is both safe and a stronger assertion:
+   * it holds on an empty table and on a busy one.
+   */
+  const marker = () => `test-${randomUUID()}`;
+
+  it("counts a repeat visitor once and their views twice", async () => {
+    const before = await store.pageViewStats();
+    const visitorId = marker();
+
+    await store.recordPageView({ visitorId, path: "/", isBot: false });
+    const after = await store.recordPageView({
+      visitorId,
+      path: "/console",
+      isBot: false,
+    });
+
+    expect(after.views - before.views).toBe(2);
+    expect(after.visitors - before.visitors).toBe(1);
+
+    await db.execute(sql`delete from page_views where visitor_id = ${visitorId}`);
+  });
+
+  it("keeps bots out of views and visitors, and counts them separately", async () => {
+    const before = await store.pageViewStats();
+    const human = marker();
+    const bot = marker();
+
+    await store.recordPageView({ visitorId: human, path: "/", isBot: false });
+    const after = await store.recordPageView({
+      visitorId: bot,
+      path: "/",
+      isBot: true,
+    });
+
+    // The claim the landing page makes: a bot moves the excluded count and
+    // nothing else. If it ever leaked into `views`, the page would be
+    // overstating readership while displaying a filter that says it does not.
+    expect(after.views - before.views).toBe(1);
+    expect(after.visitors - before.visitors).toBe(1);
+    expect(after.botViews - before.botViews).toBe(1);
+
+    await db.execute(
+      sql`delete from page_views where visitor_id in (${human}, ${bot})`,
+    );
+  });
+
+  it("reports when counting started", async () => {
+    const visitorId = marker();
+    const stats = await store.recordPageView({
+      visitorId,
+      path: "/",
+      isBot: false,
+    });
+
+    // Never null once a row exists — a total with no start date reads as
+    // all-time and is not.
+    expect(stats.since).not.toBeNull();
+    expect(new Date(stats.since!).getTime()).toBeLessThanOrEqual(Date.now());
+
+    await db.execute(sql`delete from page_views where visitor_id = ${visitorId}`);
+  });
+});

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 32" width="128" height="32" role="img" aria-label="Nymspace">
+  <title>Nymspace</title>
+  <g transform="translate(0 1) scale(0.9375)">
+    <path fill="#fafafa" fill-rule="evenodd" d="M6 2h20a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4Zm10 8a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"/>
+  </g>
+  <text x="42" y="21.5" fill="#fafafa"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, &quot;Liberation Mono&quot;, monospace"
+        font-size="14" letter-spacing="2.6"
+        textLength="85.5" lengthAdjust="spacingAndGlyphs">NYMSPACE</text>
+</svg>

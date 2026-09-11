@@ -16,6 +16,7 @@ import "server-only";
  * schema grows.
  */
 
+export * from "./bots";
 export * from "./types";
 export * from "./store";
 export {

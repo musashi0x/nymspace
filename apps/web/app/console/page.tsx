@@ -7,6 +7,7 @@ import { fetchAgents } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
 import { FleetTable, type FleetRow } from "@/components/console/fleet-table";
 import { Empty, Frame, Provenance } from "@/components/console/primitives";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 /**
  * Screen 1 — Fleet home.
@@ -65,12 +66,20 @@ export default async function FleetPage() {
           }
         />
       ) : (
+        /*
+          The reveal opens over the fleet itself, not over a picture of one.
+          The table keeps its own height and place in the flow, so the mask
+          costs no scroll — it only decides how much of the table is painted on
+          the way in.
+        */
+        <ScrollReveal variant="curtain" className="min-w-0">
         <Frame
           title="fleet"
           subtitle="Five integration states per agent, kept separate. A single ready badge would hide the one an operator needs. Forty rows at a time — scroll to load the rest."
         >
           <FleetTable agents={fleet.agents as unknown as FleetRow[]} />
         </Frame>
+        </ScrollReveal>
       )}
     </VStack>
   );

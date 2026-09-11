@@ -12,6 +12,7 @@ import {
   graphSnapshots,
   identitySnapshots,
   organizations,
+  pageViews,
 } from "./schema";
 import {
   assertEvidence,
@@ -33,6 +34,7 @@ import {
   type GraphSnapshot,
   type NewActivityEvent,
   type Organization,
+  type PageViewStats,
   type ProvisioningStatus,
 } from "./types";
 
@@ -444,6 +446,53 @@ export class Store {
       .limit(Math.min(filter.limit ?? 100, 500));
 
     return rows.map(toActivityEvent);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Site traffic
+  ////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Record one page view and return the totals including it.
+   *
+   * Returning the stats from the same call is deliberate: the caller is a
+   * browser that just arrived, and a separate read would either race its own
+   * write or need a second round trip to show a number that is already known.
+   */
+  async recordPageView(view: {
+    visitorId: string;
+    path: string;
+    isBot: boolean;
+  }): Promise<PageViewStats> {
+    await this.db.insert(pageViews).values({
+      id: randomUUID(),
+      visitorId: view.visitorId,
+      path: view.path,
+      isBot: view.isBot,
+    });
+
+    return this.pageViewStats();
+  }
+
+  async pageViewStats(): Promise<PageViewStats> {
+    // One pass. Two queries would let the bot count and the view count come
+    // from different instants, which is visible as a total that does not add
+    // up on a busy page.
+    const [row] = await this.db
+      .select({
+        views: sql<string>`count(*) filter (where ${pageViews.isBot} = false)`,
+        visitors: sql<string>`count(distinct ${pageViews.visitorId}) filter (where ${pageViews.isBot} = false)`,
+        botViews: sql<string>`count(*) filter (where ${pageViews.isBot} = true)`,
+        since: sql<Date | null>`min(${pageViews.createdAt})`,
+      })
+      .from(pageViews);
+
+    return {
+      views: Number(row?.views ?? 0),
+      visitors: Number(row?.visitors ?? 0),
+      botViews: Number(row?.botViews ?? 0),
+      since: row?.since ? new Date(row.since).toISOString() : null,
+    };
   }
 }
 

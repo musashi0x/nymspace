@@ -1,3 +1,26 @@
+/* Layer order, declared before the imports so it is the cascade's, not the
+   import order's, decision.
+
+   Import order alone was deciding this, and it decided wrong. Astryx's CSS is
+   imported after Tailwind's so that Astryx beats Tailwind's *preflight* — that
+   part was deliberate and is still needed, because preflight is a `@layer base`
+   reset and Astryx has to win on its own custom elements. But layer order is
+   resolved by first appearance, so importing Astryx last also put `reset`,
+   `astryx-base` and `astryx-theme` after Tailwind's `utilities`, and a later
+   layer wins regardless of specificity. Every Tailwind utility that collided
+   with Astryx's reset silently lost.
+
+   It was visible on the landing page: `size-6` on a commit avatar produced a
+   24px width and no height, because `img { height: auto }` in Astryx's reset
+   outranked it. The 460x460 avatar then stretched to the flex line — 24x62,
+   `object-fit: fill` — which is the squashed image on the build log.
+
+   `utilities` last is the whole fix. Astryx still precedes Tailwind's `base`,
+   so it still wins its custom elements; utilities now outrank Astryx's reset,
+   which is what a utility is for. Names are the ones the built stylesheet
+   actually emits — check with `document.styleSheets` if this list ever drifts. */
+@layer properties, theme, base, components, reset, astryx-base, astryx-theme, utilities;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
