@@ -48,13 +48,11 @@ export const ERROR_COPY: Record<ErrorKind, Omit<ConsoleError, "detail">> = {
    * No signing key, which is not the resolver saying no.
    *
    * `describeDenial` wraps every failed write, including one that never
-   * reached a chain because the client was built read-only. That answer
-   * carries `source: "ensv2"` like a real refusal does, and the only thing
-   * separating them is `status` — so without this kind, a missing environment
+   * reached a chain because the client was built read-only, and stamps
+   * `source: "ensv2"` on both. Without this kind a missing environment
    * variable renders as "Something failed" at best and as the control plane
-   * refusing the operator at worst. Those are opposite facts about an agent's
-   * authority, and an approval gate is exactly where confusing them costs the
-   * most.
+   * refusing the operator at worst — opposite facts about an agent's
+   * authority, confused at an approval gate, which is where it costs the most.
    */
   not_configured: {
     kind: "not_configured",
@@ -100,9 +98,19 @@ export function classify(outcome: {
   status?: string;
   source?: string;
   reason?: string;
+  detail?: string;
   error?: string;
 }): ConsoleError {
-  const detail = outcome.reason ?? outcome.error ?? "";
+  /**
+   * `detail` first, because `reason` is a code and `detail` is the sentence.
+   *
+   * `describeDenial` returns both: `reason` names the error class — "NoSignerError",
+   * "EACUnauthorizedAccountRoles" — and `detail` carries the message, which for a
+   * configuration fault is the only place the variable to set appears. Preferring
+   * the code showed the operator a class name and no remedy. Callers that pass
+   * neither fall through to `error` exactly as before.
+   */
+  const detail = outcome.detail ?? outcome.reason ?? outcome.error ?? "";
 
   if (outcome.status === "denied" && outcome.source === "ensv2") {
     return { ...ERROR_COPY.identity_policy, detail };
@@ -113,9 +121,17 @@ export function classify(outcome: {
   if (outcome.status === "indexing_pending") {
     return { ...ERROR_COPY.indexing_pending, detail };
   }
-  // Checked before the RPC test below, because NoSignerError's message names
-  // the environment variables and would otherwise be read as an RPC fault.
-  if (/no signing key|read-only|NoSignerError/i.test(detail)) {
+  /**
+   * The API's own word for it, not a search of its prose.
+   *
+   * This was a regex over the sentence `NoSignerError` happens to carry —
+   * which meant rewording that message in `packages/ens` would have silently
+   * regressed the classification with nothing failing to compile, and the bare
+   * substring "read-only" also matches RPC failover text, so an outage could
+   * be reported as a configuration problem. `describeDenial` now detects the
+   * error by class and says so in `status`.
+   */
+  if (outcome.status === "not_configured") {
     return { ...ERROR_COPY.not_configured, detail };
   }
   if (/rpc|timed out|ECONN|unreachable/i.test(detail)) {

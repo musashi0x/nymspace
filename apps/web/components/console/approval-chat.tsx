@@ -12,7 +12,8 @@ import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { grantPermission } from "@/lib/api";
 import { classify, type ConsoleError } from "@/lib/console/errors";
 import { LOADING_COPY } from "@/lib/console/state";
@@ -75,8 +76,22 @@ export function ApprovalChat({
   source: string;
   readAt: string;
 }) {
+  const router = useRouter();
   const [settled, setSettled] = useState<Settled | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  /**
+   * The re-entrancy guard, in a ref rather than in `busy`.
+   *
+   * `busy` is read from the render closure and `isDisabled` only takes effect
+   * after React re-renders, so two clicks landing in the same frame both see
+   * `null` and both send. On a screen whose entire purpose is that a
+   * destructive write happens once and only when approved, two signed
+   * transactions for one decision is the failure that matters most. A ref set
+   * synchronously before the await closes the window; `busy` stays for the
+   * label and the disabled state, which are about what the operator sees.
+   */
+  const sending = useRef(false);
 
   /**
    * The one destructive action on offer: revoking a key the controller holds.
@@ -90,7 +105,7 @@ export function ApprovalChat({
   const held = cells.filter((cell) => cell.allowed).length;
 
   async function decide(approve: boolean) {
-    if (!revocable || busy) return;
+    if (!revocable || sending.current) return;
 
     if (!approve) {
       setSettled({
@@ -100,6 +115,7 @@ export function ApprovalChat({
       return;
     }
 
+    sending.current = true;
     setBusy(LOADING_COPY.transaction);
     try {
       const result = await grantPermission(agentId, {
@@ -110,6 +126,31 @@ export function ApprovalChat({
 
       if (result.status === "confirmed" && "transaction" in result) {
         setSettled({ decision: "approved", detail: result.transaction.hash });
+        /**
+         * Re-read the server component, so the matrix above stops contradicting
+         * the outcome below it.
+         *
+         * Without this the tool call still reads `allowed <key>` under the
+         * timestamp of a read the write has just invalidated — a stale value
+         * wearing a read time, which is the exact thing the Snapshot machinery
+         * in `@nymspace/store` exists to make impossible everywhere else.
+         */
+        router.refresh();
+        return;
+      }
+
+      /**
+       * A failed write that still has a hash reached the chain and reverted.
+       *
+       * That is a different fact from one that never got there, and the hash is
+       * the only way to find out why. Classifying it would drop the hash and
+       * title it "Something failed", so it is reported as what it is.
+       */
+      if ("transaction" in result) {
+        setSettled({
+          decision: "approved",
+          detail: `reverted on chain — ${result.transaction.hash}`,
+        });
         return;
       }
 
@@ -117,15 +158,21 @@ export function ApprovalChat({
        * Everything else is classified rather than retold.
        *
        * A genuine EAC refusal, an absent signing key and an RPC that never
-       * answered all arrive through `describeDenial` wearing `source: "ensv2"`,
-       * and they are three different facts about this agent's authority. The
-       * taxonomy is the only thing keeping them apart.
+       * answered all arrive wearing `source: "ensv2"`, and they are three
+       * different facts about this agent's authority. `describeDenial` now
+       * separates the middle one by class, and the taxonomy keeps the rest
+       * apart.
        */
       setSettled({
         decision: "approved",
         detail: "the write did not complete",
         error: classify(
-          result as { status?: string; source?: string; reason?: string },
+          result as {
+            status?: string;
+            source?: string;
+            reason?: string;
+            detail?: string;
+          },
         ),
       });
     } catch (cause) {
@@ -137,6 +184,7 @@ export function ApprovalChat({
         }),
       });
     } finally {
+      sending.current = false;
       setBusy(null);
     }
   }
