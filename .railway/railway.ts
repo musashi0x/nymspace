@@ -149,6 +149,13 @@ export default defineRailway(() => {
        */
       WEB_ORIGIN: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
       /**
+       * This service's own public origin. Every fleet agent's MCP endpoint is
+       * `<origin>/mcp/<label>` on this process, and the value is written to
+       * ENS, so a generated domain that later changes means one `setText` per
+       * agent. It is also the single origin the outbound MCP guard exempts.
+       */
+      AGENT_MCP_BASE_URL: "https://${{api.RAILWAY_PUBLIC_DOMAIN}}",
+      /**
        * Yes, a `NEXT_PUBLIC_` variable on a server that ships no client
        * bundle. `privyCredentials()` reads this one straight off
        * `process.env` (packages/privy/src/wallet.ts:39) because Privy's app id

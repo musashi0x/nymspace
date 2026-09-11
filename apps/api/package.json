@@ -17,6 +17,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.6",
     "@hono/zod-validator": "^0.9.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
     "@nymspace/github": "workspace:*",
