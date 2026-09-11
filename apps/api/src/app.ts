@@ -12,6 +12,7 @@ import { mcpConnect } from "./routes/mcp";
 import { chat } from "./routes/chat";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
+import { signers } from "./routes/signers";
 import { traffic } from "./routes/traffic";
 
 /**
@@ -50,6 +51,7 @@ export const DEPENDENT_ROUTES = [
   "/v1/discover",
   "/v1/activity",
   "/v1/chat",
+  "/v1/signers",
   "/v1/mcp",
 ] as const;
 
@@ -130,6 +132,7 @@ export function createApp(config: ApiConfig, deps?: Deps, sink: Sink = stdoutSin
     .route("/v1/discover", discover)
     .route("/v1/activity", activity)
     .route("/v1/chat", chat)
+    .route("/v1/signers", signers)
     .route("/v1/github", github)
     .route("/v1/traffic", traffic)
     .route(

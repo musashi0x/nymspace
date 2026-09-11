@@ -55,6 +55,19 @@ export async function fetchHealth() {
   return res.json();
 }
 
+/**
+ * The addresses this deployment signs with.
+ *
+ * The create-agent screen reads `controller` from here rather than asking for
+ * it. Only this address works, so a field that accepts any other is a field
+ * that accepts a mistake.
+ */
+export async function fetchSigners() {
+  const res = await api.v1.signers.$get();
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
 /** The fleet, with each agent's five integration states separately. */
 export async function fetchAgents() {
   const res = await api.v1.agents.$get();

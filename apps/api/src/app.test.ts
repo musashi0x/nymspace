@@ -1113,3 +1113,35 @@ describe("creating an agent", () => {
     expect(json.complete).toBe(false);
   });
 });
+
+describe("the signing accounts", () => {
+  const ORGANIZATION = "0x1111111111111111111111111111111111111111";
+  const CONTROLLER = "0x2222222222222222222222222222222222222222";
+
+  const get = (app: ReturnType<typeof createApp>) =>
+    app.fetch(new Request("http://api.test/v1/signers"));
+
+  it("serves both addresses and the read time", async () => {
+    const deps = { organization: ORGANIZATION, controller: CONTROLLER } as unknown as Deps;
+    const res = await get(createApp(config, deps));
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as Record<string, string>;
+    expect(json.organization).toBe(ORGANIZATION);
+    expect(json.controller).toBe(CONTROLLER);
+    // Every read in this API says when it was read; a bare address reads as a
+    // constant and this one changes with the deployment.
+    expect(Date.parse(json.readAt!)).not.toBeNaN();
+  });
+
+  /**
+   * The route is only useful if it is reachable, and `DEPENDENT_ROUTES` is a
+   * hand-maintained list. A path missing from it runs with `c.var.deps`
+   * undefined and throws on the first destructure, which surfaces as a generic
+   * 500 rather than as anything naming the cause.
+   */
+  it("receives its dependencies", async () => {
+    const res = await get(createApp(config, { organization: "0x0", controller: "0x0" } as unknown as Deps));
+    expect(res.status).not.toBe(500);
+  });
+});
