@@ -19,6 +19,15 @@ import { ViewTransition } from "@/components/console/view-transition";
  * unreconciled, the punch is a visibly tinted lozenge behind every title.
  * Painting the shell here reconciles them inside the console without touching
  * the landing page.
+ *
+ * ## Two elements, because a surface and a column are two jobs
+ *
+ * The outer one paints and is full-bleed; the inner one is the 72rem measure
+ * and is transparent. One element doing both meant the paint stopped where the
+ * column stopped, so on any viewport wider than 72rem the console sat as a
+ * tinted stripe between two white margins — the body showing through, still
+ * wearing the landing page's background. A reading measure is a constraint on
+ * line length, never on where the page's colour reaches.
  */
 
 const NAV = [
@@ -37,47 +46,48 @@ export const metadata = {
 
 export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
   return (
-    <VStack
-      gap={8}
-      paddingInline={6}
-      paddingBlock={8}
-      minHeight="100vh"
-      maxWidth="72rem"
-      width="100%"
-      className="surface-body mx-auto min-w-0"
-    >
-      <HStack
-        as="header"
-        gap={6}
-        justify="between"
-        align="center"
-        paddingBlockEnd={4}
-        className="frame-rule-below"
+    <VStack width="100%" minHeight="100vh" className="surface-body">
+      <VStack
+        gap={8}
+        paddingInline={6}
+        paddingBlock={8}
+        maxWidth="72rem"
+        width="100%"
+        className="mx-auto min-w-0"
       >
-        <HStack gap={6} align="end">
-          <Link href="/">
-            <Text type="code" size="xsm" color="secondary">
-              NYMSPACE
-            </Text>
-          </Link>
-          <HStack as="nav" gap={4}>
-            {NAV.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <Text type="body" size="sm" color="secondary">
-                  {item.label}
-                </Text>
-              </Link>
-            ))}
+        <HStack
+          as="header"
+          gap={6}
+          justify="between"
+          align="center"
+          paddingBlockEnd={4}
+          className="frame-rule-below"
+        >
+          <HStack gap={6} align="end">
+            <Link href="/">
+              <Text type="code" size="xsm" color="secondary">
+                NYMSPACE
+              </Text>
+            </Link>
+            <HStack as="nav" gap={4}>
+              {NAV.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <Text type="body" size="sm" color="secondary">
+                    {item.label}
+                  </Text>
+                </Link>
+              ))}
+            </HStack>
           </HStack>
+          <ThemeToggle />
         </HStack>
-        <ThemeToggle />
-      </HStack>
-      {/*
-        Only the screen fades. The header and nav sit outside, because chrome
-        that re-animates on every navigation reads as the whole page reloading
-        rather than as the content changing.
-      */}
-      <ViewTransition>{children}</ViewTransition>
+        {/*
+          Only the screen fades. The header and nav sit outside, because chrome
+          that re-animates on every navigation reads as the whole page reloading
+          rather than as the content changing.
+        */}
+        <ViewTransition>{children}</ViewTransition>
+      </VStack>
     </VStack>
   );
 }
