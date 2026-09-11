@@ -27,6 +27,25 @@ import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
  * window. The fetch stays on the server.
  */
 
+/**
+ * `2026-09-11 20:06:28`, not the locale's `9/11/2026, 8:06:28 PM`. Every
+ * timestamp is the same width, so the column has a width that fits all of
+ * them — the locale form loses its AM/PM tail to the truncation instead.
+ * `hourCycle` rather than `hour12: false`, which renders midnight as 24:00
+ * under some locale data.
+ */
+const WHEN = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const formatWhen = (iso: string) => WHEN.format(new Date(iso)).replace(",", "");
+
 const STATUS_TONE = {
   success: "good",
   denied: "warn",
@@ -51,10 +70,10 @@ const COLUMNS: TableColumn<ActivityRow>[] = [
   {
     key: "occurredAt",
     header: "when",
-    width: proportional(1),
+    width: proportional(1, { minWidth: 190 }),
     renderCell: (row) => (
       <Text type="code" size="sm" hasTabularNumbers textWrap="nowrap">
-        {new Date(row.occurredAt).toLocaleString()}
+        {formatWhen(row.occurredAt)}
       </Text>
     ),
   },

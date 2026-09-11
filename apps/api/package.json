@@ -10,7 +10,9 @@
   },
   "scripts": {
     "dev": "tsx watch --exclude \"**/evidence/**\" --env-file-if-exists=../../.env --conditions=react-server src/index.ts",
+    "build": "node scripts/build.mjs",
     "start": "tsx --env-file-if-exists=../../.env --conditions=react-server src/index.ts",
+    "start:dist": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^24",
+    "esbuild": "^0.28.2",
     "typescript": "^5",
     "vitest": "^4.0.18"
   }

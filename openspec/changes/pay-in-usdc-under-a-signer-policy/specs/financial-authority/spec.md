@@ -43,6 +43,16 @@ The routine agent signer SHALL NOT be able to modify its own constraints. The co
 - **WHEN** a wallet update that would change the agent signer's policies is submitted and signed with the agent's own authorization key
 - **THEN** Privy MUST refuse it, and the signer's policies MUST be unchanged afterwards
 
+#### Scenario: An owned policy moves only under the owner
+
+- **WHEN** Privy policies accept an owner
+- **THEN** the agent's policy MUST be owned by the organization's key quorum, and an update to it MUST be refused when it is signed with the agent's key or carries app credentials only
+
+#### Scenario: An unowned policy says who can move it
+
+- **WHEN** Privy policies do not accept an owner
+- **THEN** the gate evidence and the authority description MUST state that the app secret can move the limit, and MUST NOT claim that the agent's runtime cannot
+
 #### Scenario: An unsigned request carries no authority
 
 - **WHEN** a wallet request is submitted with no authorization signature
@@ -78,3 +88,46 @@ An approval affordance SHALL be offered only when a distinct higher authority is
 
 - **WHEN** an approved payment executes
 - **THEN** the activity event MUST resolve the pending request in place and MUST record which authority executed it
+
+### Requirement: A person authorizes an approval, not reachability
+
+An approval SHALL execute only when the person approving presents an operator credential. Being able to reach the approve route SHALL NOT be enough. The claim made on screen about an approval SHALL match the custody of the key that executes it.
+
+#### Scenario: No credential, no approval
+
+- **WHEN** an approve request arrives without a valid operator credential
+- **THEN** it MUST be refused, and nothing MUST execute
+
+#### Scenario: The credential comes from the person
+
+- **WHEN** the console submits an approval
+- **THEN** the credential MUST be supplied by the person for that approval, and MUST NOT be read from a server environment or a stored copy
+
+#### Scenario: The agent's path cannot approve
+
+- **WHEN** the code that submits the agent's payments is inspected
+- **THEN** it MUST NOT hold the operator credential, and the API MUST hold only a verifier from which the credential cannot be recovered
+
+#### Scenario: The claim matches the custody
+
+- **WHEN** the owner's key is held by the server
+- **THEN** the console and the documentation MUST describe the approval as a server-held owner key gated by an operator credential, and MUST NOT describe it as the organization's key approving
+
+### Requirement: The server cannot impersonate a browser-held owner
+
+Once the owner's key is held in the browser, the deployed server SHALL be unable to produce an owner approval on its own. The owner SHALL stay recoverable if the browser key is lost.
+
+#### Scenario: The server relays and does not sign
+
+- **WHEN** the owner's key is held in the browser
+- **THEN** the deployed server MUST hold no owner key, and the approval MUST be signed in the browser over a payload the server prepared from the stored denial
+
+#### Scenario: An altered approval is refused
+
+- **WHEN** a relayed approval's body differs from the body that was signed
+- **THEN** Privy MUST refuse it, and nothing MUST execute
+
+#### Scenario: Losing the browser does not lose the owner
+
+- **WHEN** the browser key is lost
+- **THEN** the owner quorum MUST still be satisfiable by an ops key held outside the deployment

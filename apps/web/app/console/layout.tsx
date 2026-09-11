@@ -3,6 +3,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ConsoleNav } from "@/components/console/nav";
 import { ViewTransition } from "@/components/console/view-transition";
 
 /**
@@ -29,14 +30,6 @@ import { ViewTransition } from "@/components/console/view-transition";
  * wearing the landing page's background. A reading measure is a constraint on
  * line length, never on where the page's colour reaches.
  */
-
-const NAV = [
-  { href: "/console", label: "Fleet" },
-  { href: "/console/new", label: "New agent" },
-  { href: "/console/discover", label: "Discover" },
-  { href: "/console/chat", label: "Chat" },
-  { href: "/console/activity", label: "Activity" },
-] as const;
 
 export const metadata = {
   title: "Nymspace console",
@@ -86,15 +79,7 @@ export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
                 NYMSPACE
               </Text>
             </Link>
-            <HStack as="nav" gap={4}>
-              {NAV.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  <Text type="body" size="sm" color="secondary">
-                    {item.label}
-                  </Text>
-                </Link>
-              ))}
-            </HStack>
+            <ConsoleNav />
           </HStack>
           <ThemeToggle />
         </HStack>
