@@ -116,8 +116,93 @@ export interface LensUnanswered {
   suggestions: string[];
 }
 
-export type ConsoleAnswer = ({ kind: "lens" } & LensAnswer) | LensUnanswered;
+/**
+ * One request a plan will send, written out in full.
+ *
+ * The plan *is* the requests. There is no parallel execution path inside the
+ * chat route that re-implements what the product routes already do — the step
+ * names the endpoint and carries the body, the browser sends it to the same
+ * URL any other screen would, and the answer comes back through the same
+ * validation, the same signer and the same activity log. A chat that grew its
+ * own way to grant a permission would be a second implementation of the one
+ * thing this product is about.
+ *
+ * It is also what makes the confirmation honest. "Show request" on a plan is
+ * not a rendering of what the console intends to do; it is the bytes.
+ */
+export interface PlanStep {
+  /** What this step accomplishes, in the operator's language. */
+  title: string;
+  method: "POST";
+  /** Relative to the API base, e.g. `/v1/agents/agent-research/records`. */
+  path: string;
+  body: Record<string, unknown>;
+  /**
+   * Which key signs it, named so the operator can see authority change hands
+   * mid-plan. The controller writing its own record and the organization
+   * granting it the right to are different powers, and a plan that does both
+   * without saying so hides the only interesting thing about it.
+   */
+  actor: "organization" | "controller" | "agent wallet";
+  /**
+   * Set when the step is expected to be refused, and why.
+   *
+   * The permission proof and the spend limit are steps whose *failure* is the
+   * result. Without this the console would have to decide after the fact
+   * whether a denial was the point, and it would sometimes decide wrong.
+   */
+  expectDenial?: string;
+}
+
+/**
+ * A write the console has understood but not performed.
+ *
+ * Returned instead of doing it. `POST /v1/chat` reads and matches; it never
+ * writes, and nothing here has happened yet — the plan is an offer, and the
+ * operator's confirmation is what turns it into requests. That split is why a
+ * chat is allowed near an irreversible action at all.
+ */
+export interface LensPlan {
+  kind: "plan";
+  title: string;
+  /** One sentence on what this does and what it costs. */
+  summary: string;
+  steps: PlanStep[];
+  /** What to say once every step has run. */
+  closing: string;
+}
+
+export type ConsoleAnswer =
+  | ({ kind: "lens" } & LensAnswer)
+  | LensUnanswered
+  | LensPlan;
 
 export function isUnanswered(answer: ConsoleAnswer): answer is LensUnanswered {
   return answer.kind === "unanswered";
 }
+
+export function isPlan(answer: ConsoleAnswer): answer is LensPlan {
+  return answer.kind === "plan";
+}
+
+/**
+ * What the console can be asked, in the order the demo walks them.
+ *
+ * Here rather than in either app because both need it and they must not drift:
+ * the web page offers these as the opening, and the API returns them when it
+ * did not understand. Two copies would eventually offer a question the matcher
+ * no longer answers — the console inviting you to ask something it will then
+ * refuse, which is worse than offering nothing.
+ *
+ * Every line has to match a real intent. This list is a promise.
+ */
+export const CONSOLE_SUGGESTIONS = [
+  "show me the fleet",
+  "show research",
+  "create a support agent",
+  "let research update its agent-context",
+  'as research, set agent-context to "Specialized in ENS research"',
+  "as research, set its mcp endpoint to https://example.com/mcp",
+  "pay 0.0001 ETH from research to research",
+  "show the audit trail for research",
+] as const;

@@ -7,12 +7,15 @@ import {
   agentRegistrationKey,
   assembleManifest,
 } from "@nymspace/ens";
+import { CONSOLE_SUGGESTIONS } from "@nymspace/core";
 import type {
   ConsoleAnswer,
   LensDetail,
   LensEdge,
   LensNode,
+  LensPlan,
   LensTone,
+  PlanStep,
 } from "@nymspace/core";
 import { ORGANIZATION_ID, REGISTRATION_CHAIN_ID, type DepsEnv } from "../deps";
 import { readAt } from "./shared";
@@ -33,24 +36,22 @@ import { readAt } from "./shared";
  * an empty diagram is a claim about the fleet, and the failure here is a
  * failure to understand, which is a claim about the question.
  *
- * Intents, deliberately few:
+ * Intents:
  *
- *   fleet          every agent against every track
- *   agent <name>   one agent's identity, authority and records
+ *   fleet            every agent against every track
+ *   agent <name>     one agent's identity, authority and records
+ *   audit <name>     that agent's lifecycle, from the activity log
+ *   create / grant / write / pay    answered with a plan, never performed
  *
- * Adding a third means adding a matcher and a builder, both of which are read
- * paths. Nothing in this file writes.
+ * Nothing in this file writes. The four action intents return a {@link LensPlan}
+ * naming the product routes that would do the work, and the operator's
+ * confirmation is what sends them — so the chat can propose an irreversible
+ * change without ever being the thing that made it.
  */
 
 const askSchema = z.object({
   message: z.string().min(1).max(400),
 });
-
-const SUGGESTIONS = [
-  "show me the fleet",
-  "show research",
-  "who can write agent-context on research",
-] as const;
 
 export const chat = new Hono<DepsEnv>().post(
   "/",
@@ -67,6 +68,23 @@ type Deps = DepsEnv["Variables"]["deps"];
 async function route(message: string, deps: Deps): Promise<ConsoleAnswer> {
   const text = message.toLowerCase();
 
+  /**
+   * Writes are matched first, and answered with a plan rather than performed.
+   *
+   * Before the read intents, because "show research" and "let research write
+   * its context" both name an agent and the second must not be answered with a
+   * diagram. Nothing in this function writes: every write branch returns a
+   * {@link LensPlan}, which is an offer the operator has to accept, and the
+   * requests it names are the product routes any other screen would call.
+   */
+  const plan = await matchPlan(text, message, deps);
+  if (plan) return plan;
+
+  if (/\b(audit|trail|history|timeline|what happened)\b/.test(text)) {
+    const id = await matchAgent(text, deps);
+    if (id) return auditLens(id, deps);
+  }
+
   if (/\b(fleet|agents|everything|all)\b/.test(text) && !nameIn(text, deps)) {
     return fleetLens(deps);
   }
@@ -78,13 +96,342 @@ async function route(message: string, deps: Deps): Promise<ConsoleAnswer> {
     kind: "unanswered",
     message:
       "I did not recognise an agent or a topic in that. I answer from live ENS, ERC 8004 and permission reads, so I can only answer about things I can go and check.",
-    suggestions: [...SUGGESTIONS],
+    suggestions: [...CONSOLE_SUGGESTIONS],
   };
 }
 
 /** Cheap pre-check so "show me the agents" does not beat "show research". */
 function nameIn(text: string, _deps: Deps): boolean {
   return /\b[a-z0-9-]+\.[a-z0-9-]+\.eth\b/.test(text);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Audit — the lifecycle, read back from what was written at the time
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * One agent's history, oldest first.
+ *
+ * Chronological, against the timeline screen's newest-first, because this
+ * answers "what happened to this agent" rather than "what just happened". A
+ * lifecycle read backwards is a list of events; read forwards it is a story
+ * with an offboarding at the end.
+ *
+ * Denials are rows like any other. A trail that showed only successes would be
+ * the one artifact in this product capable of proving nothing was ever refused
+ * — see `store.listActivity`, which refuses to filter them for the same reason.
+ */
+async function auditLens(id: string, deps: Deps): Promise<ConsoleAnswer> {
+  const agent = await deps.store.getAgent(id);
+  if (!agent) return unrecognised();
+
+  const events = await deps.store.listActivity({
+    organizationId: ORGANIZATION_ID,
+    agentId: id,
+  });
+  const ordered = [...events].reverse();
+
+  const lanes = ["WHEN", "WHAT", "EVIDENCE"];
+  const nodes: LensNode[] = [];
+  const edges: LensEdge[] = [];
+
+  for (const [i, event] of ordered.entries()) {
+    const tone: LensTone =
+      event.status === "success"
+        ? "verified"
+        : event.status === "denied"
+          ? "denied"
+          : event.status === "failed"
+            ? "absent"
+            : "unknown";
+
+    nodes.push({
+      id: `when:${i}`,
+      lane: "WHEN",
+      label: event.occurredAt.slice(11, 19) + "Z",
+      sublabel: event.occurredAt.slice(0, 10),
+      tone: "active",
+    });
+    nodes.push({
+      id: `what:${i}`,
+      lane: "WHAT",
+      label: event.type,
+      sublabel: event.summary,
+      badge: event.status,
+      tone,
+    });
+    nodes.push({
+      id: `ev:${i}`,
+      lane: "EVIDENCE",
+      // A zero hash is what provisioning writes when a step never reached a
+      // chain. Shown as absent rather than as a transaction, because a row of
+      // sixty-four noughts in a hash column is a link somebody will click.
+      label: event.txHash && !/^0x0+$/.test(event.txHash) ? short(event.txHash) : "no transaction",
+      sublabel: event.actor ? `actor ${short(event.actor)}` : event.source,
+      tone: event.txHash && !/^0x0+$/.test(event.txHash) ? "verified" : "absent",
+    });
+
+    edges.push({ from: `when:${i}`, to: `what:${i}`, tone: "active" });
+    edges.push({ from: `what:${i}`, to: `ev:${i}`, label: event.status, tone });
+  }
+
+  const denied = ordered.filter((e) => e.status === "denied").length;
+
+  return {
+    kind: "lens",
+    title: `${agent.ensName} — audit trail`,
+    pills: [
+      { label: `${ordered.length} events`, tone: "active" },
+      ...(denied > 0
+        ? [{ label: `${denied} denied`, tone: "denied" as LensTone }]
+        : []),
+    ],
+    lanes,
+    nodes,
+    edges,
+    caption:
+      ordered.length === 0
+        ? "Nothing has been recorded for this agent yet."
+        : `${ordered.length} events from creation onward, oldest first. Denials are kept.`,
+    detail: ordered.map((event) => ({
+      label: event.occurredAt,
+      value: `${event.type} ${event.status} — ${event.summary}`,
+      provenance: "STORE",
+    })),
+    readAt: readAt(),
+  };
+}
+
+function unrecognised(): ConsoleAnswer {
+  return {
+    kind: "unanswered",
+    message:
+      "I did not recognise an agent or a topic in that. I answer from live ENS, ERC 8004 and permission reads, so I can only answer about things I can go and check.",
+    suggestions: [...CONSOLE_SUGGESTIONS],
+  };
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Plans — understood, described, and not performed
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The five write intents, in the order the demo walks them.
+ *
+ * Each returns a plan naming real endpoints with real bodies; none of them
+ * calls one. The matchers stay narrow and literal for the reason
+ * {@link matchAgent} gives: a near-miss here would not return the wrong
+ * diagram, it would offer to sign the wrong transaction.
+ *
+ * Two of them expect to be refused. `expectDenial` carries that forward so the
+ * console can say "this is the boundary holding" rather than working it out
+ * from a failure it was not expecting — the distinction `docs/11` spends its
+ * length on, and the one an approving operator most needs to see in advance.
+ */
+async function matchPlan(
+  text: string,
+  original: string,
+  deps: Deps,
+): Promise<LensPlan | undefined> {
+  // 1. Onboard.
+  const created = /\b(create|onboard|add|register)\b.*\bagent\b/.test(text)
+    ? /\b(?:create|onboard|add|register)\s+(?:a|an|the)?\s*([a-z0-9][a-z0-9-]{1,30})\s+agent\b/.exec(text)?.[1]
+    : undefined;
+  if (created) return onboardPlan(created, deps);
+
+  // 2. Grant a record key to the controller.
+  if (/\b(let|allow|grant|give)\b/.test(text) && /\b(update|write|edit|change|set)\b/.test(text)) {
+    const id = await matchAgent(text, deps);
+    const key = matchRecordKey(text);
+    if (id && key) return grantPlan(id, key, deps);
+  }
+
+  // 3 and 4. A controller-signed record write — permitted or refused.
+  if (/\bas\b/.test(text) && /\b(set|update|change|write)\b/.test(text)) {
+    const id = await matchAgent(text, deps);
+    const key = matchRecordKey(text);
+    if (id && key) return recordPlan(id, key, original, deps);
+  }
+
+  // 5. Pay.
+  if (/\b(pay|send|transfer)\b/.test(text)) {
+    const id = await matchAgent(text, deps);
+    const amount = matchEth(text);
+    if (id && amount) return paymentPlan(id, amount, text, deps);
+  }
+
+  return undefined;
+}
+
+/**
+ * Which record key a sentence is about.
+ *
+ * Only the three this product defines, matched on the words an operator would
+ * actually type. An unrecognised key returns nothing rather than a guess: the
+ * key is the whole subject of a permission, and inventing one would produce a
+ * plan to grant authority over a record that does not exist.
+ */
+function matchRecordKey(text: string): string | undefined {
+  if (/\b(mcp|endpoint)\b/.test(text) && !/\ba2a\b/.test(text)) {
+    return agentEndpointKey("mcp");
+  }
+  if (/\ba2a\b/.test(text)) return agentEndpointKey("a2a");
+  if (/\b(context|agent-context)\b/.test(text)) return AGENT_CONTEXT_KEY;
+  return undefined;
+}
+
+/** Wei from a sentence naming ETH. Decimal string, because 2^53 is not enough. */
+function matchEth(text: string): string | undefined {
+  const hit = /\b(\d+(?:\.\d+)?)\s*(?:eth|ether)\b/.exec(text);
+  if (!hit?.[1]) return undefined;
+  const [whole, fraction = ""] = hit[1].split(".");
+  return `${whole}${fraction.padEnd(18, "0").slice(0, 18)}`.replace(/^0+(?=\d)/, "");
+}
+
+function onboardPlan(label: string, deps: Deps): LensPlan {
+  const ensName = `${label}.${deps.parentName}`;
+  return {
+    kind: "plan",
+    title: `Onboard ${ensName}`,
+    summary:
+      `Registers the subname, points it at the Permissioned Resolver and records the controller. ` +
+      `Four Sepolia transactions, signed by the organization. The name is permanent; the grants that follow are not.`,
+    steps: [
+      {
+        title: `Register ${ensName} and set its resolver`,
+        method: "POST",
+        path: "/v1/agents",
+        body: { label, controller: deps.controller },
+        actor: "organization",
+      },
+    ],
+    closing:
+      "The agent exists and owns nothing else yet. It can write no records until a key is granted.",
+  };
+}
+
+function grantPlan(id: string, key: string, deps: Deps): LensPlan {
+  return {
+    kind: "plan",
+    title: `Grant ${key}`,
+    summary:
+      `Authorizes the controller ${short(deps.controller)} to write ${key} on this name. ` +
+      `Only the organization can grant it, and only the organization can take it back.`,
+    steps: [
+      {
+        title: `Authorize SET_TEXT on ${key}`,
+        method: "POST",
+        path: `/v1/agents/${id}/permissions`,
+        body: { controller: deps.controller, recordKey: key, grant: true },
+        actor: "organization",
+      },
+    ],
+    closing: "Re-read the agent and that cell says allowed, from chain.",
+  };
+}
+
+/**
+ * A controller-signed record write, and whether it is expected to survive.
+ *
+ * The expectation comes from a live `canSetText` rather than from the key's
+ * name, so the plan cannot promise a denial the resolver would not actually
+ * produce. That matters more than it sounds: a plan that said "this will be
+ * refused" and then succeeded would be the console teaching an operator to
+ * distrust its warnings.
+ */
+async function recordPlan(
+  id: string,
+  key: string,
+  original: string,
+  deps: Deps,
+): Promise<LensPlan | undefined> {
+  const agent = await deps.store.getAgent(id);
+  if (!agent) return undefined;
+
+  const allowed = await deps.ens.canSetText(agent.ensName, key, agent.controllerAddress);
+  const value = matchValue(original) ?? `https://example.com/${key}`;
+
+  return {
+    kind: "plan",
+    title: allowed ? `Write ${key}` : `Attempt ${key}`,
+    summary: allowed
+      ? `The controller writes its own record. It holds SET_TEXT on this key, so the resolver will accept it.`
+      : `The controller does not hold SET_TEXT on this key. The resolver will refuse, and that refusal is the result.`,
+    steps: [
+      {
+        title: allowed ? `Set ${key}` : `Try to set ${key}`,
+        method: "POST",
+        path: `/v1/agents/${id}/records`,
+        body: { key, value },
+        actor: "controller",
+        ...(allowed
+          ? {}
+          : {
+              expectDenial:
+                "EACUnauthorizedAccountRoles — the Permissioned Resolver refuses a controller that was never granted this key.",
+            }),
+      },
+    ],
+    closing: allowed
+      ? "The record is on chain. The old value and the transaction hash are both in the result."
+      : "Nothing changed, and the refusal came from the contract rather than from this console.",
+  };
+}
+
+/** The quoted or trailing value in "set X to Y". */
+function matchValue(original: string): string | undefined {
+  const quoted = /["“](.+?)["”]/.exec(original);
+  if (quoted?.[1]) return quoted[1];
+  const trailing = /\bto\s+(.+?)\s*$/i.exec(original);
+  return trailing?.[1];
+}
+
+/**
+ * Preview, then pay — two steps on purpose.
+ *
+ * The preview is the only place the spend limit is visible before the money
+ * moves, and `docs/08` is explicit that a payment screen must show the policy
+ * it is about to be judged by. Collapsing them into one call would make the
+ * limit something the operator learns from the refusal.
+ */
+async function paymentPlan(
+  id: string,
+  amountWei: string,
+  text: string,
+  deps: Deps,
+): Promise<LensPlan | undefined> {
+  const agent = await deps.store.getAgent(id);
+  if (!agent) return undefined;
+
+  const recipient = /0x[0-9a-fA-F]{40}/.exec(text)?.[0] ?? agent.controllerAddress;
+
+  return {
+    kind: "plan",
+    title: "Pay from the agent wallet",
+    summary:
+      `Checks the amount against the wallet's Privy policy, then sends it. Native ETH on Base Sepolia — ` +
+      `this adapter does not transfer tokens, whatever a policy's tokenAddress says.`,
+    steps: [
+      {
+        title: "Preview against the spend limit",
+        method: "POST",
+        path: `/v1/agents/${id}/payments/preview`,
+        body: { amount: amountWei, recipient },
+        actor: "agent wallet",
+      },
+      {
+        title: "Send the payment",
+        method: "POST",
+        path: `/v1/agents/${id}/payments`,
+        body: { amount: amountWei, recipient },
+        actor: "agent wallet",
+        expectDenial:
+          "Over the per-transaction limit, Privy refuses on the signing path and no transaction is broadcast. Under it, this succeeds.",
+      },
+    ],
+    closing:
+      "The preview and the outcome are separate evidence: one is the policy, the other is what the signer did with it.",
+  };
 }
 
 /**
@@ -219,7 +566,7 @@ async function agentLens(agentId: string, deps: Deps): Promise<ConsoleAnswer> {
     return {
       kind: "unanswered",
       message: `I matched "${agentId}" but the store no longer has it.`,
-      suggestions: [...SUGGESTIONS],
+      suggestions: [...CONSOLE_SUGGESTIONS],
     };
   }
 

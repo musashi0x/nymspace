@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import {
   ChatComposer,
   ChatMessage,
@@ -11,7 +13,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import * as React from "react";
-import type { ConsoleAnswer } from "@nymspace/core";
+import type { ConsoleAnswer, LensPlan, PlanStep } from "@nymspace/core";
 import { LensCard } from "@/components/console/lens-card";
 import { Loading, Outcome } from "@/components/console/primitives";
 import { apiBaseUrl } from "@/lib/api";
@@ -41,9 +43,27 @@ import { LOADING_COPY } from "@/lib/console/state";
  * status slot.
  */
 
+/** What one plan step did when it was actually sent. */
+interface StepOutcome {
+  step: PlanStep;
+  /** The contract refused, and for an `expectDenial` step that is the result. */
+  denied: boolean;
+  /** A transaction hash, a new value, whatever the route returned to show. */
+  evidence?: string;
+  error?: ConsoleError;
+}
+
 type Turn =
   | { role: "you"; text: string }
-  | { role: "console"; answer: ConsoleAnswer }
+  /*
+    A plan is its own turn, so it cannot arrive as a `console` answer. Stated
+    in the type rather than checked at the bottom of the renderer: `ask` routes
+    the two apart the moment the body lands, and a runtime guard for a case the
+    type forbids is a branch nobody can ever reach or test.
+  */
+  | { role: "console"; answer: Exclude<ConsoleAnswer, LensPlan> }
+  | { role: "plan"; plan: LensPlan; settled?: "ran" | "cancelled" }
+  | { role: "ran"; plan: LensPlan; outcomes: StepOutcome[] }
   | { role: "problem"; error: ConsoleError };
 
 export function ChatConsole({ suggestions }: { suggestions: readonly string[] }) {
@@ -109,7 +129,12 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
         ]);
         return;
       }
-      setTurns((prev) => [...prev, { role: "console", answer: body }]);
+      setTurns((prev) => [
+        ...prev,
+        body.kind === "plan"
+          ? { role: "plan", plan: body }
+          : { role: "console", answer: body },
+      ]);
     } catch (cause) {
       setTurns((prev) => [
         ...prev,
@@ -124,6 +149,63 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
       asking.current = false;
       setBusy(false);
     }
+  }
+
+  /**
+   * Run an approved plan, one step at a time, in order.
+   *
+   * Sequential on purpose. The steps of a plan depend on each other — a grant
+   * before the write it permits, a preview before the payment it judges — and
+   * firing them together would race a permission against the write that needs
+   * it. Slower, and the only ordering that makes the results mean anything.
+   *
+   * It does not stop on a denial, because a denied step is often the point: the
+   * payment plan previews and then deliberately attempts. It stops on nothing
+   * at all, in fact — every step's outcome is recorded and shown, and the
+   * operator reads the sequence rather than being told a verdict.
+   */
+  async function run(plan: LensPlan) {
+    if (asking.current) return;
+    asking.current = true;
+    setBusy(true);
+    setTurns((prev) =>
+      prev.map((t) =>
+        t.role === "plan" && t.plan === plan ? { ...t, settled: "ran" } : t,
+      ),
+    );
+
+    const outcomes: StepOutcome[] = [];
+    for (const step of plan.steps) {
+      try {
+        const res = await fetch(`${apiBaseUrl}${step.path}`, {
+          method: step.method,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(step.body),
+        });
+        const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        outcomes.push(readOutcome(step, res.ok, body));
+      } catch (cause) {
+        outcomes.push({
+          step,
+          denied: false,
+          error: classify({
+            error: cause instanceof Error ? cause.message : String(cause),
+          }),
+        });
+      }
+    }
+
+    setTurns((prev) => [...prev, { role: "ran", plan, outcomes }]);
+    asking.current = false;
+    setBusy(false);
+  }
+
+  function cancel(plan: LensPlan) {
+    setTurns((prev) =>
+      prev.map((t) =>
+        t.role === "plan" && t.plan === plan ? { ...t, settled: "cancelled" } : t,
+      ),
+    );
   }
 
   return (
@@ -143,7 +225,13 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
         ) : null}
 
         {turns.map((turn, i) => (
-          <TurnView key={i} turn={turn} onPick={(s) => void ask(s)} />
+          <TurnView
+            key={i}
+            turn={turn}
+            onPick={(s) => void ask(s)}
+            onRun={(plan) => void run(plan)}
+            onCancel={cancel}
+          />
         ))}
 
         {busy ? (
@@ -174,11 +262,113 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
   );
 }
 
+/**
+ * What a route's answer means for the step that asked.
+ *
+ * `denied` is read from `status`, never from the HTTP code: the API answers a
+ * refusal with 200 on purpose — `docs/11` — because a denial is the control
+ * plane working and an error status would file it with the outages. So an `ok`
+ * response can still be a refusal, and that is the interesting case rather
+ * than an edge one.
+ */
+function readOutcome(
+  step: PlanStep,
+  ok: boolean,
+  body: Record<string, unknown>,
+): StepOutcome {
+  const status = typeof body["status"] === "string" ? body["status"] : undefined;
+  const denied = status === "denied";
+
+  if (denied) {
+    return {
+      step,
+      denied: true,
+      evidence: typeof body["reason"] === "string" ? body["reason"] : undefined,
+    };
+  }
+
+  if (!ok || status === "failed" || status === "not_configured") {
+    return {
+      step,
+      denied: false,
+      error: classify({
+        status,
+        source: typeof body["source"] === "string" ? body["source"] : undefined,
+        reason: typeof body["reason"] === "string" ? body["reason"] : undefined,
+        detail: typeof body["detail"] === "string" ? body["detail"] : undefined,
+        error: typeof body["error"] === "string" ? body["error"] : undefined,
+      }),
+    };
+  }
+
+  // The evidence each route actually returns, in the order it is worth seeing.
+  const tx = body["transaction"];
+  const hash =
+    tx && typeof tx === "object" && "hash" in tx ? String(tx.hash) : undefined;
+  const evidence =
+    hash ??
+    (typeof body["after"] === "string" ? body["after"] : undefined) ??
+    (typeof body["expected"] === "string"
+      ? `preview: ${body["expected"]}`
+      : undefined) ??
+    (typeof body["id"] === "string" ? String(body["id"]) : undefined);
+
+  return { step, denied: false, evidence };
+}
+
 function TurnView({
   turn,
   onPick,
+  onRun,
+  onCancel,
 }: {
   turn: Turn;
+  onPick: (s: string) => void;
+  onRun: (plan: LensPlan) => void;
+  onCancel: (plan: LensPlan) => void;
+}) {
+  if (turn.role === "plan") {
+    return (
+      <ChatMessage sender="assistant">
+        <ChatMessageBubble variant="ghost" width="100%">
+          <PlanCard
+            plan={turn.plan}
+            settled={turn.settled}
+            onRun={() => onRun(turn.plan)}
+            onCancel={() => onCancel(turn.plan)}
+          />
+        </ChatMessageBubble>
+      </ChatMessage>
+    );
+  }
+
+  if (turn.role === "ran") {
+    return (
+      <ChatMessage sender="assistant">
+        <ChatMessageBubble variant="ghost" width="100%">
+          <Outcomes plan={turn.plan} outcomes={turn.outcomes} />
+        </ChatMessageBubble>
+      </ChatMessage>
+    );
+  }
+
+  return <ReadTurn turn={turn} onPick={onPick} />;
+}
+
+/**
+ * The turns that are a read rather than a write.
+ *
+ * Named as its own type so `ReadTurn` narrows: with the full union it still
+ * held the two plan shapes after the role checks, and reaching for `.answer`
+ * was a type error rather than an impossible branch.
+ */
+type ReadableTurn = Extract<Turn, { role: "you" | "console" | "problem" }>;
+
+function ReadTurn({
+  turn,
+  onPick,
+}: {
+  turn: ReadableTurn;
   onPick: (s: string) => void;
 }) {
   if (turn.role === "you") {
@@ -234,6 +424,174 @@ function TurnView({
         <LensCard answer={turn.answer} />
       </ChatMessageBubble>
     </ChatMessage>
+  );
+}
+
+/**
+ * A plan, and the two answers to it.
+ *
+ * Nothing here has happened. The card exists so that the moment a write occurs
+ * is a moment the operator chose, and so the thing they are choosing is legible
+ * before they choose it: every step names its endpoint, its body and the key
+ * that signs it, and a step expected to be refused says so in advance rather
+ * than after.
+ */
+function PlanCard({
+  plan,
+  settled,
+  onRun,
+  onCancel,
+}: {
+  plan: LensPlan;
+  settled?: "ran" | "cancelled";
+  onRun: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Card variant={settled ? "muted" : "yellow"} width="100%">
+      <VStack gap={3} width="100%" className="min-w-0">
+        <Text type="supporting" size="sm">
+          {settled === "ran"
+            ? "Ran"
+            : settled === "cancelled"
+              ? "Cancelled — nothing was sent"
+              : "Plan · nothing has been sent yet"}
+        </Text>
+
+        <VStack maxWidth="42rem" gap={2}>
+          <Text type="body" as="p">
+            {plan.title}
+          </Text>
+          <Text type="supporting" as="p">
+            {plan.summary}
+          </Text>
+        </VStack>
+
+        <VStack gap={2} width="100%" className="min-w-0">
+          {plan.steps.map((step, i) => (
+            <StepRow key={i} index={i + 1} step={step} />
+          ))}
+        </VStack>
+
+        {!settled ? (
+          <HStack gap={2} align="center" wrap="wrap">
+            <Button variant="primary" label="Run it" onClick={onRun} />
+            <Button variant="secondary" label="Cancel" onClick={onCancel} />
+          </HStack>
+        ) : null}
+      </VStack>
+    </Card>
+  );
+}
+
+function StepRow({ index, step }: { index: number; step: PlanStep }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <VStack gap={1} width="100%" className="min-w-0">
+      <HStack gap={2} align="center" wrap="wrap">
+        <Text type="code" size="sm" color="secondary">
+          {index}.
+        </Text>
+        <Text type="body" size="sm">
+          {step.title}
+        </Text>
+        <Text type="code" size="sm" color="secondary">
+          signed by {step.actor}
+        </Text>
+        <Button
+          variant="ghost"
+          size="sm"
+          label={open ? "Hide request" : "Show request"}
+          onClick={() => setOpen((was) => !was)}
+        />
+      </HStack>
+
+      {/*
+        Stated before the step runs, not explained after it fails. An operator
+        approving a write needs to know which refusal is the intended result.
+      */}
+      {step.expectDenial ? (
+        <VStack maxWidth="42rem">
+          <Text type="supporting" size="sm">
+            Expected to be refused — {step.expectDenial}
+          </Text>
+        </VStack>
+      ) : null}
+
+      {open ? (
+        <CodeBlock
+          code={`${step.method} ${step.path}\n${JSON.stringify(step.body, null, 2)}`}
+          language="json"
+          container="section"
+          size="sm"
+          isWrapped
+          width="100%"
+        />
+      ) : null}
+    </VStack>
+  );
+}
+
+/**
+ * What the plan actually did, step by step.
+ *
+ * A refusal on a step that expected one is rendered as the proof it is, and a
+ * refusal on a step that did not is rendered as a surprise. The two must not
+ * look alike: one says the boundary held where it was supposed to, the other
+ * says authority is not what the plan believed.
+ */
+function Outcomes({
+  plan,
+  outcomes,
+}: {
+  plan: LensPlan;
+  outcomes: StepOutcome[];
+}) {
+  return (
+    <VStack gap={3} width="100%" className="min-w-0">
+      {outcomes.map((outcome, i) => (
+        <VStack key={i} gap={1} width="100%" className="min-w-0">
+          <HStack gap={2} align="center" wrap="wrap">
+            <Text type="code" size="sm" color="secondary">
+              {i + 1}.
+            </Text>
+            <Text type="body" size="sm">
+              {outcome.step.title}
+            </Text>
+            <Text type="code" size="sm" color="secondary">
+              {outcome.denied
+                ? outcome.step.expectDenial
+                  ? "refused — as expected"
+                  : "refused — not expected"
+                : outcome.error
+                  ? "did not complete"
+                  : "done"}
+            </Text>
+          </HStack>
+
+          {outcome.evidence ? (
+            <Text type="code" size="sm" color="secondary" wordBreak="break-all">
+              {outcome.evidence}
+            </Text>
+          ) : null}
+
+          {outcome.error ? (
+            <Outcome
+              tone={outcome.error.tone}
+              title={outcome.error.title}
+              detail={outcome.error.detail || undefined}
+              action={outcome.error.action}
+            />
+          ) : null}
+        </VStack>
+      ))}
+
+      <VStack maxWidth="42rem">
+        <Text type="supporting" as="p">
+          {plan.closing}
+        </Text>
+      </VStack>
+    </VStack>
   );
 }
 

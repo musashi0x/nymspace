@@ -1,6 +1,7 @@
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { CONSOLE_SUGGESTIONS } from "@nymspace/core";
 import { ChatConsole } from "@/components/console/chat-console";
 import { Frame } from "@/components/console/primitives";
 
@@ -20,12 +21,6 @@ import { Frame } from "@/components/console/primitives";
 
 export const dynamic = "force-dynamic";
 
-const SUGGESTIONS = [
-  "show me the fleet",
-  "show research",
-  "who can write agent-context on research",
-] as const;
-
 export default function ChatPage() {
   return (
     <VStack as="main" gap={8} width="100%" className="min-w-0">
@@ -44,7 +39,7 @@ export default function ChatPage() {
       </VStack>
 
       <Frame surface="body" title="console">
-        <ChatConsole suggestions={SUGGESTIONS} />
+        <ChatConsole suggestions={CONSOLE_SUGGESTIONS} />
       </Frame>
     </VStack>
   );
