@@ -383,6 +383,23 @@ export class Store {
   }
 
   /**
+   * One event by id.
+   *
+   * The approval route's reason for existing: an approval must re-submit the
+   * request that was *denied*, not a payload the client sends back with it. An
+   * approval whose amount comes from the client is an approval of whatever the
+   * client says it approved.
+   */
+  async getEvent(id: string): Promise<ActivityEvent | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(activityEvents)
+      .where(eq(activityEvents.id, id));
+
+    return row ? toActivityEvent(row) : undefined;
+  }
+
+  /**
    * Resolve a pending event in place.
    *
    * The spec requires an update rather than a second row: a timeline showing

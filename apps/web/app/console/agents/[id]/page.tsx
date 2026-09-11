@@ -287,7 +287,7 @@ export default async function AgentPage({
       <Frame
         id="task"
         title="Financial authority"
-        subtitle="A Privy wallet under one amount policy. The limit is read from the live policy, never from a constant."
+        subtitle="A Privy wallet whose signer is capped by one policy. The limit and the token are read from the live policy, never from a constant."
       >
         {wallet && wallet.status === "provisioned" && wallet.address ? (
           <>
@@ -306,11 +306,19 @@ export default async function AgentPage({
                   readAt={wallet.readAt}
                   mono={false}
                 />
+                <Field
+                  label="Signer"
+                  value={wallet.signerMode}
+                  source="privy"
+                  readAt={wallet.readAt}
+                  mono={false}
+                />
                 <TaskRequest
                   agentId={id}
                   ensName={identity.ensName}
                   recipient={identity.owner}
-                  suggestedAmountWei={wallet.policy.maxValueWei}
+                  limitAmount={wallet.policy.maxAmount}
+                  token={wallet.policy.token}
                 />
               </>
             ) : (

@@ -12,7 +12,13 @@ import {
   type ViemChainClient,
 } from "@nymspace/ens";
 import { Agent0Client } from "@nymspace/graph";
-import { PrivyClient } from "@nymspace/privy";
+import {
+  PrivyClient,
+  agentSignerKey,
+  demoToken,
+  ownerSignerKey,
+  type TokenSpec,
+} from "@nymspace/privy";
 import { Store, database, migrate } from "@nymspace/store";
 
 /**
@@ -82,8 +88,25 @@ export interface Deps {
    * building it eagerly made a missing Privy secret break every route in the
    * app — including the fleet list, which never touches a wallet. Constructing
    * on first access keeps the failure where it belongs: on the payment routes.
+   *
+   * This client acts as the *agent*: it holds the agent's authorization key,
+   * which is what Privy attributes the request to and therefore which policy it
+   * evaluates. A payment sent without that key is not the agent paying.
    */
   readonly privy: PrivyClient;
+  /**
+   * The same client holding the organization owner's key, when one is
+   * configured — design.md D6.
+   *
+   * `undefined` is a product state, not a missing dependency: with no owner key
+   * there is no higher authority, so a denial offers no approval and the
+   * console renders none. Deriving the affordance from the configuration is
+   * what keeps `docs/08`'s "do not simulate an approval system" true under
+   * drift.
+   */
+  readonly privyOwner: PrivyClient | undefined;
+  /** What payments are denominated in. `null` is native ETH. */
+  readonly paymentToken: TokenSpec | null;
   chain: ViemChainClient;
   config: ChainConfig;
   organization: Address;
@@ -104,6 +127,8 @@ export type DepsEnv = { Variables: { deps: Deps } };
 let cached: Deps | undefined;
 let migrated = false;
 let privyClient: PrivyClient | undefined;
+let privyOwnerClient: PrivyClient | undefined;
+let paymentToken: TokenSpec | null | undefined;
 
 export async function buildDeps(): Promise<Deps> {
   if (cached) return cached;
@@ -206,8 +231,20 @@ export async function buildDeps(): Promise<Deps> {
     }),
     graph: new Agent0Client(),
     get privy() {
-      privyClient ??= new PrivyClient();
+      privyClient ??= new PrivyClient({ authorizationKey: agentSignerKey() });
       return privyClient;
+    },
+    get privyOwner() {
+      const key = ownerSignerKey();
+      if (!key) return undefined;
+      privyOwnerClient ??= new PrivyClient({ authorizationKey: key });
+      return privyOwnerClient;
+    },
+    get paymentToken() {
+      // `??=` would re-resolve on every access once the answer is `null`, and
+      // `null` is the ordinary answer for a native-ETH deployment.
+      if (paymentToken === undefined) paymentToken = demoToken();
+      return paymentToken;
     },
     chain,
     config,
@@ -239,4 +276,6 @@ export function resetDeps(): void {
   cached = undefined;
   migrated = false;
   privyClient = undefined;
+  privyOwnerClient = undefined;
+  paymentToken = undefined;
 }

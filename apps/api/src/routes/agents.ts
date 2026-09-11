@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import {
   AGENT_CONTEXT_KEY,
@@ -10,7 +11,7 @@ import {
   setTextResourceAlternatives,
   verifyEnsip25,
 } from "@nymspace/ens";
-import { previewAgainstLimit } from "@nymspace/privy";
+import { formatAmount, previewAgainstLimit, type PaymentRequest, type TokenSpec } from "@nymspace/privy";
 import {
   ORGANIZATION_ID,
   REGISTRATION_CHAIN_ID,
@@ -34,6 +35,7 @@ import {
   permissionQuerySchema,
   readAt,
   recordWriteSchema,
+  unknownToken,
   walletNotProvisioned,
 } from "./shared";
 
@@ -538,7 +540,7 @@ export const agents = new Hono<DepsEnv>()
   // Safe financial metadata only
   //////////////////////////////////////////////////////////////////////////
   .get("/:id/wallet", async (c) => {
-    const { store, privy } = c.var.deps;
+    const { store, privy, privyOwner, paymentToken } = c.var.deps;
     const id = c.req.param("id");
     const agent = await store.getAgent(id);
     if (!agent) agentNotFound(id);
@@ -549,6 +551,8 @@ export const agents = new Hono<DepsEnv>()
         status: "no_wallet" as const,
         address: null,
         provider: "privy" as const,
+        token: tokenPayload(paymentToken),
+        signerMode: signerMode(privyOwner !== undefined),
         policy: null,
         readAt: readAt(),
       });
@@ -557,16 +561,25 @@ export const agents = new Hono<DepsEnv>()
     // The limit comes from the live policy, never a constant — task 5.9. Every
     // other field of the policy stays here: `docs/10` says not to return
     // configuration that could reveal credentials.
-    const limit = ref.policyId ? await privy.getPolicyLimit(ref.policyId) : undefined;
+    const limit = ref.policyId
+      ? await privy.getPolicyLimit(ref.policyId)
+      : undefined;
 
     return c.json({
       status: "provisioned" as const,
       address: ref.walletAddress,
       provider: "privy" as const,
+      token: tokenPayload(paymentToken),
+      signerMode: signerMode(privyOwner !== undefined),
       policy: limit
         ? {
             label: limit.name,
-            maxValueWei: limit.maxValueWei,
+            maxAmount: limit.maxAmount,
+            // The limit's own denomination, which is not necessarily the
+            // deployment's: a policy pinning a different contract than the one
+            // configured is a misconfiguration the screen should show rather
+            // than hide behind the token it expected.
+            token: tokenPayload(limit.token),
             ruleName: limit.ruleName,
             status: "active" as const,
           }
@@ -579,7 +592,7 @@ export const agents = new Hono<DepsEnv>()
   // Preview — informational, and the payload says so
   //////////////////////////////////////////////////////////////////////////
   .post("/:id/payments/preview", zValidator("json", paymentSchema), async (c) => {
-    const { store, privy } = c.var.deps;
+    const { store, privy, paymentToken } = c.var.deps;
     const id = c.req.param("id");
     const agent = await store.getAgent(id);
     if (!agent) agentNotFound(id);
@@ -587,17 +600,38 @@ export const agents = new Hono<DepsEnv>()
     const ref = await store.getFinancialAuthority(agent.id);
     if (!ref?.policyId) walletNotProvisioned(id);
 
-    const { amount, recipient } = c.req.valid("json");
+    const { amount, recipient, token: requested } = c.req.valid("json");
+    const token = resolveToken(requested, paymentToken);
     const limit = await privy.getPolicyLimit(ref.policyId);
     const preview = previewAgainstLimit(
-      { amount, recipient, caip2: `eip155:${REGISTRATION_CHAIN_ID}` },
+      {
+        amount,
+        recipient,
+        caip2: `eip155:${REGISTRATION_CHAIN_ID}`,
+        ...(token && { token }),
+      },
       limit,
     );
 
+    /**
+     * The policy pins the contract as well as the amount, so a request for a
+     * token the policy does not name is outside the boundary however small it
+     * is. Reporting it as allowed because the number is small would preview the
+     * amount rule and ignore the rule that actually governs.
+     */
+    const tokenMatches =
+      (token?.address.toLowerCase() ?? null) ===
+      (limit.token?.address.toLowerCase() ?? null);
+
     return c.json({
-      expected: preview.withinLimit ? ("allowed" as const) : ("denied" as const),
-      requestedWei: preview.requestedWei,
-      limitWei: preview.limitWei,
+      expected:
+        tokenMatches && preview.withinLimit
+          ? ("allowed" as const)
+          : ("denied" as const),
+      requestedAmount: preview.requestedAmount,
+      limitAmount: preview.limitAmount,
+      token: tokenPayload(token),
+      limitToken: tokenPayload(limit.token),
       policySummary: { label: limit.name, ruleName: limit.ruleName },
       // Stated in the payload, not only in a comment. Privy enforces; this is a
       // guess shown before the operator commits, and task 5.12 tampers with it
@@ -612,7 +646,7 @@ export const agents = new Hono<DepsEnv>()
   // The payment itself — four typed outcomes, all of them HTTP 200
   //////////////////////////////////////////////////////////////////////////
   .post("/:id/payments", zValidator("json", paymentSchema), async (c) => {
-    const { store, privy } = c.var.deps;
+    const { store, privy, privyOwner, paymentToken } = c.var.deps;
     const id = c.req.param("id");
     const agent = await store.getAgent(id);
     if (!agent) agentNotFound(id);
@@ -620,15 +654,25 @@ export const agents = new Hono<DepsEnv>()
     const ref = await store.getFinancialAuthority(agent.id);
     if (!ref) walletNotProvisioned(id);
 
-    const { amount, recipient, memo } = c.req.valid("json");
+    const { amount, recipient, memo, token: requested } = c.req.valid("json");
+    const token = resolveToken(requested, paymentToken);
+
     const result = await privy.sendPayment(ref.privyWalletId, {
       amount,
       recipient,
       caip2: `eip155:${REGISTRATION_CHAIN_ID}`,
+      ...(token && { token }),
       ...(memo && { memo }),
     });
 
-    await store.recordEvent({
+    /**
+     * The request is recorded on the event, not just summarised in prose.
+     *
+     * An approval re-submits what was denied, and it reads it from here. An
+     * approval whose amount comes back from the client is an approval of
+     * whatever the client says it approved.
+     */
+    const event = await store.recordEvent({
       organizationId: ORGANIZATION_ID,
       agentId: agent.id,
       source: "privy",
@@ -650,7 +694,7 @@ export const agents = new Hono<DepsEnv>()
       ...(result.status === "executed" && {
         txHash: result.transactionHash as `0x${string}`,
       }),
-      summary: `Payment of ${amount} wei to ${recipient}: ${result.status}`,
+      summary: `Payment of ${describeAmount(amount, token)} to ${recipient}: ${result.status}`,
       evidence:
         result.status === "executed"
           ? { source: "privy", txHash: result.transactionHash as `0x${string}` }
@@ -660,16 +704,240 @@ export const agents = new Hono<DepsEnv>()
                 ("requestId" in result && result.requestId) || ref.privyWalletId,
               policyDecision: result.status,
             },
+      metadata: {
+        amount,
+        recipient,
+        tokenAddress: token?.address ?? null,
+        tokenSymbol: token?.symbol ?? "ETH",
+        tokenDecimals: token?.decimals ?? 18,
+        authority: "agent",
+      },
     });
+
+    /**
+     * The affordance follows the configuration — design.md D6.
+     *
+     * With no owner key there is no higher authority, so a denial carries no
+     * escalation and the console renders no button. `docs/08` forbids
+     * simulating an approval path, and a flag someone forgets to turn off is
+     * how that promise gets broken quietly.
+     */
+    const escalation =
+      result.status === "denied" && privyOwner
+        ? {
+            requestId: event.id,
+            authority: "organization owner" as const,
+            /** Every word of this is true only because the route below exists. */
+            detail:
+              "The organization's own key is not bound by the agent's policy and can execute this request.",
+          }
+        : undefined;
 
     // 200 for every outcome. A denial is the control plane working, and an HTTP
     // error would put it on the same path as an outage — `docs/11`.
-    return c.json({ ...result, readAt: readAt() });
+    return c.json({
+      ...result,
+      ...(escalation && { escalation }),
+      readAt: readAt(),
+    });
+  })
+
+  //////////////////////////////////////////////////////////////////////////
+  // Escalation — a different authority, not a different code path
+  //////////////////////////////////////////////////////////////////////////
+  .post("/:id/payments/:requestId/approve", async (c) => {
+    const { store, privyOwner, paymentToken } = c.var.deps;
+    const id = c.req.param("id");
+    const requestId = c.req.param("requestId");
+
+    if (!privyOwner) noHigherAuthority();
+
+    const agent = await store.getAgent(id);
+    if (!agent) agentNotFound(id);
+
+    const ref = await store.getFinancialAuthority(agent.id);
+    if (!ref) walletNotProvisioned(id);
+
+    const denial = await store.getEvent(requestId);
+    if (!denial || denial.agentId !== agent.id || denial.status !== "denied") {
+      notApprovable(requestId);
+    }
+
+    const request = deniedRequestFrom(denial.metadata, paymentToken);
+
+    /**
+     * The denial stays where it is.
+     *
+     * Resolving *it* to success would erase the proof — the timeline would show
+     * a payment that was always fine. The approval is its own pending event,
+     * resolved in place when the owner's key answers, and it names the denial it
+     * answers.
+     */
+    const pending = await store.recordEvent({
+      organizationId: ORGANIZATION_ID,
+      agentId: agent.id,
+      source: "privy",
+      type: "privy.approval.requested",
+      status: "pending",
+      occurredAt: readAt(),
+      externalId: denial.id,
+      summary: `Owner approval requested for ${describeAmount(request.amount, request.token ?? null)} to ${request.recipient}`,
+      evidence: {
+        source: "privy",
+        requestId: denial.id,
+        policyDecision: "pending_approval",
+      },
+      metadata: {
+        amount: request.amount,
+        recipient: request.recipient,
+        tokenAddress: request.token?.address ?? null,
+        approves: denial.id,
+        authority: "owner",
+      },
+    });
+
+    const result = await privyOwner.sendPayment(ref.privyWalletId, request);
+
+    await store.resolveEvent(pending.id, {
+      status: result.status === "executed" ? "success" : "failed",
+      summary:
+        result.status === "executed"
+          ? `Owner approved and executed ${describeAmount(request.amount, request.token ?? null)} to ${request.recipient}`
+          : `Owner approval could not execute: ${"reason" in result ? result.reason : result.status}`,
+      ...(result.status === "executed" && {
+        txHash: result.transactionHash as `0x${string}`,
+      }),
+      evidence:
+        result.status === "executed"
+          ? { source: "privy", txHash: result.transactionHash as `0x${string}` }
+          : {
+              source: "privy",
+              requestId: denial.id,
+              policyDecision: result.status,
+            },
+    });
+
+    return c.json({
+      ...result,
+      approvedRequestId: denial.id,
+      authority: "organization owner" as const,
+      readAt: readAt(),
+    });
   });
 
 //////////////////////////////////////////////////////////////////////////////
 // Helpers
 //////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The token a request is denominated in, or a 400.
+ *
+ * The rule is D4: absent means the configured token, a match means the
+ * configured token, and anything else is refused. Silently reinterpreting an
+ * unrecognised token as a native transfer is what turned `pay 5 USDC` into
+ * five wei of ETH, with a transaction hash and a success on screen.
+ */
+function resolveToken(
+  requested: string | undefined,
+  configured: TokenSpec | null,
+): TokenSpec | null {
+  if (!requested) return configured;
+  if (
+    !configured ||
+    requested.toLowerCase() !== configured.address.toLowerCase()
+  ) {
+    unknownToken(requested, configured?.address ?? null);
+  }
+  return configured;
+}
+
+/** What a response may say about a token. Address, symbol, decimals. */
+function tokenPayload(token: TokenSpec | null): {
+  address: string;
+  symbol: string;
+  decimals: number;
+} | null {
+  if (!token) return null;
+  return {
+    address: token.address,
+    symbol: token.symbol,
+    decimals: token.decimals,
+  };
+}
+
+/**
+ * Which key signs the agent's payments, and whether a second one exists.
+ *
+ * `docs/08` lists signer mode among the things the interface should show. It is
+ * derived from the configuration for the same reason the escalation is: a
+ * screen that claims an owner path while none is configured is the simulated
+ * approval the doc forbids, one indirection removed.
+ */
+function signerMode(hasOwner: boolean): string {
+  return hasOwner
+    ? "agent key, capped by policy; organization owner key can escalate"
+    : "agent key, capped by policy";
+}
+
+/** `5000000` + USDC → `5 USDC`. Never a bare number in a summary. */
+function describeAmount(amount: string, token: TokenSpec | null): string {
+  return formatAmount(amount, token);
+}
+
+/**
+ * The request that was denied, read back from the event that recorded it.
+ *
+ * Validated rather than trusted: the column is `jsonb`, so what comes out is
+ * `unknown` however carefully it went in, and an approval built from a
+ * malformed row would execute an amount nobody requested. The token is resolved
+ * against the configured one for the same reason the payment route resolves it.
+ */
+function deniedRequestFrom(
+  metadata: Record<string, unknown> | undefined,
+  configured: TokenSpec | null,
+): PaymentRequest {
+  const amount = metadata?.["amount"];
+  const recipient = metadata?.["recipient"];
+  const tokenAddress = metadata?.["tokenAddress"];
+
+  if (typeof amount !== "string" || !/^\d+$/.test(amount)) {
+    throw new HTTPException(422, {
+      message: "the recorded request carries no amount, so there is nothing to approve",
+    });
+  }
+  if (typeof recipient !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(recipient)) {
+    throw new HTTPException(422, {
+      message: "the recorded request carries no recipient, so there is nothing to approve",
+    });
+  }
+
+  const token =
+    tokenAddress === null || tokenAddress === undefined
+      ? null
+      : resolveToken(String(tokenAddress), configured);
+
+  return {
+    amount,
+    recipient,
+    caip2: `eip155:${REGISTRATION_CHAIN_ID}`,
+    ...(token && { token }),
+  };
+}
+
+/** No owner key, so there is nothing to escalate to. Not a 500. */
+function noHigherAuthority(): never {
+  throw new HTTPException(409, {
+    message:
+      "no owner signing key is configured, so no authority above the agent exists to approve this",
+  });
+}
+
+/** The event named is not a denial of this agent's. */
+function notApprovable(requestId: string): never {
+  throw new HTTPException(404, {
+    message: `no denied payment ${requestId} for this agent to approve`,
+  });
+}
 
 /**
  * The event types a provisioning run writes.

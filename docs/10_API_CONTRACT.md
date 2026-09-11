@@ -219,8 +219,13 @@ Returns safe financial metadata.
 {
   "address": "0x...",
   "provider": "privy",
+  "token": { "address": "0x...", "symbol": "USDC", "decimals": 6 },
+  "signerMode": "agent key, capped by policy; organization owner key can escalate",
   "policy": {
     "label": "Agent spend limit",
+    "maxAmount": "10000000",
+    "token": { "address": "0x...", "symbol": "USDC", "decimals": 6 },
+    "ruleName": "Transfer at most 10000000 USDC base units",
     "status": "active"
   }
 }
@@ -228,14 +233,36 @@ Returns safe financial metadata.
 
 Do not return secret policy configuration if it reveals credentials.
 
+`maxAmount` is in the token's base units and is read from the live policy on
+every request. The policy's own token travels beside it rather than being
+assumed from the deployment's: a policy pinning a different contract than the
+one configured is a misconfiguration the screen should show, not one it should
+hide.
+
+## Amounts and tokens
+
+Every amount in this contract is a **decimal string in the token's base
+units** — 5 USDC is `"5000000"`, not `"5"`. Two reasons, and the second is the
+expensive one:
+
+* A JSON number is a float before it is anything else, and wei does not fit in
+  one.
+* An amount written as though it were whole tokens still executes. It returns a
+  transaction hash, renders as a success, and moves a millionth of what the
+  screen says.
+
+`token` is the token's **contract address**, not its symbol. It is optional and
+defaults to the configured payment token; a token the deployment is not
+configured to pay in is a `400`, never a silent fallback to a native transfer.
+
 ## POST `/api/agents/:id/payments/preview`
 
 Request:
 
 ```json
 {
-  "token": "USDC",
-  "amount": "5",
+  "token": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "amount": "5000000",
   "recipient": "0x..."
 }
 ```
@@ -245,9 +272,16 @@ Response:
 ```json
 {
   "expected": "allowed",
+  "requestedAmount": "5000000",
+  "limitAmount": "10000000",
+  "token": { "address": "0x...", "symbol": "USDC", "decimals": 6 },
+  "limitToken": { "address": "0x...", "symbol": "USDC", "decimals": 6 },
   "policySummary": {
-    "label": "Agent spend limit"
-  }
+    "label": "Agent spend limit",
+    "ruleName": "Transfer at most 10000000 USDC base units"
+  },
+  "enforcement": "privy",
+  "informational": true
 }
 ```
 
@@ -255,14 +289,19 @@ Preview is informational.
 
 Real enforcement still happens in Privy.
 
+The payload says so in its own body rather than only in this document, because
+the preview is exactly the number a browser could lie about. A request for a
+token the policy does not name previews as `denied` however small the amount
+is: the policy pins the contract as well as the limit.
+
 ## POST `/api/agents/:id/payments`
 
 Request:
 
 ```json
 {
-  "token": "USDC",
-  "amount": "5",
+  "token": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "amount": "5000000",
   "recipient": "0x...",
   "memo": "Research task"
 }
@@ -284,9 +323,21 @@ Possible responses:
 ```json
 {
   "status": "denied",
-  "reason": "policy_limit"
+  "reason": "RPC request denied due to policy violation",
+  "escalation": {
+    "requestId": "...",
+    "authority": "organization owner"
+  }
 }
 ```
+
+A denial is HTTP 200. It is the control plane working, and an HTTP error would
+put it on the same path as an outage.
+
+`escalation` is present only when an owner signing key is configured, and the
+console renders its action only when it is present. With no authority above the
+agent there is no approval path, so none is offered — the affordance follows
+the configuration rather than a flag.
 
 ### Approval path
 
@@ -298,6 +349,31 @@ Possible responses:
 ```
 
 Only return approval status if the actual chosen Privy flow supports it.
+
+## POST `/api/agents/:id/payments/:requestId/approve`
+
+Executes the payment that `requestId` was denied, under the organization
+owner's key.
+
+No request body. The amount, recipient, and token come from the recorded
+denial, never from the caller: an approval that carried its own amount would
+approve whatever the client said it approved.
+
+```json
+{
+  "status": "executed",
+  "transactionHash": "0x...",
+  "approvedRequestId": "...",
+  "authority": "organization owner"
+}
+```
+
+`409` when no owner key is configured. `404` when `requestId` is not a denied
+payment belonging to this agent.
+
+The denial stays in the timeline. The approval is its own pending event,
+resolved in place when the owner's key answers — replacing the denial with a
+success would be a timeline claiming the payment was always fine.
 
 ## GET `/api/activity`
 
