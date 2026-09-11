@@ -30,5 +30,16 @@ await build({
   target: "node20",
   format: "esm",
   conditions: ["react-server"],
+  // pg (bundled in whole) calls `require()` on node builtins at module
+  // scope. esbuild's ESM output shims that with a `require` it expects the
+  // runtime to already have in scope — true for CJS, not for native ESM —
+  // so it throws "Dynamic require ... is not supported" the moment pg
+  // loads. `packages/store/src/db.ts` also uses `import.meta.url`, which
+  // only exists in ESM output, ruling out `format: "cjs"` as the fix. Giving
+  // the bundle its own module-scoped `require` via `createRequire` is the
+  // standard esbuild recipe for this combination.
+  banner: {
+    js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
+  },
   logLevel: "info",
 });
