@@ -61,7 +61,23 @@ export function CommitActivity({ data }: { data: ActivityPayload }) {
             repos={topContributors}
             label="Top contributors:"
             accent="#39d353"
-            cellSize={12}
+            /*
+              15, not 12 — and this prop is the only thing that sets the card's
+              size.
+
+              `GitHubActivity` computes a fixed pixel width from the cell:
+              `columns * (cell + gap) - gap + padding`. So the card does not
+              grow into the space the page gives it, and widening the page did
+              nothing at all. At 12 that came to 824px against a 790px slot,
+              which is two pixels over the point where the grid stops centring
+              itself, left-aligns, and auto-scrolls to the newest week — a year
+              of history reading as something clipped.
+
+              15 makes the card 1035px, inside the 1104px the `max-w-6xl` frame
+              now leaves, so every one of the 53 columns is visible at once with
+              room to spare. 17 would be 1141 and overflow again.
+            */
+            cellSize={15}
             showMonths
             // Deliberately NOT defaultOpen: the contributors panel is an
             // overlay that covers the whole calendar, and the calendar is the
@@ -72,7 +88,22 @@ export function CommitActivity({ data }: { data: ActivityPayload }) {
             // `bg-white dark:bg-black`, and tailwind-merge treats the dark:
             // variant as a separate group, so bg-card alone leaves the card
             // pure black — darker than the page — in dark mode.
-            className="border border-border/60 bg-card dark:bg-card"
+            /*
+              A ring, not a border, and that is the whole bug.
+
+              `GitHubActivity` sets an exact pixel width from the cell size —
+              `columns * (cell + gap) - gap + padding` — computed for a card
+              with no border. Under `border-box` the 1px edge I added on each
+              side came out of the content, so the grid was always exactly 2px
+              short of its own 53 columns and dropped out of its centred layout
+              into a left-aligned scroller. It looked like the calendar was cut
+              off; it was the frame, taking two pixels the grid had already
+              spent.
+
+              `ring` is painted as a box-shadow, so it costs no layout at all.
+              Same hairline, and the arithmetic above it stays true.
+            */
+            className="ring-1 ring-border/60 bg-card dark:bg-card"
           />
           <p className="mt-3 px-1 text-xs text-muted-foreground">
             {data.totalCommits} commit{data.totalCommits === 1 ? "" : "s"} on{" "}

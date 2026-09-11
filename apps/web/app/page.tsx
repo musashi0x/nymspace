@@ -17,8 +17,18 @@ export const revalidate = 60;
 export default async function Home() {
   const data = await getActivity();
 
+  /*
+   * `max-w-6xl`, because the commit calendar is what sets the floor.
+   *
+   * At `5xl` the page gave the grid 790px and the grid wants 792 — 53 week
+   * columns plus the weekday labels. Two pixels, and the consequence is not two
+   * pixels: the component switches out of its centred layout, left-aligns, and
+   * scrolls itself to the newest week, so a year of history reads as something
+   * cut off at the edge. Prose keeps its own `max-w-2xl` below, so widening the
+   * frame does not lengthen a single line of reading.
+   */
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-20 px-6 py-12 sm:py-16">
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-20 px-6 py-12 sm:py-16">
       <div className="flex items-center justify-between">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
           nymspace

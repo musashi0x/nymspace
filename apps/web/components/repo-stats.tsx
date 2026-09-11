@@ -44,15 +44,22 @@ export function RepoStats({ data }: { data: ActivityPayload }) {
   const tile =
     "flex min-w-0 flex-col justify-between rounded-2xl border border-border/60 bg-card p-3 sm:p-6";
 
+  /*
+   * No contributor count here.
+   *
+   * The panel directly above this row already ends with "2 people", beside the
+   * avatars and the per-person commit bars it counted. Repeating the same
+   * number two centimetres lower, in a tile the same size as the ones carrying
+   * numbers you cannot get anywhere else, spends the row's most valuable slot
+   * on something already answered — and invites the reader to check whether
+   * the two agree, which is work with no payoff.
+   *
+   * Stars stays at zero. It is measured, and a real zero is a fact about the
+   * repository; dropping a tile because its number is unflattering is curation,
+   * not layout.
+   */
   const github = [
     { label: "Commits", value: data.totalCommits },
-    /*
-     * "People", not "Contributors" — the longer word truncates to "CONTRI…" in
-     * a five-column row, and a clipped label is worse than a shorter one. The
-     * contributors panel directly above already counts itself in "2 people",
-     * so this is the page's own word rather than a new one.
-     */
-    { label: "People", value: data.contributors.length },
     { label: "Stars", value: data.repo.stars },
   ];
 
@@ -91,11 +98,11 @@ export function RepoStats({ data }: { data: ActivityPayload }) {
         </a>
 
         {/*
-          Five tiles, and never one per line. Three columns on a phone so the
-          GitHub numbers stay on one row, five from `sm` where there is width
-          for them.
+          Four tiles, and never one per line. Two columns on a phone so each
+          pair stays on one row, four from `sm` where there is width for them —
+          a count that divides evenly, unlike the five this used to carry.
         */}
-        <div className="grid min-w-0 grid-cols-3 gap-3 sm:col-span-8 sm:grid-cols-5 sm:gap-4">
+        <div className="grid min-w-0 grid-cols-2 gap-3 sm:col-span-8 sm:grid-cols-4 sm:gap-4">
           {github.map((stat) => (
             <div key={stat.label} className={tile}>
               <p className="font-mono text-2xl tabular-nums min-[380px]:text-3xl sm:text-4xl">
