@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { isAddress } from "viem";
 import type { Address, Hex } from "@nymspace/core";
 import { requireServerEnv } from "@nymspace/core/env";
 import {
@@ -48,7 +49,22 @@ function requireReadAddress(addressVar: string, keyVar: string): Address {
         `Reads need the account to check permissions for, not its key.`,
     );
   }
-  return value as Address;
+  /**
+   * Validated, not cast.
+   *
+   * A truncated paste is the likely way this goes wrong, and it fails
+   * silently: `hasRoles` for an address nobody holds returns false, so every
+   * cell in the permission matrix reads denied and the console shows an agent
+   * the resolver appears to have refused. A misconfiguration that renders as a
+   * policy decision is the one failure this product must not produce.
+   */
+  if (!isAddress(value)) {
+    throw new Error(
+      `${addressVar} is not an address: ${value}. An unchecked value here ` +
+        `reads back as a fully denied permission matrix, not as an error.`,
+    );
+  }
+  return value;
 }
 
 export const ORGANIZATION_ID = "nymspace";
@@ -146,13 +162,42 @@ export async function buildDeps(): Promise<Deps> {
   });
 
   const db = database();
+  const store = new Store(db);
   if (!migrated) {
     await migrate(db);
+
+    /**
+     * The row every agent's `organization_id` points at.
+     *
+     * `scripts/provision-fleet.ts` upserts this before it provisions anything,
+     * and when the script was the only path that was enough. It stopped being
+     * enough at design D7, when the per-agent sequence moved into
+     * `provisionAgent` so `POST /v1/agents` could share it — the sequence
+     * moved, this did not, and the route was left assuming a row only the
+     * script wrote.
+     *
+     * Nothing catches that until the database is genuinely empty, which is
+     * exactly once per deployment and never in a test that seeds its own
+     * fixtures. On a fresh Railway Postgres every create, from the console's
+     * own screen included, failed on the foreign key with `internal error`.
+     *
+     * It belongs beside the migration rather than in the handler: both make
+     * the database usable, both are idempotent, and neither is a per-request
+     * concern. The parent comes from the deployment config, never from a row,
+     * for the reason `parentName` gives below.
+     */
+    await store.upsertOrganization({
+      id: ORGANIZATION_ID,
+      displayName: "Nymspace",
+      parentEnsName: `${deployed.parentLabel}.eth`,
+      chainId: config.chainId,
+    });
+
     migrated = true;
   }
 
   cached = {
-    store: new Store(db),
+    store,
     ens: new EnsService({ client: chain, config }),
     erc8004: new Erc8004Service({
       client: registrationClient,
