@@ -60,5 +60,5 @@
 - [ ] 8.1 Deploy; connect to `https://<api domain>/mcp/research` with the MCP Inspector and record the result in `evidence/`
 - [ ] 8.2 Re-point `research`'s `agent-endpoint[mcp]` with one controller `setText`; read it back from ENS
 - [ ] 8.3 From the deployed console, Connect to the research agent (expect `connected`, identity `matches`) and to one dead third-party result from discovery (expect a failure outcome); capture both in `evidence/`
-- [ ] 8.4 Update `docs/10_API_CONTRACT.md`, `docs/12_SECURITY_MODEL.md` (outbound guard, no `tools/call`, amplification note), `docs/07_THE_GRAPH_INTEGRATION.md` (`mcpTools` read as a claim), and `docs/01_PRD.md` (connect button no longer nice-to-have)
-- [ ] 8.5 `pnpm check`, `pnpm typecheck`, `pnpm test` all pass
+- [x] 8.4 Update `docs/10_API_CONTRACT.md`, `docs/12_SECURITY_MODEL.md` (outbound guard, no `tools/call`, amplification note), `docs/07_THE_GRAPH_INTEGRATION.md` (`mcpTools` read as a claim), and `docs/01_PRD.md` (connect button no longer nice-to-have) — `docs/12`'s "Endpoint available" label split into advertised and answers-MCP; three invariants added
+- [x] 8.5 `pnpm check`, `pnpm typecheck`, `pnpm test` all pass — 367 tests across six suites (api 152, ens 73, store 41, privy 41, graph 31, core 29); env and conditions checks agree

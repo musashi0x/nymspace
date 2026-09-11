@@ -399,12 +399,89 @@ The denial stays in the timeline. The approval is its own pending event,
 resolved in place when the owner's key answers — replacing the denial with a
 success would be a timeline claiming the payment was always fine.
 
+## Agent MCP endpoints — `/mcp/:label`
+
+A protocol route rather than a product route, so it sits outside the version
+prefix: its URL is published on chain in `agent-endpoint[mcp]`, and MCP
+negotiates its own version in `MCP-Protocol-Version`. Each fleet agent
+(`research`, `trader`, `deploy`) serves a stateless streamable-HTTP MCP server
+with JSON responses. `serverInfo.name` is the agent's full ENS name, every tool
+is read-only, and the route is mounted without the API's dependencies, so no
+handler can reach the store, the chain client, or a key. Any origin may call
+it, without credentials. An unknown label is the standard 404; a deployment
+with no parent name configured answers 503.
+
+The published value is `<AGENT_MCP_BASE_URL>/mcp/<label>`, derived in one place
+(`agentMcpEndpoint` in `@nymspace/core`). A non-https value is refused before
+any record write builds a transaction.
+
+## POST `/api/mcp/connect`
+
+A read-only MCP handshake against an agent's published endpoint. The body names
+an agent, never a URL:
+
+```json
+{ "target": { "kind": "fleet", "agentId": "agent-research" } }
+```
+
+```json
+{ "target": { "kind": "graph", "graphAgentKey": "84532:123" } }
+```
+
+A fleet agent's endpoint is read live from its ENS record, a discovered agent's
+from its Agent0 registration. A URL field in any position is a 400. The API
+sends `initialize`, then `tools/list` up to a page cap, then closes, and never
+sends `tools/call`. Every request passes the outbound guard: https only; no
+loopback, private, link-local, CGNAT, unspecified, multicast or reserved
+address, checked after resolution with the connection pinned to the checked
+address; no redirects; per-request and overall timeouts; a streamed response
+cap. The one exemption is `AGENT_MCP_BASE_URL`'s exact origin.
+
+Every outcome is a 200. A 5xx means this API failed, never the endpoint.
+
+```json
+{
+  "status": "connected",
+  "endpoint": "https://api.example/mcp/research",
+  "endpointSource": "ens",
+  "readAt": "2026-09-11T13:06:28.943Z",
+  "protocolVersion": "2025-11-25",
+  "server": { "name": "research.nymspace.eth", "version": "0.1.0" },
+  "identity": {
+    "expected": "research.nymspace.eth",
+    "reported": "research.nymspace.eth",
+    "result": "matches",
+    "selfReported": true
+  },
+  "tools": [{ "name": "describe_agent", "description": "…", "inputs": [] }],
+  "toolsTruncated": false
+}
+```
+
+The other outcomes carry the same `endpoint`, `endpointSource` and `readAt`:
+
+| `status` | Means | Extra fields |
+|---|---|---|
+| `no_endpoint` | Nothing is published, so nothing was dialled | `endpoint: null` |
+| `blocked` | The guard refused before sending anything | `rule`: `https-only`, `private-address`, `redirect` |
+| `unreachable` | No HTTP answer | `stage`: `dns`, `connect`, `initialize`, `tools/list`; `detail` |
+| `timeout` | A deadline passed | `stage`, `detail` |
+| `not_mcp` | Something answered, and it was not MCP | `httpStatus` when there was one; `detail` |
+
+`identity` is present only when there is an ENS name to compare with, and it is
+always self-reported. For a discovered agent whose registration claims tools,
+`connected` also carries `claim: { claimed, missing, unclaimed }`, with
+`missing` absent when the listing was truncated. Connects are throttled per
+target: a repeat within ten seconds returns the earlier outcome with its
+original `readAt`. Each attempt is recorded in the activity log under source
+`mcp`.
+
 ## GET `/api/activity`
 
 Filters:
 
 * agent
-* source
+* source: `ens`, `erc8004`, `graph`, `privy`, `app`, `mcp`
 * type
 * status
 

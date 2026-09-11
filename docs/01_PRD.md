@@ -181,10 +181,15 @@ Must:
 * Show one action inside the control boundary
 * Show one action outside the boundary
 
+### MCP
+
+* Every fleet agent's `agent-endpoint[mcp]` names a real MCP server: `/mcp/<label>` on the API, stateless and read-only, reporting its own ENS name as its server identity.
+* A Connect action on the inspector and on discovery results performs a read-only handshake (`initialize`, then `tools/list`) through an outbound guard, and never calls a tool.
+* A failed connect is a typed finding about the endpoint, not an empty tool list, and every attempt is recorded in the activity log.
+
 ## Nice to have
 
 * Query the same Agent0 schema on Ethereum Sepolia and Base Sepolia to demonstrate cross network schema reuse for The Graph standardized data track.
-* MCP connect button that actually calls a demo MCP server.
 * Activity timeline with transaction hashes.
 * Permission simulator before signing.
 * Revocation flow for an agent controller.

@@ -76,6 +76,13 @@ query GetMCPAgents {
 }
 ```
 
+`mcpTools` is a claim. The schema types it `[String!]!` on both networks, so a
+registration that lists no tools and one that never mentions them both arrive
+as `[]`, and discovery treats empty as no claim. It is never a citable ranking
+field. `POST /v1/mcp/connect` compares it with a live `tools/list` in both
+directions, claimed but not served and served but not claimed, and withholds
+"not served" when the listing was truncated.
+
 ## Core query 2: Full profile
 
 Use an agent ID formatted for the Agent0 schema, such as:
