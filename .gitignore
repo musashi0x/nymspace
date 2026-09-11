@@ -19,6 +19,7 @@ out/
 
 # production
 /build
+apps/api/dist/
 
 # turborepo
 .turbo/

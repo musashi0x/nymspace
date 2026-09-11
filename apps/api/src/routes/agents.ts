@@ -26,6 +26,7 @@ import {
   provisionAgent,
   type ProvisionContext,
 } from "../provisioning";
+import { errorFields } from "../log";
 import {
   agentCreateSchema,
   agentNotFound,
@@ -138,6 +139,10 @@ export const agents = new Hono<DepsEnv>()
       controllerAddress: body.controller,
     });
 
+    // Captured now, like `deps`: the run outlives this handler, and its lines
+    // must carry the id of the request that started it.
+    const log = c.var.log;
+
     void provisionAgent(provisionContext(deps), {
       label: body.label,
       name: body.name,
@@ -150,7 +155,24 @@ export const agents = new Hono<DepsEnv>()
       // A provisioning run that dies after the response would otherwise be
       // invisible: the tracks would sit at their initial values with nothing
       // saying why, and the screen would poll forever.
-      await deps.store.setProvisioning(agentId, { ens: "failed" }).catch(() => {});
+      //
+      // Logged before either store write is attempted. When Postgres is what
+      // failed, both writes below fail too, and this line is the only record.
+      log.error("provisioning stopped", { agentId, ensName, ...errorFields(error) });
+
+      // Each write keeps its own catch so one failing does not skip the other,
+      // and each logs rather than discards: a failure to record a failure is
+      // the one nobody would otherwise find.
+      const unrecorded = (write: string) => (writeError: unknown) =>
+        log.error("could not record provisioning failure", {
+          agentId,
+          write,
+          ...errorFields(writeError),
+        });
+
+      await deps.store
+        .setProvisioning(agentId, { ens: "failed" })
+        .catch(unrecorded("setProvisioning"));
       await deps.store
         .recordEvent({
           organizationId: ORGANIZATION_ID,
@@ -170,7 +192,7 @@ export const agents = new Hono<DepsEnv>()
             reason: error instanceof Error ? error.message.split("\n")[0]! : String(error),
           },
         })
-        .catch(() => {});
+        .catch(unrecorded("recordEvent"));
     });
 
     return c.json(
@@ -269,6 +291,9 @@ export const agents = new Hono<DepsEnv>()
 
     return c.json({
       ensName: agent.ensName,
+      // Said by the API, which read the agent, so the console never has to
+      // split an ENS name to learn which agent it is looking at.
+      label: agent.slug,
       chainId: config.chainId,
       owner,
       controller: agent.controllerAddress,

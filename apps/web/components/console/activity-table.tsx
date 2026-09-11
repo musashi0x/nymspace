@@ -6,12 +6,43 @@ import {
   useTableRowExpansion,
   type TableColumn,
 } from "@astryxdesign/core/Table";
+import { Link as AstryxLink } from "@astryxdesign/core/Link";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { explorerTxUrl, publicEnv } from "@nymspace/core";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge, Evidence, Field } from "./primitives";
 import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
+
+/**
+ * Where a row's transaction actually landed.
+ *
+ * `evidence.chainId` wins when the source carries one — `erc8004` writes on
+ * whichever chain its registry is deployed to, which need not be this app's
+ * configured chain. `privy` never carries a chain id on the evidence itself:
+ * every payment and registration it signs goes through
+ * `eip155:${REGISTRATION_CHAIN_ID}` in `apps/api/src/deps.ts`, so that value
+ * is duplicated here rather than invented. Anything else — `ens`, `app` — ran
+ * on the chain this deployment points at.
+ */
+const PRIVY_CHAIN_ID = 84532;
+
+function chainIdOf(evidence: unknown): number {
+  if (evidence && typeof evidence === "object" && "chainId" in evidence) {
+    const value = (evidence as { chainId: unknown }).chainId;
+    if (typeof value === "number") return value;
+  }
+  if (
+    evidence &&
+    typeof evidence === "object" &&
+    "source" in evidence &&
+    (evidence as { source: unknown }).source === "privy"
+  ) {
+    return PRIVY_CHAIN_ID;
+  }
+  return publicEnv().chainId;
+}
 
 /**
  * The activity timeline as rows.
@@ -26,6 +57,25 @@ import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
  * is one of the two reasons this is a client component; the other is the row
  * window. The fetch stays on the server.
  */
+
+/**
+ * `2026-09-11 20:06:28`, not the locale's `9/11/2026, 8:06:28 PM`. Every
+ * timestamp is the same width, so the column has a width that fits all of
+ * them — the locale form loses its AM/PM tail to the truncation instead.
+ * `hourCycle` rather than `hour12: false`, which renders midnight as 24:00
+ * under some locale data.
+ */
+const WHEN = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const formatWhen = (iso: string) => WHEN.format(new Date(iso)).replace(",", "");
 
 const STATUS_TONE = {
   success: "good",
@@ -51,10 +101,10 @@ const COLUMNS: TableColumn<ActivityRow>[] = [
   {
     key: "occurredAt",
     header: "when",
-    width: proportional(1),
+    width: proportional(1, { minWidth: 190 }),
     renderCell: (row) => (
       <Text type="code" size="sm" hasTabularNumbers textWrap="nowrap">
-        {new Date(row.occurredAt).toLocaleString()}
+        {formatWhen(row.occurredAt)}
       </Text>
     ),
   },
@@ -89,9 +139,25 @@ export function ActivityTable({ events }: { events: ActivityRow[] }) {
     getRowKey: (row) => row.id,
     renderExpanded: (row) => (
       <VStack gap={0}>
-        {row.txHash ? (
-          <Field label="Transaction" value={row.txHash} />
-        ) : null}
+        {row.txHash
+          ? (() => {
+              const url = explorerTxUrl(chainIdOf(row.evidence), row.txHash);
+              return (
+                <Field
+                  label="Transaction"
+                  value={
+                    url ? (
+                      <AstryxLink href={url} isExternalLink type="code" size="sm">
+                        {row.txHash}
+                      </AstryxLink>
+                    ) : (
+                      row.txHash
+                    )
+                  }
+                />
+              );
+            })()
+          : null}
         {row.actor ? <Field label="Actor" value={row.actor} /> : null}
         {row.agentId ? (
           <Field

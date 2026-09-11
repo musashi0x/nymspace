@@ -110,6 +110,8 @@ Not everything crosses the wire: the landing page's commit activity is server-re
 
 Route handlers follow Hono's own guidance: **inline handlers, chained routes**. An extracted handler loses the path-parameter type, and a route added with a statement instead of a chained `.get()`/`.post()` still serves traffic while silently vanishing from `AppType` — so the web client stops seeing it with no error anywhere. Validation is `@hono/zod-validator`; dependencies arrive through `c.var.deps` from `withDeps()` middleware rather than a module singleton, so a test injects fakes instead of arranging process state. `/health` deliberately has no dependencies: a liveness check that needs an RPC and a database is reporting their health, not its own.
 
+The process log is `apps/api/src/log.ts`: one flat JSON object per line, which Railway parses into filterable attributes (`docs/22_DEPLOYMENT.md`, "Finding a request in the logs"). Handlers log through `c.var.log`, which already carries the request id; work that outlives the handler captures it first, the way it captures `deps`. Outside a request, `createLog(stdoutSink)`. No `console.*` in `apps/api/src`: a bare `console.error(err)` prints a multi-line stack Railway splits into unrelated entries with no request id. `LogFields` accepts primitives only, so a nested object is a compile error rather than a line nobody can filter on.
+
 ## Environment
 
 `turbo.json`'s `globalEnv` and `.env.example` must list the same variables. Turborepo hashes only what it is told about, so an undeclared variable means editing a contract address and getting a cached build compiled against the old one — which gets debugged as a contract bug, not a cache bug. `pnpm env:check` reconciles the two; add every new variable to both.

@@ -123,7 +123,8 @@ export interface RankingResult {
  * Absent fields are omitted rather than sent as null, so "not present" is
  * unambiguous to a reader that only sees this array.
  */
-function candidateForModel(agent: NormalisedAgent): Record<string, unknown> {
+/** Exactly what the model sees of a candidate. Exported so tests can assert on it. */
+export function candidateForModel(agent: NormalisedAgent): Record<string, unknown> {
   const out: Record<string, unknown> = { graphAgentKey: agent.graphAgentKey };
   for (const [field, read] of Object.entries(CITABLE_FIELDS)) {
     const value = read(agent);

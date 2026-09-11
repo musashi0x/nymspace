@@ -142,8 +142,12 @@ export interface PlanStep {
    * mid-plan. The controller writing its own record and the organization
    * granting it the right to are different powers, and a plan that does both
    * without saying so hides the only interesting thing about it.
+   *
+   * `none` is a step no key signs: an MCP connect reads somebody else's server
+   * and writes an activity row, so the chat still offers it rather than doing
+   * it, but there is no authority changing hands to name.
    */
-  actor: "organization" | "controller" | "agent wallet";
+  actor: "organization" | "controller" | "agent wallet" | "none";
   /**
    * Set when the step is expected to be refused, and why.
    *
@@ -203,6 +207,7 @@ export const CONSOLE_SUGGESTIONS = [
   "let research update its agent-context",
   'as research, set agent-context to "Specialized in ENS research"',
   "as research, set its mcp endpoint to https://example.com/mcp",
+  "what does research's mcp serve",
   "pay 0.0001 ETH from research to research",
   "show the audit trail for research",
 ] as const;

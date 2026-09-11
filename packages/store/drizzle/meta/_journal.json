@@ -15,6 +15,13 @@
       "when": 1788960075473,
       "tag": "0001_petite_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789131320850,
+      "tag": "0002_widen_activity_source_mcp",
+      "breakpoints": true
     }
   ]
 }

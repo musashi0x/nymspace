@@ -3,9 +3,7 @@
 ## Purpose
 
 The application's own persistence — which entities it may hold, which values it must never treat as authoritative, and the unified activity event with per-source provenance.
-
 ## Requirements
-
 ### Requirement: The store coordinates and does not adjudicate
 
 The application's persistence SHALL hold identifiers, labels, and events. It SHALL NOT be the authority for ENS identity, ENS permissions, ERC 8004 trust state, or financial policy.
@@ -56,7 +54,7 @@ All external actions SHALL be normalised into one event stream that records whic
 #### Scenario: Evidence matches the source
 
 - **WHEN** an event is written
-- **THEN** an ENS event MUST carry a transaction hash, a Graph event MUST carry the chain, subgraph identifier, and query time, and a financial event MUST carry a request identifier or transaction hash
+- **THEN** an ENS event MUST carry a transaction hash, a Graph event MUST carry the chain, subgraph identifier, and query time, a financial event MUST carry a request identifier or transaction hash, and an MCP event MUST carry the endpoint, the source that published it, the outcome, and the read time
 
 #### Scenario: Denied and failed events are retained
 
@@ -67,6 +65,11 @@ All external actions SHALL be normalised into one event stream that records whic
 
 - **WHEN** a pending external operation completes
 - **THEN** its event MUST be updated rather than duplicated
+
+#### Scenario: The source set is enforced by the database
+
+- **WHEN** an event is written with a source outside `ens`, `erc8004`, `graph`, `privy`, `app`, and `mcp`
+- **THEN** the database MUST reject it, and the permitted set MUST be widened only by a generated, committed migration
 
 ### Requirement: Provisioning state is per-integration, not global
 
@@ -104,3 +107,4 @@ Persistence SHALL be durable across process restarts, and the demo SHALL NOT dep
 
 - **WHEN** the process restarts mid-demo
 - **THEN** no step of the demo MUST require state that existed only in memory
+

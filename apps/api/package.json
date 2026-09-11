@@ -10,13 +10,16 @@
   },
   "scripts": {
     "dev": "tsx watch --exclude \"**/evidence/**\" --env-file-if-exists=../../.env --conditions=react-server src/index.ts",
+    "build": "node scripts/build.mjs",
     "start": "tsx --env-file-if-exists=../../.env --conditions=react-server src/index.ts",
+    "start:dist": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
     "@hono/zod-validator": "^0.9.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@nymspace/core": "workspace:*",
     "@nymspace/ens": "workspace:*",
     "@nymspace/github": "workspace:*",
@@ -25,10 +28,12 @@
     "@nymspace/store": "workspace:*",
     "hono": "^4.11.7",
     "tsx": "^4.20.6",
+    "undici": "7.29.1",
     "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^24",
+    "esbuild": "^0.28.2",
     "typescript": "^5",
     "vitest": "^4.0.18"
   }

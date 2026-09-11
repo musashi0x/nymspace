@@ -20,7 +20,7 @@ import {
   type ProvisionTarget,
 } from "@nymspace/api/provisioning";
 import { requireServerEnv } from "@nymspace/core/env";
-import type { Hex } from "@nymspace/core";
+import { FLEET, publishableAgentMcpEndpoint, type Hex } from "@nymspace/core";
 import {
   AGENT_CONTEXT_KEY,
   EnsService,
@@ -49,33 +49,24 @@ const ORGANIZATION_ID = "nymspace";
  * proof. Giving all three controllers grants would cost gas and prove less:
  * task 3.7 needs a name whose controller has *no* grant to check leakage
  * against.
+ *
+ * Built from `FLEET` so the `agent-context` written here and the answer each
+ * agent's MCP server gives are the same words. Only the research agent
+ * publishes an MCP endpoint, and it is derived, never literal.
  */
-const AGENTS: Omit<ProvisionTarget, "controller">[] = [
-  {
-    label: "research",
-    name: "Research",
-    description: "Finds and ranks other agents from live registry data.",
-    role: "Reads discovery data and may update its own MCP endpoint record.",
-    endpoints: { mcp: "https://mcp.nymspace.example/research" },
-    delegate: true,
-  },
-  {
-    label: "trader",
-    name: "Trader",
-    description: "Executes payments inside a policy it cannot change.",
-    role: "Holds a wallet under an amount-based policy. No record delegation.",
-    endpoints: {},
-    delegate: false,
-  },
-  {
-    label: "deploy",
-    name: "Deploy",
-    description: "Provisions and retires agents on behalf of the organization.",
-    role: "Reserved. First on the cut list in docs/14.",
-    endpoints: {},
-    delegate: false,
-  },
-];
+function fleetTargets(mcpEndpoint: string): Omit<ProvisionTarget, "controller">[] {
+  return FLEET.map(({ label, name, description, role }) => {
+    const delegate = label === "research";
+    return {
+      label,
+      name,
+      description,
+      role,
+      endpoints: delegate ? { mcp: mcpEndpoint } : {},
+      delegate,
+    };
+  });
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // Reporting
@@ -107,6 +98,12 @@ async function main(): Promise<void> {
     "ENSV2_AGENT_CONTROLLER_PRIVATE_KEY",
   ] as const);
 
+  // Refused unless https before anything is spent: this is the value the
+  // research agent's `agent-endpoint[mcp]` record will hold.
+  const agents = fleetTargets(
+    publishableAgentMcpEndpoint(process.env["AGENT_MCP_BASE_URL"], "research"),
+  );
+
   const client: ViemChainClient = createViemChainClient({
     rpcUrl: config.rpcUrl,
     chainId: config.chainId,
@@ -118,7 +115,7 @@ async function main(): Promise<void> {
   const parentName = `${deployed.parentLabel}.eth`;
   const registry = deployed.parentRegistry;
 
-  console.log(`Provisioning ${AGENTS.length} agents under ${parentName}`);
+  console.log(`Provisioning ${agents.length} agents under ${parentName}`);
   console.log(`  registry  ${registry}`);
   console.log(`  resolver  ${deployed.permissionedResolver}`);
   console.log(`  organization ${client.organization}`);
@@ -148,7 +145,7 @@ async function main(): Promise<void> {
     organization: client.organization,
   };
 
-  for (const agent of AGENTS) {
+  for (const agent of agents) {
     try {
       const result = await provisionAgent(context, {
         ...agent,
@@ -197,7 +194,7 @@ async function main(): Promise<void> {
   // 3.7 — grants do not leak across names
   //////////////////////////////////////////////////////////////////////////
 
-  for (const agent of AGENTS.filter((a) => !a.delegate)) {
+  for (const agent of agents.filter((a) => !a.delegate)) {
     const otherName = `${agent.label}.${parentName}`;
     // `canSetText` rather than a single resource read: it evaluates all three
     // alternatives the resolver's own `onlyPartRoles` accepts, so a leak

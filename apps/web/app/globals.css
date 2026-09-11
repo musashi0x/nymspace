@@ -257,6 +257,72 @@
   color: var(--astryx-theme-nymspace-color-frame);
 }
 
+/* The nav's underline: one mark, two weights.
+
+   Both states draw the same bar under the same link, and they differ the way
+   the two things differ. Hover is the console's dash rhythm in the frame's own
+   colour: a proposal, drawn in the language the chrome already speaks. The
+   current page is solid accent at twice the weight: a commitment, and the only
+   place in the header that carries colour.
+
+   The dashed version was first used for both, and the current page vanished.
+   `--astryx-theme-nymspace-color-frame` aliases `--color-border`, which is
+   `#f0f0fa33` — the same 20%-alpha ink as `frame-rule-below` running the full
+   width of the header a few pixels underneath. A 1px dashed hairline in the
+   exact colour and rhythm of a rule directly below it does not read as an
+   indicator; it reads as a bit of the rule that came loose. Accent is what
+   separates them, and the accent is `--color-text-accent`, already the one
+   colour the console spends, on the Search button.
+
+   The mark is a pseudo-element so the link stays one element. `AGENTS.md`
+   gives the raw-layout exception to `Frame` by name, and an underline that
+   needs a wrapper to exist would be claiming it a second time.
+
+   `bottom` is negative so the bar sits in the header's own padding rather than
+   inside the text box, where a descender would cross it. The offset is smaller
+   than the header's `paddingBlockEnd`, so the mark never reaches
+   `frame-rule-below` and the two lines stay legible as two.
+
+   The bar travels between links on navigation rather than blinking: the nav
+   lives in the layout, so React keeps these elements across a route change and
+   only flips `data-active`. What moves is a state change on persistent nodes,
+   which is what a transition can animate and a remount cannot. */
+@utility nav-link {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: -0.375rem;
+    height: 1px;
+    background-image: repeating-linear-gradient(to right, var(--astryx-theme-nymspace-color-frame) 0 2px, transparent 2px 7px);
+    background-repeat: repeat-x;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition:
+      opacity 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  /* After the hover rule on purpose: hovering the page you are already on
+     must not demote its mark back to a dashed proposal. */
+  &[data-active]::after {
+    height: 2px;
+    background-image: none;
+    background-color: var(--color-text-accent);
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 /* Surfaces, and the punch.
 
    Corner marks and the title paint the surface behind the frame so the edge
@@ -483,6 +549,14 @@ html::-webkit-scrollbar {
   .scroll-shell::after {
     transition: none;
   }
+
+  /* The underline still appears; it stops travelling. Removing the mark
+     instead would take the current-page indicator away from the readers most
+     likely to need it. */
+  .nav-link::after {
+    transform: scaleX(1);
+    transition: none;
+  }
 }
 
 /* Rows arriving in a window.
@@ -506,6 +580,25 @@ html::-webkit-scrollbar {
    40 steps would be a wait rather than an entrance.
 
    See design.md D4 and tasks 2.3 / 3.3. */
+/* The evidence panel sits inside the activity table's horizontal scroll
+   wrapper, so its `width: 100%` resolves against the table's full scroll
+   width rather than against the screen. At ordinary window sizes that is
+   several hundred pixels wider than the viewport, and `CodeBlock` puts its
+   copy button at the right edge of the block — which is how the button ended
+   up somewhere you had to drag the table sideways to reach.
+
+   `sticky` pins the panel to the scroll wrapper's left edge so it stays put
+   while the table scrolls underneath, and the width caps it at what is
+   actually on screen, which brings the copy button back with it. The cap is
+   `100vw` rather than a measured gutter: the overhang is the console's own
+   left inset, and the button carries enough end padding to stay clear of it. */
+@utility evidence-pane {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: min(100%, 100vw);
+}
+
 @utility row-window {
   & tbody tr {
     animation: row-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;

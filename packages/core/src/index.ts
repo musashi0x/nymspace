@@ -9,6 +9,9 @@
 export * from "./types";
 export * from "./erc7930";
 export * from "./lens";
+export * from "./mcp";
+export * from "./fleet";
 export * from "./units";
+export * from "./explorer";
 export { publicEnv, type PublicEnv } from "./env.public";
 export { MissingEnvError } from "./env.shared";

@@ -5,6 +5,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { agentMcpEndpoint, isPublishableEndpoint } from "@nymspace/core";
 import { fetchIdentity, fetchPermissions, fetchWallet } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
 import {
@@ -13,6 +14,7 @@ import {
   type VerificationState,
 } from "@/lib/console/state";
 import { AuthorityMatrix } from "@/components/console/authority-matrix";
+import { McpConnect } from "@/components/console/mcp-connect";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
 import {
@@ -54,6 +56,16 @@ export default async function AgentPage({
   const state = identityStateFrom(identity);
   const verification = identity.ensip25.status as VerificationState;
   const verdict = VERIFICATION_LABELS[verification];
+
+  /*
+    The MCP endpoint the permission proof may write, derived on the server.
+    `AGENT_MCP_BASE_URL` is not a public variable, and only an https value can
+    be published, so a local origin yields no endpoint rather than one the API
+    would refuse.
+  */
+  const mcpBase = process.env.AGENT_MCP_BASE_URL;
+  const derived = mcpBase ? agentMcpEndpoint(mcpBase, identity.label) : null;
+  const mcpEndpoint = derived && isPublishableEndpoint(derived) ? derived : null;
 
   return (
     <VStack as="main" gap={8} width="100%" className="min-w-0">
@@ -124,6 +136,14 @@ export default async function AgentPage({
           source={`chain ${identity.chainId}`}
           readAt={identity.fetchedAt}
         />
+        {/*
+          Connect only where there is something to dial. With no record the
+          Field above already shows the absence, and a button that could only
+          ever answer "no_endpoint" would be an action with nothing behind it.
+        */}
+        {identity.records.mcp ? (
+          <McpConnect target={{ kind: "fleet", agentId: id }} />
+        ) : null}
         <Field
           label={identity.recordKeys.a2a}
           value={
@@ -280,6 +300,7 @@ export default async function AgentPage({
           // button disables rather than inventing one.
           protectedKey={"key" in identity.ensip25 ? identity.ensip25.key : undefined}
           currentValue={identity.records.mcp}
+          endpoint={mcpEndpoint}
         />
       </Frame>
 

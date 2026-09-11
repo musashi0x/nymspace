@@ -212,6 +212,34 @@ throws on the 404, and the visitor gets a 500 page plus a console message
 reading `Minified React error #441` — the production wrapper for "an error
 occurred in the Server Components render". Three symptoms, one dead domain.
 
+## Finding a request in the logs
+
+`api` writes one JSON object per line to stdout, and Railway parses each line
+into attributes. Every request writes one line when it answers:
+
+```json
+{"level":"info","message":"GET /v1/activity 200","requestId":"9f1c2d7e-…","method":"GET","path":"/v1/activity","status":200,"durationMs":41}
+```
+
+An unhandled error writes a second line under the same `requestId`, carrying
+`errorName`, `errorMessage` and `stack`. A provisioning run that fails after its
+`202` writes `provisioning stopped` under the id of the request that started
+it, and a further line for each store write that could not record the failure.
+
+Every response carries the id in `X-Request-Id`, and every error body carries it
+as `requestId`, so a reported failure arrives with the handle to search for. In
+the api service's log explorer:
+
+| Query | Finds |
+| --- | --- |
+| `@requestId:<id>` | Everything one request wrote, including background work it started |
+| `@level:error` | 5xx responses, unhandled errors, failed provisioning |
+| `@status:>=500` | Request lines for server failures |
+
+The query string is never logged, only the path. A successful `/health` logs at
+`debug`: Railway polls it through every deploy, so those lines are noise until a
+deploy fails, and a level filter can leave them out.
+
 ## Troubleshooting
 
 | Symptom | Cause |

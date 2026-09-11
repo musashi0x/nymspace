@@ -1,5 +1,11 @@
 import { decodeEventLog, namehash } from "viem";
-import type { Address, AgentPermissions, Hex } from "@nymspace/core";
+import {
+  UnpublishableEndpointError,
+  isPublishableEndpoint,
+  type Address,
+  type AgentPermissions,
+  type Hex,
+} from "@nymspace/core";
 import { permissionedResolverAbi, registryAbi, verifiableFactoryAbi } from "./abis";
 import { chainConfig, requireDeployed, type ChainConfig } from "./chain";
 import {
@@ -13,7 +19,7 @@ import {
   type EacResource,
   type ResourceDeriver,
 } from "./eac";
-import { encodeDnsName } from "./keys";
+import { agentEndpointKey, encodeDnsName } from "./keys";
 
 /**
  * The single boundary through which every ENS read and write passes.
@@ -116,13 +122,28 @@ export class EnsService {
     return typeof value === "string" ? value : "";
   }
 
-  /** Write one ENSIP 26 text record. Returns the transaction hash. */
+  /**
+   * Write one ENSIP 26 text record. Returns the transaction hash.
+   *
+   * Refuses a non-https MCP endpoint before a transaction is built. This is
+   * the backstop for every caller that does not validate first — provisioning,
+   * the scripts, whatever is added next — because the record is public and a
+   * local `AGENT_MCP_BASE_URL` must never reach it. An empty value clears the
+   * record and is allowed.
+   */
   async writeText(params: {
     name: string;
     key: string;
     value: string;
     as?: "organization" | "controller";
   }): Promise<Hex> {
+    if (
+      params.key === agentEndpointKey("mcp") &&
+      params.value !== "" &&
+      !isPublishableEndpoint(params.value)
+    ) {
+      throw new UnpublishableEndpointError(params.value);
+    }
     return this.client.writeContract({
       address: this.resolver,
       abi: permissionedResolverAbi,

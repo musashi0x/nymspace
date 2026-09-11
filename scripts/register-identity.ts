@@ -24,7 +24,11 @@
 
 import { formatEther } from "viem";
 import { requireServerEnv } from "@nymspace/core/env";
-import type { Address, Hex } from "@nymspace/core";
+import {
+  publishableAgentMcpEndpoint,
+  type Address,
+  type Hex,
+} from "@nymspace/core";
 import {
   EnsService,
   Erc8004Service,
@@ -47,8 +51,6 @@ const AGENT_DB_ID = `agent-${AGENT_SLUG}`;
 
 /** Base Sepolia. The registry address is identical to Sepolia's. */
 const REGISTRATION_CHAIN_ID = 84532;
-
-const MCP_ENDPOINT = "https://mcp.nymspace.example/research";
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -88,6 +90,14 @@ async function main(): Promise<void> {
     "ENSV2_AGENT_CONTROLLER_PRIVATE_KEY",
     "ERC8004_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS",
   ] as const);
+
+  // Derived, and refused unless https, before anything is spent. The endpoint
+  // goes into the registration file on Base Sepolia and from there into
+  // Agent0's index, where a local value would be published to everyone.
+  const mcpEndpoint = publishableAgentMcpEndpoint(
+    process.env["AGENT_MCP_BASE_URL"],
+    AGENT_SLUG,
+  );
 
   const organizationKey = keys.ENSV2_ORGANIZATION_PRIVATE_KEY as Hex;
   const controllerKey = keys.ENSV2_AGENT_CONTROLLER_PRIVATE_KEY as Hex;
@@ -149,7 +159,7 @@ async function main(): Promise<void> {
     description:
       "Finds and ranks agents from live ERC 8004 registry data. Operated by nymspace.eth.",
     ensName,
-    mcpEndpoint: MCP_ENDPOINT,
+    mcpEndpoint,
     // Only what is actually true. `supportedTrusts` naming a scheme nobody
     // implements would be a claim the agent cannot back, which is the same
     // failure as an endpoint that does not answer.

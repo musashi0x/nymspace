@@ -1,0 +1,2 @@
+ALTER TABLE "activity_events" DROP CONSTRAINT "activity_events_source_check";--> statement-breakpoint
+ALTER TABLE "activity_events" ADD CONSTRAINT "activity_events_source_check" CHECK ("activity_events"."source" in ('ens', 'erc8004', 'graph', 'privy', 'app', 'mcp'));

@@ -57,6 +57,7 @@
     "PORT",
     "WEB_ORIGIN",
     "NEXT_PUBLIC_API_URL",
+    "AGENT_MCP_BASE_URL",
     "GITHUB_TOKEN",
     "GH_TOKEN",
     "GITHUB_OWNER",
@@ -74,7 +75,8 @@
       ],
       "outputs": [
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "dist/**"
       ]
     },
     "typecheck": {

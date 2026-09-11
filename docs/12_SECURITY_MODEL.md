@@ -104,15 +104,42 @@ Not required for MVP.
 
 ### Malicious endpoint
 
-A valid ENS identity does not prove an MCP endpoint is safe.
+A valid ENS identity does not prove an MCP endpoint is safe, or that it exists.
 
 UI must not imply ENS verification means the agent is trustworthy.
 
 Separate labels:
 
 * Identity verified
-* Endpoint available
+* Endpoint advertised: what a record or a registration says
+* Endpoint answers MCP: only a live connect establishes this, and it says nothing about safety
 * Trust signals
+
+Connecting is itself an attack surface. An endpoint is a value a controller can
+write to ENS, or anyone can file with Agent0, and the API has no caller
+authentication, so a connect that fetched whatever it found would be an open
+door into the network the API runs on. `POST /v1/mcp/connect` therefore:
+
+* takes an agent identifier, never a URL, and resolves the endpoint itself;
+* sends every request through one outbound guard: https only; no internal
+  address after resolution (loopback, private, link-local including the
+  `169.254.169.254` metadata service, CGNAT, unspecified, multicast, reserved);
+  the connection pinned to the address that was checked; no redirects;
+  timeouts; a streamed response cap;
+* sends `initialize` and `tools/list` and nothing else. A tool's name says
+  nothing reliable about its side effects, so the product never calls one;
+* treats tool names and descriptions as untrusted text: truncated, rendered as
+  text, and never fed to the ranking model.
+
+Remaining exposure: anyone who can reach the API can make it issue outbound
+requests, bounded to endpoints somebody published and throttled to one attempt
+per target every ten seconds. Every attempt is logged under source `mcp`.
+
+The fleet's own MCP servers face the other way. They share a process with the
+signing keys, so they are mounted without the dependency container and refuse
+to run if it is ever present on their context. The stronger separation, a
+service whose environment holds no keys at all, is a lift-out the route design
+does not block.
 
 ### Stale ENSIP 25 association
 
@@ -185,3 +212,6 @@ to client code or LLM prompts.
 * Financial policy is enforced by Privy, not frontend logic.
 * Graph results are treated as untrusted external data.
 * Privy secrets remain server side.
+* MCP connect takes an agent identifier, never a URL, and never sends `tools/call`.
+* Every outbound request to a published endpoint passes the outbound guard.
+* Agent MCP routes never receive the dependency container.

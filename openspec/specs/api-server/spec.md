@@ -3,9 +3,7 @@
 ## Purpose
 
 The dedicated HTTP surface — how routes are versioned and namespaced, how origins are restricted, how errors and validation failures are shaped, how the process is configured, and how the web application calls it with types intact.
-
 ## Requirements
-
 ### Requirement: The API is a standalone process
 
 The API SHALL run as its own process, independent of the Next.js application, and SHALL be configured entirely from its environment.
@@ -61,7 +59,7 @@ Handlers SHALL reject malformed input at the edge, so an invalid value never rea
 #### Scenario: Failures do not leak internals
 
 - **WHEN** a handler throws
-- **THEN** the response MUST be 500 with a generic message, and the detail MUST go to the server log rather than the body
+- **THEN** the response MUST be 500 with a body carrying only a generic message and the request's id, and the error's name, message and stack MUST go to the process log under that id rather than into the body
 
 ### Requirement: Browser access is restricted to configured origins
 
@@ -280,3 +278,114 @@ An authority or policy denial SHALL be returned as a successful response describ
 
 - **WHEN** a payment is rejected by policy
 - **THEN** the API MUST return a denied status with its reason, and MUST NOT surface it as an internal error
+
+### Requirement: Every request carries an id
+
+The API SHALL assign each request an id, return it on the response, and use it to connect the response to every log line the request produces.
+
+#### Scenario: An id is generated when none is sent
+
+- **WHEN** a request arrives without an `X-Request-Id` header
+- **THEN** the response MUST carry an `X-Request-Id` header with a newly generated id
+
+#### Scenario: An inbound id is reused
+
+- **WHEN** a request arrives with an `X-Request-Id` header of acceptable length
+- **THEN** the response MUST carry that same id, and every log line the request produces MUST use it
+
+#### Scenario: An inbound id is bounded
+
+- **WHEN** a request arrives with an `X-Request-Id` longer than 255 characters
+- **THEN** that value MUST NOT be used as the request's id
+
+#### Scenario: Browsers can read the id
+
+- **WHEN** a cross-origin request from an allowed origin, or any request to an agent MCP route, is answered
+- **THEN** the response MUST list `X-Request-Id` in `Access-Control-Expose-Headers`
+
+#### Scenario: Every failure body names its request
+
+- **WHEN** the API answers with an error body of its own making: a 404, the status of an `HTTPException`, a 500, or an agent MCP route's 503
+- **THEN** the JSON body MUST include `requestId` equal to the response's `X-Request-Id` header
+
+### Requirement: The process log is single-line flat JSON
+
+Every line the API process writes SHALL be one JSON object on one line whose values are strings, numbers or booleans, so the platform's log explorer can filter on each field.
+
+#### Scenario: One line per request
+
+- **WHEN** a request completes
+- **THEN** exactly one request line MUST be written, carrying `level`, `message`, `requestId`, `method`, `path`, `status` and `durationMs`
+
+#### Scenario: Level follows status
+
+- **WHEN** a request completes with a 5xx status, a 4xx status, or any other status
+- **THEN** its line's level MUST be `error`, `warn`, or `info` respectively, except a successful `GET /health`, which MUST be logged at `debug`
+
+#### Scenario: Values are never nested
+
+- **WHEN** any line is written
+- **THEN** it MUST parse as a JSON object with no object or array values, and MUST contain no newline before its terminator
+
+#### Scenario: The query string is not logged
+
+- **WHEN** a request with a query string completes
+- **THEN** its line's `path` MUST NOT include the query string
+
+#### Scenario: Log output is testable without the console
+
+- **WHEN** the application is constructed with a log sink
+- **THEN** every line MUST be written to that sink and none to the process's stdout
+
+### Requirement: Failures reach the log with their request
+
+No error raised while serving a request, or in work a request starts and does not await, SHALL be discarded without a log line carrying that request's id.
+
+#### Scenario: An unhandled error is logged under the request's id
+
+- **WHEN** a handler throws an error that is not an `HTTPException`
+- **THEN** an `error` line MUST be written with the error's name, message and stack and the same `requestId` as the request line, and the request line MUST record status 500
+
+#### Scenario: Work after the response logs its failure
+
+- **WHEN** provisioning started by a creation request fails after the 202 was sent
+- **THEN** an `error` line carrying the creating request's id and the agent's id MUST be written before any attempt to record the failure in the store
+
+#### Scenario: A failure to record a failure is itself logged
+
+- **WHEN** recording a provisioning failure in the store also fails
+- **THEN** a further `error` line MUST be written naming the write that failed, and the error MUST NOT be discarded
+
+### Requirement: Agent MCP routes are protocol routes
+
+Routes that serve an agent's MCP endpoint SHALL live under `/mcp/<label>` outside the version prefix, because their URL is published onchain and the protocol negotiates its own version. They SHALL be mounted without the dependencies product routes receive.
+
+#### Scenario: The path carries no API version
+
+- **WHEN** an agent MCP route is mounted
+- **THEN** its path MUST NOT begin with a version segment, and changing the product API version MUST NOT change any published endpoint
+
+#### Scenario: The route is excluded from dependency injection
+
+- **WHEN** the application is constructed
+- **THEN** `/mcp/*` MUST NOT be among the paths that receive `withDeps()`, and a test MUST fail if it is added
+
+#### Scenario: Browser origin rules do not gate protocol clients
+
+- **WHEN** an MCP client without an `Origin` header calls an agent MCP route
+- **THEN** it MUST be served, while product routes keep their configured-origin restriction
+
+### Requirement: The API serves MCP connect
+
+The API SHALL serve `POST /v1/mcp/connect` as a product route, validated by schema and returned through the typed client, as specified by the `mcp-connect` capability.
+
+#### Scenario: The route is in the typed client
+
+- **WHEN** the web application calls connect
+- **THEN** it MUST do so through the `hc<AppType>` client, so a renamed route or changed outcome shape is a compile error
+
+#### Scenario: Connect does not touch payment routes
+
+- **WHEN** this route is added
+- **THEN** no payment route's path, schema, or behaviour MUST change
+

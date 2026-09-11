@@ -1,11 +1,12 @@
 import { Badge as AstryxBadge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
-import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import type { ReactNode } from "react";
+import { EvidenceJson } from "./evidence-json";
 
 /**
  * The console's shared vocabulary, built from Astryx.
@@ -195,12 +196,27 @@ export function Outcome({
  *
  * No skeleton rows. A grey rectangle where a value will go is content the
  * system has not returned, and the eye reads it as data that is nearly here.
+ * `docs/03`'s rule is "never show fake success placeholders", and a shimmer in
+ * the shape of the answer is the clearest way to break it.
+ *
+ * A spinner is not that. It renders no value, claims no shape, and says only
+ * that the request is still open — which is the one thing the static line could
+ * not distinguish from a request that had died. Astryx names this exact split:
+ * Spinner for unknown duration, Skeleton for known dimensions, and the doctrine
+ * above is why only the first is used here.
+ *
+ * The text stays the accessible name. `label` would stack its own copy under
+ * the ring, so the name is passed as `aria-label` and the line beside it is
+ * what everyone reads.
  */
 export function Loading({ what }: { what: string }) {
   return (
-    <Text type="code" size="sm" color="secondary">
-      {what}…
-    </Text>
+    <HStack gap={2} align="center">
+      <Spinner size="sm" shade="subtle" aria-label={what} />
+      <Text type="code" size="sm" color="secondary">
+        {what}…
+      </Text>
+    </HStack>
   );
 }
 
@@ -217,14 +233,6 @@ export function Empty({
     <EmptyState title={title} description={detail} actions={action} isCompact />
   );
 }
-
-/**
- * How tall evidence gets before it scrolls inside itself.
- *
- * `CodeBlock` handles its own overflow and Astryx is explicit that it should
- * not be nested in a scroll container, so this is a prop rather than a wrapper.
- */
-const EVIDENCE_MAX_HEIGHT = "20rem";
 
 /**
  * Serialize for display, or say why not.
@@ -301,20 +309,5 @@ export function Evidence({
     );
   }
 
-  return (
-    <VStack gap={2} paddingBlock={2} className="frame-rule-below last:bg-none">
-      <Text type="supporting" size="sm">
-        {label}
-      </Text>
-      <CodeBlock
-        code={result.json}
-        language="json"
-        container="section"
-        size="sm"
-        isWrapped
-        width="100%"
-        maxHeight={EVIDENCE_MAX_HEIGHT}
-      />
-    </VStack>
-  );
+  return <EvidenceJson label={label} json={result.json} />;
 }

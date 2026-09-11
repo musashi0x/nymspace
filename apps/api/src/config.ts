@@ -16,6 +16,23 @@ export interface ApiConfig {
   port: number;
   /** Origins allowed to call this API from a browser. */
   allowedOrigins: string[];
+  /**
+   * The parent ENS name the fleet lives under, e.g. `nymspace.eth`, which is
+   * what each agent's MCP server reports as its identity.
+   *
+   * Optional, and read here rather than through `deps`, because the MCP routes
+   * are mounted without dependencies on purpose. Absent, those routes answer
+   * 503 and nothing else is affected: `/health` must not start failing because
+   * a deployment has not been given a parent name.
+   */
+  agentParentName?: string;
+  /**
+   * `AGENT_MCP_BASE_URL`: the origin the fleet's MCP servers are published
+   * under, and the one origin the outbound guard exempts from its scheme and
+   * address rules, so a local API can connect to its own servers. Absent,
+   * nothing is exempt.
+   */
+  agentMcpBaseUrl?: string;
 }
 
 export function apiConfig(): ApiConfig {
@@ -29,11 +46,18 @@ export function apiConfig(): ApiConfig {
     throw new Error(`API_PORT must be a positive integer, got: ${port}`);
   }
 
+  const parentLabel = process.env.ENSV2_PARENT_LABEL;
+
   return {
     port,
     allowedOrigins: requireOne("WEB_ORIGIN")
       .split(",")
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
+    // The same derivation `buildDeps()` uses for `parentName`.
+    ...(parentLabel ? { agentParentName: `${parentLabel}.eth` } : {}),
+    ...(process.env.AGENT_MCP_BASE_URL
+      ? { agentMcpBaseUrl: process.env.AGENT_MCP_BASE_URL }
+      : {}),
   };
 }
