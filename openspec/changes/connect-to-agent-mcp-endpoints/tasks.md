@@ -7,11 +7,11 @@
 
 ## 2. Agent MCP servers
 
-- [ ] 2.1 Create `apps/api/src/mcp/servers.ts`: per-label `McpServer` factory, `serverInfo.name` = full ENS name, tools per design.md D4 answered from static fleet metadata only; no import from `../deps`
-- [ ] 2.2 Mount `/mcp/:label` in `app.ts` as a chained route, stateless transport with JSON responses; unknown label returns the standard 404
-- [ ] 2.3 Scope CORS so product routes keep the origin allowlist while `/mcp/*` serves clients without an `Origin` header
-- [ ] 2.4 Test: `initialize` + `tools/list` against `app.ts` for each label; `?proof=` query is ignored; unknown label is 404
-- [ ] 2.5 Test: `/mcp/*` is absent from `DEPENDENT_ROUTES` and a handler observes `c.var.deps` as undefined
+- [x] 2.1 Create `apps/api/src/mcp/servers.ts`: per-label `McpServer` factory, `serverInfo.name` = full ENS name, tools per design.md D4 answered from static fleet metadata only; no import from `../deps` — fleet metadata moved to `FLEET` in `@nymspace/core`
+- [x] 2.2 Mount `/mcp/:label` in `app.ts` as a chained route, stateless transport with JSON responses; unknown label returns the standard 404
+- [x] 2.3 Scope CORS so product routes keep the origin allowlist while `/mcp/*` serves clients without an `Origin` header
+- [x] 2.4 Test: `initialize` + `tools/list` against `app.ts` for each label; `?proof=` query is ignored; unknown label is 404
+- [x] 2.5 Test: `/mcp/*` is absent from `DEPENDENT_ROUTES` and a handler observes `c.var.deps` as undefined — enforced by a guard in the route that throws if `deps` is present, tested both ways
 
 ## 3. Endpoint derivation and the live record
 

@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import type { ApiConfig } from "./config";
 import { withDeps, type Deps, type DepsEnv } from "./deps";
 import { activity } from "./routes/activity";
+import { agentMcp } from "./routes/agent-mcp";
 import { agents } from "./routes/agents";
 import { chat } from "./routes/chat";
 import { discover } from "./routes/discover";
@@ -41,24 +42,49 @@ import { traffic } from "./routes/traffic";
  * dependency, and a liveness check that needs an RPC and a database reports
  * their health rather than its own.
  */
-const DEPENDENT_ROUTES = [
+export const DEPENDENT_ROUTES = [
   "/v1/agents",
   "/v1/discover",
   "/v1/activity",
   "/v1/chat",
 ] as const;
 
+/** The agent MCP servers. Public, read-only, and never given `deps`. */
+const isProtocolPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
+
 export function createApp(config: ApiConfig, deps?: Deps) {
   const app = new Hono<DepsEnv>();
 
+  /**
+   * Two CORS policies, split by path.
+   *
+   * Product routes keep the configured allowlist with credentials. The agent
+   * MCP routes serve any origin without credentials, because their callers are
+   * protocol clients — the MCP Inspector in a browser among them — and what
+   * they serve is public, read-only data from `FLEET`. The MCP headers are
+   * allowed and exposed so a browser client can negotiate a version.
+   */
+  const productCors = cors({
+    origin: config.allowedOrigins,
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+  });
+  const protocolCors = cors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowHeaders: [
+      "content-type",
+      "accept",
+      "mcp-protocol-version",
+      "mcp-session-id",
+      "last-event-id",
+    ],
+    exposeHeaders: ["mcp-protocol-version", "mcp-session-id"],
+  });
+
   app.use("*", logger());
-  app.use(
-    "*",
-    cors({
-      origin: config.allowedOrigins,
-      allowMethods: ["GET", "POST", "OPTIONS"],
-      credentials: true,
-    }),
+  app.use("*", (c, next) =>
+    isProtocolPath(c.req.path) ? protocolCors(c, next) : productCors(c, next),
   );
 
   /**
@@ -86,7 +112,8 @@ export function createApp(config: ApiConfig, deps?: Deps) {
     .route("/v1/activity", activity)
     .route("/v1/chat", chat)
     .route("/v1/github", github)
-    .route("/v1/traffic", traffic);
+    .route("/v1/traffic", traffic)
+    .route("/mcp", agentMcp(config.agentParentName));
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
