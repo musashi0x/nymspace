@@ -181,7 +181,7 @@ export const activityEvents = pgTable(
     ),
     check(
       "activity_events_source_check",
-      sql`${t.source} in ('ens', 'erc8004', 'graph', 'privy', 'app')`,
+      sql`${t.source} in ('ens', 'erc8004', 'graph', 'privy', 'app', 'mcp')`,
     ),
     // The activity route filters by agent, source, type, and status. Four
     // filter dimensions over an append-only log is the reason this store is

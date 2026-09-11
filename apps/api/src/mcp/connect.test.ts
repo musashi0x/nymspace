@@ -326,8 +326,24 @@ describe("POST /v1/mcp/connect", () => {
     controllerAddress: "0xDEA25D2537cE06cE1073dd9621C70056CBDC3aEB",
   };
 
+  const events: Record<string, unknown>[] = [];
+  beforeEach(() => {
+    events.length = 0;
+  });
+
+  /** Every app here records into `events`, whatever else its store fakes. */
   function appWith(deps: Partial<Deps>, extra: Partial<ApiConfig> = {}) {
-    return createApp({ port: 0, allowedOrigins: [], ...extra }, deps as Deps);
+    const store = {
+      recordEvent: async (event: Record<string, unknown>) => {
+        events.push(event);
+        return event;
+      },
+      ...(deps.store as object | undefined),
+    };
+    return createApp(
+      { port: 0, allowedOrigins: [], ...extra },
+      { ...deps, store } as unknown as Deps,
+    );
   }
 
   const post = (app: ReturnType<typeof createApp>, body: unknown) =>
@@ -374,6 +390,16 @@ describe("POST /v1/mcp/connect", () => {
       endpointSource: "ens",
     });
     expect(methods).toHaveLength(0);
+    // Logged as an attempt that reached nothing; the evidence says why.
+    expect(events).toMatchObject([
+      {
+        source: "mcp",
+        type: "mcp.connect.failed",
+        status: "failed",
+        agentId: "agent-research",
+        evidence: { source: "mcp", outcome: "no_endpoint", endpoint: null, endpointSource: "ens" },
+      },
+    ]);
   });
 
   it("resolves a fleet agent through its live ENS record and connects", async () => {
@@ -394,6 +420,13 @@ describe("POST /v1/mcp/connect", () => {
       endpoint: `${agentOrigin}/mcp/research?proof=1`,
       identity: { result: "matches" },
     });
+    expect(events).toMatchObject([
+      {
+        type: "mcp.connect.succeeded",
+        status: "success",
+        evidence: { outcome: "connected", endpointSource: "ens" },
+      },
+    ]);
   });
 
   it("resolves a discovered agent through Agent0 and reports a failure as a 200", async () => {
@@ -413,6 +446,16 @@ describe("POST /v1/mcp/connect", () => {
       endpointSource: "graph",
       endpoint: "http://localhost:8080/mcp",
     });
+    // The guard refusing is the control working, recorded like any denial.
+    expect(events).toMatchObject([
+      {
+        type: "mcp.connect.blocked",
+        status: "denied",
+        evidence: { outcome: "blocked", endpointSource: "graph" },
+        metadata: { rule: "https-only" },
+      },
+    ]);
+    expect(events[0]).not.toHaveProperty("agentId");
   });
 
   it("answers 404 for an Agent0 key that names no agent", async () => {
@@ -446,6 +489,30 @@ describe("POST /v1/mcp/connect", () => {
         missing: ["place_order"],
         unclaimed: ["list_fleet"],
       },
+    });
+  });
+
+  it("retains a failed attempt, and logs a repeat from the cooldown not at all", async () => {
+    const app = appWith(
+      {
+        store: { getAgent: async () => agent } as unknown as Deps["store"],
+        ens: { readText: async () => `${badOrigin}/missing` } as unknown as Deps["ens"],
+      },
+      { agentMcpBaseUrl: badOrigin },
+    );
+    const target = { target: { kind: "fleet", agentId: "agent-research" } };
+
+    const first = await (await post(app, target)).json();
+    const second = await (await post(app, target)).json();
+
+    expect(first).toMatchObject({ status: "not_mcp", httpStatus: 404 });
+    expect(second).toEqual(first);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "mcp.connect.failed",
+      status: "failed",
+      evidence: { outcome: "not_mcp" },
+      metadata: { httpStatus: 404 },
     });
   });
 });

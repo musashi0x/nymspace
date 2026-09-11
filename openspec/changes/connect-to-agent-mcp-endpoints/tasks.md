@@ -40,9 +40,9 @@
 
 ## 6. Activity log
 
-- [ ] 6.1 Add `mcp` to `ActivitySource`, `mcp.connect.succeeded|failed|blocked` to `ActivityType`, and the `mcp` evidence member to `ActivityEvidence`; extend `assertEvidence`
-- [ ] 6.2 Widen `activity_events_source_check` in `schema.ts`, run `pnpm --filter @nymspace/store db:generate`, commit the migration; store tests pass against Postgres
-- [ ] 6.3 Record an event for every connect outcome; test that a failed connect is retained
+- [x] 6.1 Add `mcp` to `ActivitySource`, `mcp.connect.succeeded|failed|blocked` to `ActivityType`, and the `mcp` evidence member to `ActivityEvidence`; extend `assertEvidence` — the activity route's `source` filter also admits `mcp`
+- [x] 6.2 Widen `activity_events_source_check` in `schema.ts`, run `pnpm --filter @nymspace/store db:generate`, commit the migration; store tests pass against Postgres — `0002_widen_activity_source_mcp.sql`, a drop and re-add of the one constraint
+- [x] 6.3 Record an event for every connect outcome; test that a failed connect is retained — `blocked` is recorded as `denied` (the control working), `no_endpoint` as `failed` with `outcome: "no_endpoint"` in its evidence; recorded inside the throttle, so a cooldown repeat is not a second row
 
 ## 7. Console
 

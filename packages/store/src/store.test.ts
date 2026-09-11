@@ -283,6 +283,77 @@ describe("activity is one log with per-source provenance", () => {
     ).toThrow(/evidence is for graph/);
   });
 
+  it("accepts an mcp event, including one for an endpoint nobody published", () => {
+    const readAt = new Date().toISOString();
+    expect(() =>
+      assertEvidence("mcp", {
+        source: "mcp",
+        endpoint: "https://api.example.com/mcp/research",
+        endpointSource: "ens",
+        outcome: "connected",
+        readAt,
+      }),
+    ).not.toThrow();
+    // Null is the recorded fact that nothing was published, not a gap.
+    expect(() =>
+      assertEvidence("mcp", {
+        source: "mcp",
+        endpoint: null,
+        endpointSource: "graph",
+        outcome: "no_endpoint",
+        readAt,
+      }),
+    ).not.toThrow();
+  });
+
+  it("refuses an mcp event missing its endpoint, source, outcome or read time", () => {
+    const valid = {
+      source: "mcp" as const,
+      endpoint: "https://x.example/mcp",
+      endpointSource: "ens" as const,
+      outcome: "timeout",
+      readAt: new Date().toISOString(),
+    };
+    for (const broken of [
+      { ...valid, endpoint: undefined },
+      { ...valid, endpointSource: "somewhere" },
+      { ...valid, outcome: "" },
+      { ...valid, readAt: "" },
+    ]) {
+      expect(() => assertEvidence("mcp", broken as never)).toThrow(/mcp event must carry/);
+    }
+  });
+
+  /**
+   * The row the database would have refused before migration 0002: the
+   * source check constraint now admits `mcp`, and a failed connect is kept
+   * like every other failure.
+   */
+  it("stores an mcp event, and keeps a failed one", async () => {
+    const readAt = new Date().toISOString();
+    await store.recordEvent({
+      organizationId: ORG_ID,
+      source: "mcp",
+      type: "mcp.connect.failed",
+      status: "failed",
+      occurredAt: readAt,
+      summary: "MCP connect to Agent0 84532:9 (https://dead.example/mcp): unreachable",
+      evidence: {
+        source: "mcp",
+        endpoint: "https://dead.example/mcp",
+        endpointSource: "graph",
+        outcome: "unreachable",
+        readAt,
+      },
+      metadata: { stage: "dns" },
+    });
+
+    const events = await store.listActivity({ organizationId: ORG_ID });
+    expect(events).toContainEqual(
+      expect.objectContaining({ source: "mcp", type: "mcp.connect.failed", status: "failed" }),
+    );
+  });
+
   it("retains denied and failed events", async () => {
     await store.recordEvent({
       ...base,

@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import * as z from "zod";
 import { agentEndpointKey } from "@nymspace/ens";
 import { Agent0ProviderError } from "@nymspace/graph";
-import type { DepsEnv } from "../deps";
+import { ORGANIZATION_ID, type DepsEnv } from "../deps";
 import { createGuardedFetch } from "../mcp/guard";
 import { handshake, throttled, type ConnectOutcome } from "../mcp/connect";
 import { agentNotFound, readAt } from "./shared";
@@ -33,6 +33,28 @@ const connectSchema = z.strictObject({
   ]),
 });
 
+/**
+ * The activity row for one attempt (design D10).
+ *
+ * `blocked` is recorded as `denied`: the guard is a control, and its refusal is
+ * the control working — the reading the rest of the log gives every denial.
+ * `no_endpoint` is recorded as `failed`, since the attempt reached nothing,
+ * while the evidence keeps the outcome itself, which is what says "absent"
+ * rather than "broken".
+ */
+function activityFor(outcome: ConnectOutcome) {
+  if (outcome.status === "connected") {
+    return { type: "mcp.connect.succeeded", status: "success" } as const;
+  }
+  if (outcome.status === "blocked") {
+    return { type: "mcp.connect.blocked", status: "denied" } as const;
+  }
+  return { type: "mcp.connect.failed", status: "failed" } as const;
+}
+
+/** The endpoint is remote text; the summary shows it bounded. */
+const SUMMARY_ENDPOINT_LIMIT = 200;
+
 export function mcpConnect(options: { exemptOrigin?: string } = {}) {
   const guardedFetch = createGuardedFetch(
     options.exemptOrigin ? { exemptOrigin: options.exemptOrigin } : {},
@@ -52,6 +74,8 @@ export function mcpConnect(options: { exemptOrigin?: string } = {}) {
         let expectedName: string | undefined;
         // Only a discovered agent has one: ENS holds no claim about tools.
         let claimedTools: readonly string[] | undefined;
+        let agentId: string | undefined;
+        let subject: string;
 
         if (target.kind === "fleet") {
           const agent = await store.getAgent(target.agentId);
@@ -59,6 +83,8 @@ export function mcpConnect(options: { exemptOrigin?: string } = {}) {
           // Read live from the record, the way the inspector reads it.
           endpoint = (await ens.readText(agent.ensName, agentEndpointKey("mcp"))) || null;
           expectedName = agent.ensName;
+          agentId = agent.id;
+          subject = agent.ensName;
         } else {
           let agent;
           try {
@@ -79,20 +105,60 @@ export function mcpConnect(options: { exemptOrigin?: string } = {}) {
           endpoint = agent.mcpEndpoint ?? null;
           expectedName = agent.claimedEnsName;
           claimedTools = agent.mcpTools;
+          // The validated key, not the registration's self-description.
+          subject = `Agent0 ${target.graphAgentKey}`;
         }
 
         const source = target.kind === "fleet" ? ("ens" as const) : ("graph" as const);
-        if (!endpoint) {
-          // Absence, not failure: nothing is published, so nothing is dialled.
-          return { status: "no_endpoint", endpoint: null, endpointSource: source, readAt: readAt() };
+
+        // Absence, not failure: nothing is published, so nothing is dialled.
+        const result: ConnectOutcome = endpoint
+          ? {
+              ...(await handshake(endpoint, {
+                fetch: guardedFetch,
+                ...(expectedName && { expectedName }),
+                ...(claimedTools && { claimedTools }),
+              })),
+              endpoint,
+              endpointSource: source,
+              readAt: readAt(),
+            }
+          : { status: "no_endpoint", endpoint: null, endpointSource: source, readAt: readAt() };
+
+        // Inside the throttle, so a repeat answered from the cooldown is not a
+        // second attempt and is not logged as one.
+        const { type, status } = activityFor(result);
+        const shown = !result.endpoint
+          ? "none published"
+          : result.endpoint.length > SUMMARY_ENDPOINT_LIMIT
+            ? `${result.endpoint.slice(0, SUMMARY_ENDPOINT_LIMIT)}…`
+            : result.endpoint;
+        const metadata: Record<string, string | number> = {};
+        if ("stage" in result) metadata["stage"] = result.stage;
+        if ("rule" in result) metadata["rule"] = result.rule;
+        if ("httpStatus" in result && result.httpStatus !== undefined) {
+          metadata["httpStatus"] = result.httpStatus;
         }
 
-        const result = await handshake(endpoint, {
-          fetch: guardedFetch,
-          ...(expectedName && { expectedName }),
-          ...(claimedTools && { claimedTools }),
+        await store.recordEvent({
+          organizationId: ORGANIZATION_ID,
+          ...(agentId && { agentId }),
+          source: "mcp",
+          type,
+          status,
+          occurredAt: result.readAt,
+          summary: `MCP connect to ${subject} (${shown}): ${result.status}`,
+          evidence: {
+            source: "mcp",
+            endpoint: result.endpoint,
+            endpointSource: result.endpointSource,
+            outcome: result.status,
+            readAt: result.readAt,
+          },
+          metadata,
         });
-        return { ...result, endpoint, endpointSource: source, readAt: readAt() };
+
+        return result;
       });
 
       return c.json(outcome);

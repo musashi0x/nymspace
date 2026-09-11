@@ -109,7 +109,7 @@ export const discoverSchema = z.object({
 
 export const activityFilterSchema = z.object({
   agent: z.string().optional(),
-  source: z.enum(["ens", "erc8004", "graph", "privy", "app"]).optional(),
+  source: z.enum(["ens", "erc8004", "graph", "privy", "app", "mcp"]).optional(),
   type: z.string().optional(),
   status: z.enum(["pending", "success", "denied", "failed"]).optional(),
   limit: z.coerce.number().int().positive().max(500).optional().default(100),

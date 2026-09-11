@@ -235,7 +235,7 @@ export interface AgentWithProvisioning extends Agent {
 // Activity — task 2.2
 //////////////////////////////////////////////////////////////////////////////
 
-export type ActivitySource = "ens" | "erc8004" | "graph" | "privy" | "app";
+export type ActivitySource = "ens" | "erc8004" | "graph" | "privy" | "app" | "mcp";
 
 export type ActivityStatus = "pending" | "success" | "denied" | "failed";
 
@@ -254,7 +254,10 @@ export type ActivityType =
   | "privy.wallet.created"
   | "privy.payment.executed"
   | "privy.payment.denied"
-  | "privy.approval.requested";
+  | "privy.approval.requested"
+  | "mcp.connect.succeeded"
+  | "mcp.connect.failed"
+  | "mcp.connect.blocked";
 
 /**
  * Per-source evidence, as a discriminated union rather than a bag of optional
@@ -298,6 +301,21 @@ export type ActivityEvidence =
     }
   | {
       source: "app";
+    }
+  | {
+      /**
+       * An outbound MCP connect: a read of somebody else's endpoint, so none
+       * of the sources above describes it. `app` is this application's own
+       * actions, and a claim about a third-party server does not belong there.
+       */
+      source: "mcp";
+      /** Null for `no_endpoint`: nothing was published, so nothing was dialled. */
+      endpoint: string | null;
+      /** Which system published the endpoint. */
+      endpointSource: "ens" | "graph";
+      /** The connect outcome, e.g. `connected`, `blocked`, `timeout`. */
+      outcome: string;
+      readAt: string;
     };
 
 export interface ActivityEvent {
@@ -348,6 +366,20 @@ export function assertEvidence(
       if (!evidence.subgraphId || !evidence.queriedAt) {
         throw new Error(
           "A graph event must carry the chain, the subgraph id, and the query time",
+        );
+      }
+      return;
+    case "mcp":
+      // `endpoint` may be null, never missing: null is the recorded fact that
+      // nothing was published, and undefined would be the absence of a record.
+      if (
+        evidence.endpoint === undefined ||
+        (evidence.endpointSource !== "ens" && evidence.endpointSource !== "graph") ||
+        !evidence.outcome ||
+        !evidence.readAt
+      ) {
+        throw new Error(
+          "An mcp event must carry the endpoint, the source that published it, the outcome, and the read time",
         );
       }
       return;
