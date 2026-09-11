@@ -33,8 +33,21 @@ const WEEKS_PER_MONTH = 365.25 / 12 / 7;
 const STACK_LIMIT = 3;
 const MIN_CARD_WIDTH = 320;
 const MIN_LABEL_WEEKS = 3;
-// the p-4 on the card, both sides; the width math below has to add it back
-const CARD_PADDING = 32;
+/**
+ * The `p-4` on the card, both sides, plus 8px the grid does not strictly need.
+ *
+ * Without the extra the arithmetic is exact: the card is sized so the track
+ * fills its content box to the pixel, and the last week column lands flush
+ * against the scroller's right edge. A cell's selected state is a `ring`, which
+ * paints *outside* the box, so on the newest week — the rightmost column, and
+ * the one containing today, so the one most likely to be selected — the
+ * scroller's `overflow-x-auto` clipped the right half of the ring.
+ *
+ * Eight pixels buys four of slack on each side, since `mx-auto` centres the
+ * track whenever it fits. Enough for a 2px ring and its offset, and small
+ * enough that nobody reads it as a margin.
+ */
+const CARD_PADDING = 40;
 
 const gapFor = (cellSize: number) => Math.max(2, Math.round(cellSize / 4));
 // never zero: weeks.slice(-0) would hand back the whole history instead of nothing
