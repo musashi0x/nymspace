@@ -6,6 +6,7 @@ import type { ApiConfig } from "./config";
 import { withDeps, type Deps, type DepsEnv } from "./deps";
 import { activity } from "./routes/activity";
 import { agents } from "./routes/agents";
+import { chat } from "./routes/chat";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
 
@@ -51,6 +52,8 @@ export function createApp(config: ApiConfig, deps?: Deps) {
   app.use("/v1/discover", withDeps(deps));
   app.use("/v1/activity/*", withDeps(deps));
   app.use("/v1/activity", withDeps(deps));
+  app.use("/v1/chat/*", withDeps(deps));
+  app.use("/v1/chat", withDeps(deps));
 
   const routes = app
     .get("/health", (c) =>
@@ -63,6 +66,7 @@ export function createApp(config: ApiConfig, deps?: Deps) {
     .route("/v1/agents", agents)
     .route("/v1/discover", discover)
     .route("/v1/activity", activity)
+    .route("/v1/chat", chat)
     .route("/v1/github", github);
 
   app.notFound(notFoundHandler);
