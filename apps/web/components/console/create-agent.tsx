@@ -4,6 +4,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { Grid } from "@astryxdesign/core/Grid";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Link as AstryxLink } from "@astryxdesign/core/Link";
 import {
   Table,
   pixel,
@@ -13,10 +14,11 @@ import {
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { explorerTxUrl, publicEnv } from "@nymspace/core";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { createAgent, fetchProvisioning } from "@/lib/api";
+import { createAgent, fetchProvisioning, fetchSigners } from "@/lib/api";
 import { track } from "./fleet-table";
 import { Badge, Frame, Loading, Outcome } from "./primitives";
 
@@ -45,6 +47,16 @@ interface StepRow extends Record<string, unknown> {
   txHash: string | null;
   readBack: string | null;
 }
+
+/**
+ * The same shape `addressSchema` enforces in `apps/api/src/routes/shared.ts`.
+ *
+ * A backstop, not the primary defence: the field is normally filled from
+ * `GET /v1/signers` and locked. It matters when that read fails and the operator
+ * types the address, which is the one path where a truncated paste can reach
+ * the route and come back as a ZodError the form would have to render.
+ */
+const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
 /** How often to ask. Sepolia blocks are ~12s; polling faster only adds load. */
 const POLL_MS = 4000;
@@ -106,16 +118,31 @@ const STEP_COLUMNS: TableColumn<StepRow>[] = [
     key: "txHash",
     header: "transaction",
     width: proportional(1),
-    renderCell: (row) =>
-      row.txHash && !/^0x0+$/.test(row.txHash) ? (
-        <Text type="code" size="2xs" color="secondary" wordBreak="break-all">
-          {row.txHash}
-        </Text>
+    // Provisioning steps are always ENS writes (`provisioning.ts` only ever
+    // produces `source: "ens"` evidence), so the chain is the one this
+    // deployment is configured for — never `REGISTRATION_CHAIN_ID`, which is
+    // where the registry and financial tracks write instead.
+    renderCell: (row) => {
+      const url =
+        row.txHash && !/^0x0+$/.test(row.txHash)
+          ? explorerTxUrl(publicEnv().chainId, row.txHash)
+          : null;
+      return row.txHash && !/^0x0+$/.test(row.txHash) ? (
+        url ? (
+          <AstryxLink href={url} isExternalLink type="code" size="2xs">
+            {row.txHash}
+          </AstryxLink>
+        ) : (
+          <Text type="code" size="2xs" color="secondary" wordBreak="break-all">
+            {row.txHash}
+          </Text>
+        )
       ) : (
         <Text type="code" size="2xs" color="secondary">
           no transaction
         </Text>
-      ),
+      );
+    },
   },
 ];
 
@@ -135,6 +162,7 @@ export function CreateAgent({ parentName }: { parentName: string }) {
   const [description, setDescription] = useState("");
   const [role, setRole] = useState("");
   const [controller, setController] = useState("");
+  const [controllerLocked, setControllerLocked] = useState(false);
   const [mcp, setMcp] = useState("");
   const [a2a, setA2a] = useState("");
   const [delegate, setDelegate] = useState(false);
@@ -169,6 +197,33 @@ export function CreateAgent({ parentName }: { parentName: string }) {
       clearInterval(timer);
     };
   }, [agentId, complete, poll]);
+
+  /**
+   * The controller address comes from the API rather than from the operator.
+   *
+   * Exactly one value works — the address of the key the server signs record
+   * writes with — so a free-text field invites a mistake that does not surface
+   * here. Provisioning grants the record keys to whatever is submitted, and the
+   * write is signed by the server key regardless, so a wrong-but-well-formed
+   * address produces an agent whose every permission reads as denied.
+   *
+   * On failure the field is left editable instead of blocking the form: a
+   * create screen that cannot be filled in because one read failed is worse
+   * than one that asks for the address, and `ADDRESS` still catches a bad paste.
+   */
+  useEffect(() => {
+    let live = true;
+    void fetchSigners()
+      .then((signers) => {
+        if (!live) return;
+        setController(signers.controller);
+        setControllerLocked(true);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   async function submit() {
     setBusy(true);
@@ -295,9 +350,13 @@ export function CreateAgent({ parentName }: { parentName: string }) {
             value={controller}
             onChange={setController}
             isRequired
-            description="The key the agent itself signs with"
+            description={
+              controllerLocked
+                ? "The key the agent signs with. Held by this deployment, so it is read from the API rather than entered."
+                : "The key the agent itself signs with"
+            }
             placeholder="0x…"
-            isDisabled={agentId !== null}
+            isDisabled={agentId !== null || controllerLocked}
           />
 
           <CheckboxInput
@@ -313,7 +372,9 @@ export function CreateAgent({ parentName }: { parentName: string }) {
               variant="primary"
               label={agentId ? "Provisioning" : "Provision"}
               onClick={() => void submit()}
-              isDisabled={busy || agentId !== null || !label || !name}
+              isDisabled={
+                busy || agentId !== null || !label || !name || !ADDRESS.test(controller)
+              }
             />
             {busy ? <Loading what="Reading the parent registry" /> : null}
           </HStack>

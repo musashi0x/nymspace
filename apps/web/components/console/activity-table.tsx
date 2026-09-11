@@ -6,12 +6,43 @@ import {
   useTableRowExpansion,
   type TableColumn,
 } from "@astryxdesign/core/Table";
+import { Link as AstryxLink } from "@astryxdesign/core/Link";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { explorerTxUrl, publicEnv } from "@nymspace/core";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge, Evidence, Field } from "./primitives";
 import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
+
+/**
+ * Where a row's transaction actually landed.
+ *
+ * `evidence.chainId` wins when the source carries one — `erc8004` writes on
+ * whichever chain its registry is deployed to, which need not be this app's
+ * configured chain. `privy` never carries a chain id on the evidence itself:
+ * every payment and registration it signs goes through
+ * `eip155:${REGISTRATION_CHAIN_ID}` in `apps/api/src/deps.ts`, so that value
+ * is duplicated here rather than invented. Anything else — `ens`, `app` — ran
+ * on the chain this deployment points at.
+ */
+const PRIVY_CHAIN_ID = 84532;
+
+function chainIdOf(evidence: unknown): number {
+  if (evidence && typeof evidence === "object" && "chainId" in evidence) {
+    const value = (evidence as { chainId: unknown }).chainId;
+    if (typeof value === "number") return value;
+  }
+  if (
+    evidence &&
+    typeof evidence === "object" &&
+    "source" in evidence &&
+    (evidence as { source: unknown }).source === "privy"
+  ) {
+    return PRIVY_CHAIN_ID;
+  }
+  return publicEnv().chainId;
+}
 
 /**
  * The activity timeline as rows.
@@ -108,9 +139,25 @@ export function ActivityTable({ events }: { events: ActivityRow[] }) {
     getRowKey: (row) => row.id,
     renderExpanded: (row) => (
       <VStack gap={0}>
-        {row.txHash ? (
-          <Field label="Transaction" value={row.txHash} />
-        ) : null}
+        {row.txHash
+          ? (() => {
+              const url = explorerTxUrl(chainIdOf(row.evidence), row.txHash);
+              return (
+                <Field
+                  label="Transaction"
+                  value={
+                    url ? (
+                      <AstryxLink href={url} isExternalLink type="code" size="sm">
+                        {row.txHash}
+                      </AstryxLink>
+                    ) : (
+                      row.txHash
+                    )
+                  }
+                />
+              );
+            })()
+          : null}
         {row.actor ? <Field label="Actor" value={row.actor} /> : null}
         {row.agentId ? (
           <Field
