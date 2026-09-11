@@ -35,11 +35,10 @@ import { LOADING_COPY } from "@/lib/console/state";
  * ## Built from the same parts as every other screen
  *
  * `ChatMessageList`, `ChatMessage`, `ChatMessageBubble` and `ChatComposer` are
- * Astryx's own, the set `approval-chat.tsx` uses. This file arrived from
- * another branch built from raw `div`/`p`/`form`, which `AGENTS.md` names as
- * drift and which also meant the two chat screens in this console looked like
- * two different products. The composer in particular was a hand-rolled input
- * and button with no focus ring, no stop affordance and no status slot.
+ * Astryx's own. This file arrived from another branch built from raw
+ * `div`/`p`/`form`, which `AGENTS.md` names as drift; the composer in
+ * particular was a hand-rolled input and button with no focus ring and no
+ * status slot.
  */
 
 type Turn =
