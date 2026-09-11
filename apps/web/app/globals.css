@@ -437,6 +437,42 @@ html::-webkit-scrollbar {
   animation: view-enter 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* The landing preloader's exit of last resort.
+
+   The overlay is server-rendered so the first paint is paper rather than the
+   page with a curtain dropped over it afterwards. That is the right trade
+   everywhere except one case: if the bundle never executes — a chunk 404s, a
+   script error, JavaScript off — React never mounts, nothing unmounts the
+   overlay, and a perfectly good page sits behind a blank sheet forever.
+
+   So the sheet also removes itself with no script at all. The delay is longer
+   than the component's own hard stop, so in every working case JavaScript has
+   already taken the overlay away and this never runs. `visibility` rather than
+   only `opacity`, because a transparent overlay still swallows every click.
+
+   The delay must stay above the component's own hard stop, which is a full
+   cycle plus the font wait plus a margin — at 22fps that is about 3.6s, so
+   this sits at 4.3s. Slow the loop down further and this moves too, or CSS
+   pulls the sheet while the burst is still in flight.
+
+   Reduced motion shows one still frame and does not need the same patience. */
+@keyframes preloader-failsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.preloader-shell {
+  animation: preloader-failsafe 400ms 4300ms forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader-shell {
+    animation-delay: 1600ms;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .row-enter,
   .view-enter {
