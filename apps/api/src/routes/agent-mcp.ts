@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { fleetAgent } from "@nymspace/core";
 import { createAgentServer } from "../mcp/servers";
@@ -39,15 +40,16 @@ export function agentMcp(parentName: string | undefined) {
       })
       .on(["GET", "POST", "DELETE"], "/:label", async (c) => {
         const agent = fleetAgent(c.req.param("label"));
-        // The same shape `notFoundHandler` produces. An unknown label is not
-        // an agent, so it must not look like an MCP server with no tools.
-        if (!agent) return c.json({ error: "not found", path: c.req.path }, 404);
+        // The app's own not-found handler, not a copy of its shape. An unknown
+        // label is not an agent, so it must not look like an MCP server with
+        // no tools, and it must fail exactly the way every unknown path does,
+        // whatever that shape becomes.
+        if (!agent) return c.notFound();
 
         if (!parentName) {
-          return c.json(
-            { error: "agent MCP servers are not configured", status: 503 },
-            503,
-          );
+          throw new HTTPException(503, {
+            message: "agent MCP servers are not configured",
+          });
         }
 
         const server = createAgentServer(agent, parentName);

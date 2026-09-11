@@ -28,15 +28,15 @@
 
 ## 5. Connect
 
-- [ ] 5.1 Create `apps/api/src/mcp/connect.ts`: resolve target (fleet via `assembleManifest`, graph via cached Agent0 search), then `initialize` → paged `tools/list` with cap → `close`, returning the `ConnectOutcome` union from design.md D9
-- [ ] 5.2 Map transport and protocol errors to `unreachable`/`timeout` with stage, `not_mcp` with HTTP status, `blocked` with rule; `no_endpoint` makes no request
-- [ ] 5.3 Identity comparison of `serverInfo.name` against the ENS name, returned as `matches | differs | not_reported` and marked self-reported
-- [ ] 5.4 Per-endpoint in-flight dedupe and cooldown
-- [ ] 5.5 Add `POST /v1/mcp/connect` in `apps/api/src/routes/mcp.ts` with a zod schema accepting only `fleet` and `graph` targets; mount it chained in `app.ts` and include it in `DEPENDENT_ROUTES`
-- [ ] 5.6 Test against a recording MCP server: connected path returns tools; no `tools/call` is ever sent; pagination cap sets `toolsTruncated`; a URL in the body is a 400
-- [ ] 5.7 Test: the transport uses the injected guarded fetch, not global `fetch`
-- [ ] 5.8 Add `mcpTools` to the Agent0 query in `packages/graph/src/client.ts`, to its types, and to `normalise` as `mcpTools?: string[]`; test absent versus empty, and that ranking is unchanged by it
-- [ ] 5.9 On `connected`, return `claim: { missing, unclaimed }` when the registration advertises tools (design.md D11); omit `claim` with no advertisement; withhold `missing` when `toolsTruncated`; test all three
+- [x] 5.1 Create `apps/api/src/mcp/connect.ts`: resolve target (fleet via `assembleManifest`, graph via cached Agent0 search), then `initialize` → paged `tools/list` with cap → `close`, returning the `ConnectOutcome` union from design.md D9 — resolution lives in the route: fleet via a live `readText` of `agent-endpoint[mcp]`, graph via `agentProfile(graphAgentKey)`; see the design.md D6 note
+- [x] 5.2 Map transport and protocol errors to `unreachable`/`timeout` with stage, `not_mcp` with HTTP status, `blocked` with rule; `no_endpoint` makes no request
+- [x] 5.3 Identity comparison of `serverInfo.name` against the ENS name, returned as `matches | differs | not_reported` and marked self-reported — omitted when there is no ENS name to compare against (a discovered agent that claims none)
+- [x] 5.4 Per-endpoint in-flight dedupe and cooldown — keyed by target rather than endpoint, so a repeat also skips re-resolution; a thrown API failure is not cached
+- [x] 5.5 Add `POST /v1/mcp/connect` in `apps/api/src/routes/mcp.ts` with a zod schema accepting only `fleet` and `graph` targets; mount it chained in `app.ts` and include it in `DEPENDENT_ROUTES`
+- [x] 5.6 Test against a recording MCP server: connected path returns tools; no `tools/call` is ever sent; pagination cap sets `toolsTruncated`; a URL in the body is a 400
+- [x] 5.7 Test: the transport uses the injected guarded fetch, not global `fetch`
+- [x] 5.8 Add `mcpTools` to the Agent0 query in `packages/graph/src/client.ts`, to its types, and to `normalise` as `mcpTools?: string[]`; test absent versus empty, and that ranking is unchanged by it — introspection showed the field is `[String!]!` on both networks, so empty normalises to absent (spec delta corrected); `candidateForModel` exported so the test asserts on the model's actual input
+- [x] 5.9 On `connected`, return `claim: { missing, unclaimed }` when the registration advertises tools (design.md D11); omit `claim` with no advertisement; withhold `missing` when `toolsTruncated`; test all three — `claim` also carries `claimed`; only discovered agents have a claim, since ENS holds none about tools
 
 ## 6. Activity log
 

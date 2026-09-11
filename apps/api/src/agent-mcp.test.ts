@@ -147,7 +147,9 @@ describe("each fleet agent serves MCP", () => {
   it("answers 404 in the standard shape for a label that is not an agent", async () => {
     const res = await post(app, "/mcp/nobody", initialize);
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found", path: "/mcp/nobody" });
+    // `toMatchObject`, so a field the shared error shape gains later — a
+    // request id — does not read as this route breaking.
+    expect(await res.json()).toMatchObject({ error: "not found", path: "/mcp/nobody" });
   });
 
   it("answers 503 when no parent name is configured, and nothing else breaks", async () => {

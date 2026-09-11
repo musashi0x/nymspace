@@ -84,6 +84,7 @@ const REGISTRATION_FILE_FIELDS = `
   supportedTrusts
   mcpEndpoint
   mcpVersion
+  mcpTools
   a2aEndpoint
   a2aVersion
   webEndpoint
@@ -408,6 +409,10 @@ export function normaliseAgent(
     mcpEndpoint: orUndefined(file?.mcpEndpoint),
     a2aEndpoint: orUndefined(file?.a2aEndpoint),
     webEndpoint: orUndefined(file?.webEndpoint),
+    // A claim, never a finding, and never ranked: it is not in CITABLE_FIELDS.
+    // Empty is absent because the subgraph cannot tell them apart — the field
+    // is `[String!]!`, so a file that lists no tools arrives as `[]`.
+    ...(file?.mcpTools?.length ? { mcpTools: file.mcpTools } : {}),
     supportedTrusts: file?.supportedTrusts ?? [],
     reputation: normaliseReputation(
       raw.feedback ?? [],

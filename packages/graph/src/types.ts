@@ -52,6 +52,12 @@ export interface RawRegistrationFile {
   supportedTrusts: string[];
   mcpEndpoint?: string | null;
   mcpVersion?: string | null;
+  /**
+   * `[String!]!` in the subgraph on both networks, so a file that lists no
+   * tools arrives as `[]`, the same as one that lists an empty set. Optional
+   * here for fixtures and evidence captured before the field was queried.
+   */
+  mcpTools?: string[];
   a2aEndpoint?: string | null;
   a2aVersion?: string | null;
   webEndpoint?: string | null;
@@ -154,6 +160,12 @@ export interface NormalisedAgent {
   description?: string;
   claimedEnsName?: string;
   mcpEndpoint?: string;
+  /**
+   * The tools the registration says its MCP server offers — a claim written by
+   * the registrant, compared against a live `tools/list` by connect and never
+   * shown as a finding. Absent when the registration lists none.
+   */
+  mcpTools?: string[];
   a2aEndpoint?: string;
   webEndpoint?: string;
   supportedTrusts: string[];

@@ -7,6 +7,7 @@ import { withDeps, type Deps, type DepsEnv } from "./deps";
 import { activity } from "./routes/activity";
 import { agentMcp } from "./routes/agent-mcp";
 import { agents } from "./routes/agents";
+import { mcpConnect } from "./routes/mcp";
 import { chat } from "./routes/chat";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
@@ -47,6 +48,7 @@ export const DEPENDENT_ROUTES = [
   "/v1/discover",
   "/v1/activity",
   "/v1/chat",
+  "/v1/mcp",
 ] as const;
 
 /** The agent MCP servers. Public, read-only, and never given `deps`. */
@@ -113,6 +115,10 @@ export function createApp(config: ApiConfig, deps?: Deps) {
     .route("/v1/chat", chat)
     .route("/v1/github", github)
     .route("/v1/traffic", traffic)
+    .route(
+      "/v1/mcp",
+      mcpConnect(config.agentMcpBaseUrl ? { exemptOrigin: config.agentMcpBaseUrl } : {}),
+    )
     .route("/mcp", agentMcp(config.agentParentName));
 
   app.notFound(notFoundHandler);

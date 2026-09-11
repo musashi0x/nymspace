@@ -83,6 +83,8 @@ The server resolves the URL itself. For a fleet agent it uses `assembleManifest`
 
 The response echoes the resolved URL and names its source (`ens` or `graph`), so the console can show which system made the claim.
 
+*Resolved during apply:* a discovered agent resolves through `Agent0Client.agentProfile(graphAgentKey)`, a direct query by key, rather than the cached search. The browse cache is keyed by search parameters, so a key returned by one search is not reliably findable from another. A fleet agent resolves through `EnsService.readText` on `agent-endpoint[mcp]`: the same live read `assembleManifest` would make for this one field, without the context, registration and ENSIP 25 reads it would also make. The throttle (task 5.4) is keyed by target rather than by endpoint, so a repeated connect costs no request to the resolver either.
+
 ### D7: Handshake only, no tool invocation
 
 Connect performs `initialize` → `tools/list` (following `nextCursor` up to a page cap) → `close`. It never sends `tools/call`.
@@ -130,7 +132,7 @@ Each attempt is recorded with `source: "mcp"`, `type: "mcp.connect.succeeded" | 
 
 ### D11: Claimed tools, and connect from the chat
 
-**Claimed tools.** Agent0 registrations carry `mcpTools`, which `packages/graph` does not read today. It joins the query and `normalise` as `mcpTools?: string[]`: omitted when the registration has none, and empty only when the registration says so. That is the same rule as `mcpEndpoint`. It is a claim and stays labelled as one, and it does not enter ranking (the non-goal above still holds).
+**Claimed tools.** Agent0 registrations carry `mcpTools`, which `packages/graph` does not read today. It joins the query and `normalise` as `mcpTools?: string[]`, omitted when empty. Introspection during apply showed the field is `[String!]!` on both the Sepolia and Base Sepolia subgraphs, the same as `supportedTrusts`, so a registration that lists no tools and one that never mentions them both arrive as `[]`; the only honest reading of `[]` is "no claim". It is a claim and stays labelled as one, and it does not enter ranking (the non-goal above still holds).
 
 The comparison is made by the API, in the connect response, because the console draws and does not decide (`packages/core/src/lens.ts`). A `connected` outcome for an agent with a claim carries `claim: { missing, unclaimed }`: claimed but not in `tools/list`, and listed but not claimed. `claim` is omitted when the registration advertised nothing. When `toolsTruncated` is true, `missing` is withheld, because a truncated listing cannot prove that a claimed tool is not served.
 
