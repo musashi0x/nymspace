@@ -26,6 +26,13 @@ export interface ApiConfig {
    * a deployment has not been given a parent name.
    */
   agentParentName?: string;
+  /**
+   * `AGENT_MCP_BASE_URL`: the origin the fleet's MCP servers are published
+   * under, and the one origin the outbound guard exempts from its scheme and
+   * address rules, so a local API can connect to its own servers. Absent,
+   * nothing is exempt.
+   */
+  agentMcpBaseUrl?: string;
 }
 
 export function apiConfig(): ApiConfig {
@@ -49,5 +56,8 @@ export function apiConfig(): ApiConfig {
       .filter((origin) => origin.length > 0),
     // The same derivation `buildDeps()` uses for `parentName`.
     ...(parentLabel ? { agentParentName: `${parentLabel}.eth` } : {}),
+    ...(process.env.AGENT_MCP_BASE_URL
+      ? { agentMcpBaseUrl: process.env.AGENT_MCP_BASE_URL }
+      : {}),
   };
 }

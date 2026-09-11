@@ -21,10 +21,10 @@
 
 ## 4. Outbound guard
 
-- [ ] 4.1 Create `apps/api/src/mcp/guard.ts`: `guardedFetch` enforcing https-only, resolve-then-check address classes, pinned connection via undici `Agent` lookup, manual redirects, per-request and overall timeouts, streamed size cap
-- [ ] 4.2 Implement the single exact-origin exemption for `AGENT_MCP_BASE_URL`
-- [ ] 4.3 Table test of address classes: 127/8, ::1, 10/8, 172.16/12, 192.168/16, fc00::/7, 169.254/16 incl. 169.254.169.254, 100.64/10, 0.0.0.0, multicast, IPv4-mapped IPv6; a public host resolving to a private address is blocked
-- [ ] 4.4 Tests: redirect is blocked without requesting the target; oversized body aborts; slow body times out; exemption does not match a suffix or a different port
+- [x] 4.1 Create `apps/api/src/mcp/guard.ts`: `guardedFetch` enforcing https-only, resolve-then-check address classes, pinned connection via undici `Agent` lookup, manual redirects, per-request and overall timeouts, streamed size cap — `undici` pinned at 7.29.1 (the version already in the lockfile); the pinned lookup answers both the `all: true` and single-address call shapes; overall timeout is the caller's signal, combined with the per-request one
+- [x] 4.2 Implement the single exact-origin exemption for `AGENT_MCP_BASE_URL` — `createGuardedFetch({ exemptOrigin })`, fed from `ApiConfig.agentMcpBaseUrl`
+- [x] 4.3 Table test of address classes: 127/8, ::1, 10/8, 172.16/12, 192.168/16, fc00::/7, 169.254/16 incl. 169.254.169.254, 100.64/10, 0.0.0.0, multicast, IPv4-mapped IPv6; a public host resolving to a private address is blocked
+- [x] 4.4 Tests: redirect is blocked without requesting the target; oversized body aborts; slow body times out; exemption does not match a suffix or a different port
 
 ## 5. Connect
 

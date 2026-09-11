@@ -89,6 +89,9 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.23.13
+      undici:
+        specifier: 7.29.1
+        version: 7.29.1
       zod:
         specifier: ^4.5.4
         version: 4.5.4
