@@ -20,6 +20,7 @@ import {
   type TokenSpec,
 } from "@nymspace/privy";
 import { Store, database, migrate } from "@nymspace/store";
+import type { LogVariables } from "./log";
 
 /**
  * Everything the route handlers need, injected through the context.
@@ -121,8 +122,11 @@ export interface Deps {
   parentName: string;
 }
 
-/** The context shape every product route sees. */
-export type DepsEnv = { Variables: { deps: Deps } };
+/**
+ * The context shape every product route sees: its dependencies, plus the
+ * request id and the request-bound logger `createApp` sets on every request.
+ */
+export type DepsEnv = { Variables: { deps: Deps } & LogVariables };
 
 let cached: Deps | undefined;
 let migrated = false;

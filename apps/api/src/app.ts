@@ -1,9 +1,10 @@
 import { Hono, type ErrorHandler, type NotFoundHandler } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { requestId } from "hono/request-id";
 import { HTTPException } from "hono/http-exception";
 import type { ApiConfig } from "./config";
 import { withDeps, type Deps, type DepsEnv } from "./deps";
+import { createLog, errorFields, requestLogger, stdoutSink, type Sink } from "./log";
 import { activity } from "./routes/activity";
 import { agentMcp } from "./routes/agent-mcp";
 import { agents } from "./routes/agents";
@@ -21,7 +22,8 @@ import { traffic } from "./routes/traffic";
  * Taking config as an argument rather than reading the environment is the other
  * half of that. A test constructs its own origins and asserts on them instead
  * of arranging process state before an import that has already hoisted — and
- * `deps` is injectable for the same reason.
+ * `deps` is injectable for the same reason. So is `sink`, where the process log
+ * goes: a test passes one and reads the lines rather than spying on `console`.
  *
  * Routes are mounted with chained `.route()` calls and defined with chained
  * handlers, which is what makes `AppType` describe them. A route added with a
@@ -54,7 +56,7 @@ export const DEPENDENT_ROUTES = [
 /** The agent MCP servers. Public, read-only, and never given `deps`. */
 const isProtocolPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
 
-export function createApp(config: ApiConfig, deps?: Deps) {
+export function createApp(config: ApiConfig, deps?: Deps, sink: Sink = stdoutSink) {
   const app = new Hono<DepsEnv>();
 
   /**
@@ -65,10 +67,17 @@ export function createApp(config: ApiConfig, deps?: Deps) {
    * protocol clients — the MCP Inspector in a browser among them — and what
    * they serve is public, read-only data from `FLEET`. The MCP headers are
    * allowed and exposed so a browser client can negotiate a version.
+   *
+   * Both expose `X-Request-Id`. Without it a browser cannot read the header
+   * cross-origin, and the id a person would quote from an error never reaches
+   * the page.
    */
   const productCors = cors({
     origin: config.allowedOrigins,
     allowMethods: ["GET", "POST", "OPTIONS"],
+    // No `allowHeaders`: Hono then reflects what the preflight asks for, so an
+    // inbound `X-Request-Id` is already allowed here.
+    exposeHeaders: ["x-request-id"],
     credentials: true,
   });
   const protocolCors = cors({
@@ -80,11 +89,19 @@ export function createApp(config: ApiConfig, deps?: Deps) {
       "mcp-protocol-version",
       "mcp-session-id",
       "last-event-id",
+      "x-request-id",
     ],
-    exposeHeaders: ["mcp-protocol-version", "mcp-session-id"],
+    exposeHeaders: ["mcp-protocol-version", "mcp-session-id", "x-request-id"],
   });
 
-  app.use("*", logger());
+  /**
+   * The request id before everything else, so the log line, CORS, the handlers
+   * and the error handler all see the same one. An inbound `X-Request-Id` is
+   * reused when it is at most 255 characters of `[A-Za-z0-9_=-]`, and replaced
+   * with a UUID otherwise. It is for correlation: nothing authorizes on it.
+   */
+  app.use("*", requestId());
+  app.use("*", requestLogger(sink));
   app.use("*", (c, next) =>
     isProtocolPath(c.req.path) ? protocolCors(c, next) : productCors(c, next),
   );
@@ -132,29 +149,44 @@ export function createApp(config: ApiConfig, deps?: Deps) {
  * demand. Typed with Hono's own handler types rather than by picking apart
  * `Parameters<...>`, which silently stopped matching the moment the app gained
  * a `Variables` type.
+ *
+ * Every failure body carries `requestId`. It is the handle a person copies off
+ * an error screen: it names the log lines and says nothing about the fault.
  */
 export const notFoundHandler: NotFoundHandler<DepsEnv> = (c) =>
-  c.json({ error: "not found", path: c.req.path }, 404);
+  c.json({ error: "not found", path: c.req.path, requestId: c.var.requestId }, 404);
 
 /**
  * One place where every uncaught error becomes a response.
  *
  * `HTTPException` carries its own status and message and is how the handlers
  * signal a missing agent or an unreachable provider, so it is returned as
- * written. Anything else is a bug: it is logged in full and answered with a
- * generic 500, because an unplanned error message is the most likely place for
- * a connection string or a key to end up in a response body.
+ * written. Anything else is a bug: it is logged in full under the request's id
+ * and answered with a generic 500, because an unplanned error message is the
+ * most likely place for a connection string or a key to end up in a response
+ * body.
  */
 export const errorHandler: ErrorHandler<DepsEnv> = (err, c) => {
+  const requestId = c.var.requestId;
+
   // Re-rendered as JSON rather than returned via `err.getResponse()`, which
   // answers with a text body. `docs/10_API_CONTRACT.md` opens by saying every
   // response is JSON, and a client that parses every success and one failure
   // differently will eventually parse the failure as a success.
   if (err instanceof HTTPException) {
-    return c.json({ error: err.message, status: err.status }, err.status);
+    return c.json({ error: err.message, status: err.status, requestId }, err.status);
   }
-  console.error(err);
-  return c.json({ error: "internal error" }, 500);
+
+  // `requestLogger` sets `c.var.log` on every app `createApp` builds. The
+  // fallback covers this handler mounted on a bare `Hono`, where throwing from
+  // inside the error handler would lose the original error entirely.
+  const log = c.var.log ?? createLog(stdoutSink, { requestId });
+  log.error(`unhandled ${err.name}`, {
+    method: c.req.method,
+    path: c.req.path,
+    ...errorFields(err),
+  });
+  return c.json({ error: "internal error", requestId }, 500);
 };
 
 export type AppType = ReturnType<typeof createApp>;

@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { createApp, type AppType } from "./app";
 import { apiConfig } from "./config";
+import { createLog, stdoutSink } from "./log";
 
 /**
  * The Nymspace API.
@@ -24,7 +25,7 @@ const config = apiConfig();
 const app = createApp(config);
 
 serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
-  console.log(`@nymspace/api listening on http://localhost:${port}`);
+  createLog(stdoutSink).info(`@nymspace/api listening on http://localhost:${port}`, { port });
 });
 
 export { app, type AppType };

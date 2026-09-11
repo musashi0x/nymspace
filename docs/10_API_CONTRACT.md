@@ -12,6 +12,30 @@ JSON responses.
 
 Every external operation should return normalized status and evidence.
 
+### Errors and the request id
+
+Every response carries an `X-Request-Id` header. A request that sends one gets
+it back when it is at most 255 characters of `[A-Za-z0-9_=-]`; otherwise the API
+generates a UUID. Both CORS policies expose the header, so a browser can read
+it. The id names the request's lines in the process log (`docs/22_DEPLOYMENT.md`,
+"Finding a request in the logs").
+
+Every failure the API shapes itself is JSON carrying the same id:
+
+```json
+{ "error": "internal error", "requestId": "9f1c2d7e-…" }
+```
+
+- A 404 for an unknown path adds `path`.
+- A handled failure (an unknown agent, an unreachable provider) carries its own
+  `error` message and its `status`.
+- A 500 carries only the generic message and the id. The error's detail goes to
+  the process log under that id, never into the body.
+
+Validation failures (400) keep the shape `@hono/zod-validator` gives them and
+carry the id in the header only. A denial is not a failure: it is a 200
+describing the denial.
+
 ## GET `/api/agents`
 
 Returns local agent list plus light live status.

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Hono } from "hono";
 import type { Deps, DepsEnv } from "./deps";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp, errorHandler, notFoundHandler } from "./app";
 import type { ApiConfig } from "./config";
 
@@ -585,7 +585,11 @@ describe("unknown paths", () => {
   it("returns 404 in the same JSON error shape every other failure uses", async () => {
     const res = await get("/nope");
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found", path: "/nope" });
+    expect(await res.json()).toEqual({
+      error: "not found",
+      path: "/nope",
+      requestId: res.headers.get("x-request-id"),
+    });
   });
 
   it("reports a 404 under the version prefix too", async () => {
@@ -618,23 +622,244 @@ describe("cross-origin access", () => {
   });
 });
 
+/**
+ * An app whose process log is captured instead of written to stdout. `lines()`
+ * parses on read, so a test that needs the raw text still has `raw`.
+ */
+function recording(deps?: Deps) {
+  const raw: string[] = [];
+  const app = createApp(config, deps, (line) => void raw.push(line));
+  const lines = () => raw.map((line) => JSON.parse(line) as Record<string, unknown>);
+  return { app, raw, lines };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 describe("failure shapes", () => {
-  it("returns a generic 500 and keeps the detail out of the body", async () => {
+  it("returns a generic 500 carrying the request id, and keeps the detail out of the body", async () => {
     const secret = "boom: PRIVY_APP_SECRET=hunter2";
-    const throwing = new Hono<DepsEnv>();
+    const { app: throwing, lines } = recording();
     throwing.get("/throws", () => {
       throw new Error(secret);
     });
-    throwing.onError(errorHandler);
-    throwing.notFound(notFoundHandler);
 
     const res = await throwing.fetch(new Request("http://api.test/throws"));
     expect(res.status).toBe(500);
 
     const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ error: "internal error" });
+    const requestId = res.headers.get("x-request-id");
+    expect(JSON.parse(text)).toEqual({ error: "internal error", requestId });
     expect(text).not.toContain(secret);
     expect(text).not.toContain("PRIVY_APP_SECRET");
+
+    // The detail the body withholds is in the log, under the same id.
+    expect(lines()).toContainEqual(
+      expect.objectContaining({ level: "error", requestId, errorMessage: secret }),
+    );
+  });
+
+  it("still logs when the error handler is mounted on a bare Hono", async () => {
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const throwing = new Hono<DepsEnv>();
+      throwing.get("/throws", () => {
+        throw new Error("bare");
+      });
+      throwing.onError(errorHandler);
+      throwing.notFound(notFoundHandler);
+
+      const res = await throwing.fetch(new Request("http://api.test/throws"));
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ error: "internal error" });
+
+      const logged = write.mock.calls
+        .map(([chunk]) => String(chunk))
+        .filter((chunk) => chunk.startsWith("{"))
+        .map((chunk) => JSON.parse(chunk));
+      expect(logged).toContainEqual(
+        expect.objectContaining({ level: "error", errorMessage: "bare" }),
+      );
+    } finally {
+      write.mockRestore();
+    }
+  });
+});
+
+describe("request ids", () => {
+  it("generates one when none is sent, and returns it", async () => {
+    const { app: probe } = recording();
+    const res = await probe.fetch(new Request("http://api.test/health"));
+    expect(res.headers.get("x-request-id")).toMatch(UUID);
+  });
+
+  it("carries one on a success, a 404, a 500 and an agent MCP route", async () => {
+    const { app: probe } = recording();
+    probe.get("/throws", () => {
+      throw new Error("x");
+    });
+
+    for (const path of ["/health", "/nope", "/throws", "/mcp/research"]) {
+      const res = await probe.fetch(new Request(`http://api.test${path}`));
+      expect(res.headers.get("x-request-id"), path).toMatch(UUID);
+    }
+  });
+
+  it("names the request in every failure body", async () => {
+    const { app: probe } = recording({
+      store: { getAgent: async () => undefined },
+    } as unknown as Deps);
+    probe.get("/throws", () => {
+      throw new Error("x");
+    });
+
+    // A 404 from no route, a 404 from an `HTTPException`, a 500, and the MCP
+    // route's 503 (this config names no parent).
+    for (const path of ["/nope", "/v1/agents/nope/wallet", "/throws", "/mcp/research"]) {
+      const res = await probe.fetch(new Request(`http://api.test${path}`));
+      const body = await res.json();
+      expect(body.requestId, path).toBe(res.headers.get("x-request-id"));
+    }
+  });
+
+  it("reuses an inbound id, in the response and in the log", async () => {
+    const { app: probe, lines } = recording();
+    const res = await probe.fetch(
+      new Request("http://api.test/health", { headers: { "X-Request-Id": "trace-abc_123=" } }),
+    );
+
+    expect(res.headers.get("x-request-id")).toBe("trace-abc_123=");
+    expect(lines()[0]?.requestId).toBe("trace-abc_123=");
+  });
+
+  // Hono replaces rather than truncates. That is the behaviour worth having: an
+  // id cut short would match nothing the caller holds.
+  it("replaces an inbound id that is too long or carries other characters", async () => {
+    const { app: probe } = recording();
+
+    for (const sent of ["a".repeat(256), "has space", 'quote"d']) {
+      const res = await probe.fetch(
+        new Request("http://api.test/health", { headers: { "X-Request-Id": sent } }),
+      );
+      expect(res.headers.get("x-request-id"), sent).toMatch(UUID);
+    }
+  });
+});
+
+describe("the process log", () => {
+  const deps = { store: { listActivity: async () => [] } } as unknown as Deps;
+
+  it("writes one flat, single-line JSON object per request", async () => {
+    const { app: probe, raw, lines } = recording(deps);
+    const paths = ["/health", "/v1/activity", "/mcp/research"];
+    const statuses: number[] = [];
+    for (const path of paths) {
+      statuses.push((await probe.fetch(new Request(`http://api.test${path}`))).status);
+    }
+
+    expect(raw).toHaveLength(paths.length);
+    for (const line of raw) expect(line).not.toContain("\n");
+
+    lines().forEach((line, i) => {
+      expect(line).toMatchObject({
+        requestId: expect.stringMatching(UUID),
+        message: `GET ${paths[i]} ${statuses[i]}`,
+        method: "GET",
+        path: paths[i],
+        status: statuses[i],
+        durationMs: expect.any(Number),
+      });
+      for (const value of Object.values(line)) {
+        expect(["string", "number", "boolean"]).toContain(typeof value);
+      }
+    });
+  });
+
+  it("logs a successful liveness check at debug and a product read at info", async () => {
+    const { app: probe, lines } = recording(deps);
+    await probe.fetch(new Request("http://api.test/health"));
+    const activity = await probe.fetch(new Request("http://api.test/v1/activity"));
+
+    expect(activity.status).toBe(200);
+    expect(lines().map((line) => line.level)).toEqual(["debug", "info"]);
+  });
+
+  it("logs the path without its query string", async () => {
+    const { app: probe, lines } = recording(deps);
+    await probe.fetch(new Request("http://api.test/v1/activity?limit=5&agent=agent-research"));
+
+    expect(lines()[0]).toMatchObject({
+      path: "/v1/activity",
+      message: expect.not.stringContaining("?"),
+    });
+  });
+
+  it("logs a thrown error beside the 500 it answered, under one id", async () => {
+    const { app: probe, lines } = recording();
+    probe.get("/throws", () => {
+      throw new TypeError("nope");
+    });
+
+    const res = await probe.fetch(new Request("http://api.test/throws"));
+    const requestId = res.headers.get("x-request-id");
+
+    const [errorLine, requestLine, ...rest] = lines();
+    expect(rest).toEqual([]);
+    expect(errorLine).toMatchObject({
+      level: "error",
+      message: "unhandled TypeError",
+      requestId,
+      method: "GET",
+      path: "/throws",
+      errorName: "TypeError",
+      errorMessage: "nope",
+      stack: expect.stringContaining("TypeError: nope"),
+    });
+    // Written after Hono ran `onError`, so it records the status the client saw.
+    expect(requestLine).toMatchObject({ level: "error", requestId, status: 500 });
+  });
+
+  it("writes nothing to stdout when given a sink", async () => {
+    const write = vi.spyOn(process.stdout, "write");
+    try {
+      const { app: probe } = recording();
+      await probe.fetch(new Request("http://api.test/health"));
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+    }
+  });
+});
+
+describe("the request id across origins", () => {
+  const preflightFor = (path: string, origin: string) =>
+    recording().app.fetch(
+      new Request(`http://api.test${path}`, {
+        method: "OPTIONS",
+        headers: {
+          Origin: origin,
+          "Access-Control-Request-Method": "GET",
+          "Access-Control-Request-Headers": "x-request-id",
+        },
+      }),
+    );
+
+  it("is exposed to, and accepted from, a configured origin", async () => {
+    const res = await preflightFor("/health", "http://localhost:3111");
+    expect(res.headers.get("access-control-expose-headers")).toContain("x-request-id");
+    expect(res.headers.get("access-control-allow-headers")).toContain("x-request-id");
+  });
+
+  it("is exposed on the actual response, not only the preflight", async () => {
+    const res = await recording().app.fetch(
+      new Request("http://api.test/health", { headers: { Origin: "http://localhost:3111" } }),
+    );
+    expect(res.headers.get("access-control-expose-headers")).toContain("x-request-id");
+  });
+
+  it("is exposed to, and accepted from, any origin on an agent MCP route", async () => {
+    const res = await preflightFor("/mcp/research", "http://inspector.test");
+    expect(res.headers.get("access-control-expose-headers")).toContain("x-request-id");
+    expect(res.headers.get("access-control-allow-headers")).toContain("x-request-id");
   });
 });
 
@@ -747,6 +972,56 @@ describe("creating an agent", () => {
     const { deps } = containerFor(ZERO);
     const res = await post(createApp(config, deps), { ...body, label: "Research Agent" });
     expect(res.status).toBe(400);
+  });
+
+  it("logs a provisioning failure under the creating request's id, even with the store down", async () => {
+    const { deps } = containerFor(ZERO);
+
+    // The route's own upsert succeeds, so the caller is told 202. Every store
+    // write after that fails, as it would with Postgres gone: provisioning
+    // throws on its first write, and both writes recording the failure throw
+    // too. Before this change all three vanished.
+    let upserts = 0;
+    const down = () => Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:5433"));
+    Object.assign(deps.store, {
+      upsertAgent: async (a: { id: string }) => (upserts++ === 0 ? a : down()),
+      setProvisioning: down,
+      recordEvent: down,
+    });
+
+    const raw: string[] = [];
+    const res = await post(createApp(config, deps, (line) => void raw.push(line)), body);
+    expect(res.status).toBe(202);
+    const requestId = res.headers.get("x-request-id");
+
+    const forAgent = () =>
+      raw
+        .map((line) => JSON.parse(line) as Record<string, unknown>)
+        .filter((line) => line.agentId === "agent-research");
+    await vi.waitFor(() => expect(forAgent()).toHaveLength(3));
+
+    // In this order: the cause is on record before either write is tried.
+    expect(forAgent()).toEqual([
+      expect.objectContaining({
+        level: "error",
+        message: "provisioning stopped",
+        requestId,
+        ensName: "research.nymspace.eth",
+        errorMessage: "connect ECONNREFUSED 127.0.0.1:5433",
+      }),
+      expect.objectContaining({
+        level: "error",
+        message: "could not record provisioning failure",
+        requestId,
+        write: "setProvisioning",
+      }),
+      expect.objectContaining({
+        level: "error",
+        message: "could not record provisioning failure",
+        requestId,
+        write: "recordEvent",
+      }),
+    ]);
   });
 
   it("reports progress as the five tracks and the steps behind them", async () => {
