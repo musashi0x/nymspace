@@ -6,6 +6,7 @@ import type { ApiConfig } from "./config";
 import { withDeps, type Deps, type DepsEnv } from "./deps";
 import { activity } from "./routes/activity";
 import { agents } from "./routes/agents";
+import { chat } from "./routes/chat";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
 import { traffic } from "./routes/traffic";
@@ -44,6 +45,7 @@ const DEPENDENT_ROUTES = [
   "/v1/agents",
   "/v1/discover",
   "/v1/activity",
+  "/v1/chat",
 ] as const;
 
 export function createApp(config: ApiConfig, deps?: Deps) {
@@ -82,6 +84,7 @@ export function createApp(config: ApiConfig, deps?: Deps) {
     .route("/v1/agents", agents)
     .route("/v1/discover", discover)
     .route("/v1/activity", activity)
+    .route("/v1/chat", chat)
     .route("/v1/github", github)
     .route("/v1/traffic", traffic);
 

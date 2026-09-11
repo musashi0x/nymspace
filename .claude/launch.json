@@ -9,9 +9,9 @@
         "@nymspace/web",
         "dev",
         "--port",
-        "3113"
+        "3111"
       ],
-      "port": 3113
+      "port": 3111
     },
     {
       "name": "api",

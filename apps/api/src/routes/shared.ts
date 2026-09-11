@@ -1,6 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import * as z from "zod";
 import type { Address } from "@nymspace/core";
+import { NoSignerError } from "@nymspace/ens";
 import { isValidLabel } from "../provisioning";
 
 /**
@@ -117,7 +118,7 @@ export function walletNotProvisioned(id: string): never {
 
 /** The shape every ENS denial takes. Exported so the tests assert on it. */
 export interface DeniedOutcome {
-  status: "denied" | "failed";
+  status: "denied" | "failed" | "not_configured";
   source: "ensv2";
   contractAddress: Address;
   reason: string;
@@ -144,6 +145,28 @@ export function describeDenial(
 ): DeniedOutcome {
   const message = error instanceof Error ? error.message : String(error);
   const authorization = message.includes("EACUnauthorizedAccountRoles");
+
+  /**
+   * A write with no key never reached the resolver, so it is not a denial.
+   *
+   * Without this branch the two arrive at the console identically — both
+   * carrying `source: "ensv2"`, separated only by `status` — and a missing
+   * environment variable reads as the contract refusing the operator. They are
+   * opposite facts about an agent's authority: one says it is not allowed, the
+   * other says nobody asked. Detected by class rather than by the sentence,
+   * because the client was matching that sentence with a regex and any
+   * rewording of `NoSignerError` silently broke the classification.
+   */
+  if (error instanceof NoSignerError) {
+    return {
+      status: "not_configured",
+      source: "ensv2",
+      contractAddress,
+      reason: "NoSignerError",
+      detail: message,
+      readAt: readAt(),
+    };
+  }
 
   return {
     status: authorization ? "denied" : "failed",
