@@ -2,6 +2,7 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Suspense } from "react";
+import { AgentMcpPanel } from "@/components/console/agent-mcp-panel";
 import { CreateAgent } from "@/components/console/create-agent";
 
 /**
@@ -21,6 +22,9 @@ import { CreateAgent } from "@/components/console/create-agent";
  */
 export default function NewAgentPage() {
   const parent = process.env.NEXT_PUBLIC_PARENT_ENS_NAME ?? "nymspace.eth";
+  // Written out in full rather than read through a variable key: Next only
+  // inlines statically analysable member expressions (CLAUDE.md, env.public).
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3112";
 
   return (
     <VStack as="main" gap={6} width="100%" className="min-w-0">
@@ -47,6 +51,14 @@ export default function NewAgentPage() {
       >
         <CreateAgent parentName={parent} />
       </Suspense>
+
+      {/*
+        After the form, not beside it. A person who came here to make an agent
+        should reach the fields first; an operator wiring up a client is looking
+        for this deliberately and will scroll. Static, so it prerenders with the
+        rest of the shell rather than joining the form behind its boundary.
+      */}
+      <AgentMcpPanel apiUrl={apiUrl} />
     </VStack>
   );
 }
