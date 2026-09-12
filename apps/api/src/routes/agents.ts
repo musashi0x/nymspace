@@ -30,7 +30,6 @@ import { errorFields } from "../log";
 import {
   agentCreateSchema,
   agentNotFound,
-  controllerUpdateSchema,
   describeDenial,
   paymentSchema,
   permissionGrantSchema,
@@ -563,100 +562,6 @@ export const agents = new Hono<DepsEnv>()
 
     await store.setProvisioning(agent.id, { ensip25: result.status });
     return c.json({ ...result, recordKey: result.key ?? null });
-  })
-
-  //////////////////////////////////////////////////////////////////////////
-  // Identity deregistration & controller update
-  //////////////////////////////////////////////////////////////////////////
-  .post("/:id/deregister", async (c) => {
-    const deps = c.var.deps;
-    const id = c.req.param("id");
-    const agent = await deps.store.getAgent(id);
-    if (!agent) agentNotFound(id);
-
-    await deps.store.setProvisioning(agent.id, {
-      ens: "retired",
-      erc8004: "deregistered",
-    });
-
-    const customResolver =
-      (await deps.ens.getResolver(deps.registry, agent.slug).catch(() => deps.resolver)) ??
-      deps.resolver;
-
-    await deps.store.recordEvent({
-      organizationId: agent.organizationId,
-      agentId: agent.id,
-      source: "ens",
-      type: "ens.agent.deregistered",
-      status: "success",
-      occurredAt: readAt(),
-      txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
-      summary: `Deregistered ${agent.ensName}`,
-      evidence: {
-        source: "ens",
-        txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
-        contractAddress: customResolver,
-      },
-    });
-
-    return c.json({
-      status: "deregistered" as const,
-      id: agent.id,
-      readAt: readAt(),
-    });
-  })
-
-  .post("/:id/controller", zValidator("json", controllerUpdateSchema), async (c) => {
-    const deps = c.var.deps;
-    const id = c.req.param("id");
-    const { controller } = c.req.valid("json");
-
-    const agent = await deps.store.getAgent(id);
-    if (!agent) agentNotFound(id);
-
-    const oldController = agent.controllerAddress;
-    const updatedAgent = {
-      ...agent,
-      controllerAddress: controller,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const customResolver =
-      (await deps.ens.getResolver(deps.registry, agent.slug).catch(() => deps.resolver)) ??
-      deps.resolver;
-
-    try {
-      await deps.store.upsertAgent(updatedAgent);
-      await deps.store.recordEvent({
-        organizationId: agent.organizationId,
-        agentId: agent.id,
-        source: "ens",
-        type: "ens.agent.controller_updated",
-        status: "success",
-        actor: controller,
-        occurredAt: readAt(),
-        txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
-        summary: `Updated controller for ${agent.ensName} to ${controller}`,
-        metadata: {
-          previousController: oldController,
-          newController: controller,
-        },
-        evidence: {
-          source: "ens",
-          txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
-          contractAddress: customResolver,
-        },
-      });
-    } catch (error) {
-      return c.json({ error: "internal error" }, 500);
-    }
-
-    return c.json({
-      status: "confirmed" as const,
-      id: agent.id,
-      controller,
-      readAt: readAt(),
-    });
   })
 
   //////////////////////////////////////////////////////////////////////////
