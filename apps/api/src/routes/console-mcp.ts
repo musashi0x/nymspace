@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { DepsEnv } from "../deps";
+import { offeredToken, tokenMatches } from "../write-gate";
 import { createConsoleServer, type ConsoleFetch } from "../mcp/console-server";
 
 /**
@@ -28,19 +29,6 @@ import { createConsoleServer, type ConsoleFetch } from "../mcp/console-server";
  * the time it took says how long the shared prefix was.
  */
 
-/** Constant-time equality over the two tokens' SHA-256 digests. */
-async function tokenMatches(offered: string, expected: string): Promise<boolean> {
-  const digest = async (value: string) =>
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
-    );
-
-  const [a, b] = await Promise.all([digest(offered), digest(expected)]);
-  let difference = 0;
-  for (let i = 0; i < a.length; i++) difference |= a[i]! ^ b[i]!;
-  return difference === 0;
-}
-
 /**
  * How a tool reaches a product route.
  *
@@ -52,10 +40,26 @@ async function tokenMatches(offered: string, expected: string): Promise<boolean>
  * logger as any other caller — which is the point: one implementation of
  * "create an agent", not a second one that drifts.
  */
-function loopback(app: { fetch: (request: Request) => Response | Promise<Response> }, from: string): ConsoleFetch {
+function loopback(
+  app: { fetch: (request: Request) => Response | Promise<Response> },
+  from: string,
+  token: string,
+): ConsoleFetch {
   return (path, init) => {
     const url = new URL(path, from);
-    return Promise.resolve(app.fetch(new Request(url, init)));
+    /*
+      The inner request carries the token too.
+
+      The write gate does not know this call came from a caller it already
+      authorized — it sees an ordinary POST, which is the right amount for it
+      to know. Passing the credential down keeps one rule ("a write carries a
+      token") instead of an exemption for requests that happen to originate
+      inside the process, and an exemption is what someone would eventually
+      reach for the wrong way.
+    */
+    const headers = new Headers(init?.headers);
+    headers.set("authorization", `Bearer ${token}`);
+    return Promise.resolve(app.fetch(new Request(url, { ...init, headers })));
   };
 }
 
@@ -74,7 +78,7 @@ export function consoleMcp(app: {
         });
       }
 
-      const offered = c.req.header("authorization")?.replace(/^Bearer\s+/i, "");
+      const offered = offeredToken(c.req.header("authorization"));
       if (!offered || !(await tokenMatches(offered, expected))) {
         /*
           Returned, not thrown, because this response carries a header.
@@ -100,7 +104,7 @@ export function consoleMcp(app: {
 
       const server = createConsoleServer(
         c.var.deps,
-        loopback(app, c.req.raw.url),
+        loopback(app, c.req.raw.url, expected),
       );
       const transport = new WebStandardStreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
