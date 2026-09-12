@@ -53,11 +53,22 @@ export function CopyableValue({
   const action = `Copy ${label}`;
 
   return (
-    <HStack gap={2} align="center" wrap="wrap" className="group">
+    <HStack gap={2} align="center" wrap="wrap" className="group w-full min-w-0">
+      {/*
+        `min-w-0`, or the address runs out of the frame.
+
+        A flex child will not shrink below its own content width by default, so
+        a forty-two character unbroken hex string kept the row wider than the
+        frame and `wordBreak` never got the chance to act — the value simply
+        ran off the right edge. This is the whole reason wrapping a value in a
+        row costs something, and the reason it is worth paying once here rather
+        than at every call site.
+      */}
       <Text
         type={mono ? "code" : "body"}
         hasTabularNumbers={mono}
         wordBreak="break-all"
+        className="min-w-0"
       >
         {value}
       </Text>

@@ -11,7 +11,7 @@ import { formatAmount, fromBaseUnits, toBaseUnits } from "@nymspace/core";
 import { approvePayment, previewPayment, sendPayment } from "@/lib/api";
 import { classify } from "@/lib/console/errors";
 import { financialStateFrom, LOADING_COPY } from "@/lib/console/state";
-import { Field, Frame, Loading, Outcome } from "./primitives";
+import { Badge, Field, Frame, Loading, Outcome } from "./primitives";
 
 /**
  * Screens 4 and 5 — the task request and the policy denial.
@@ -140,8 +140,26 @@ export function TaskRequest({
   const escalation =
     result && "escalation" in result ? result.escalation : undefined;
 
+  /*
+    Whether the amount currently typed is inside the policy.
+
+    Computed here because both numbers are already on screen and the reader
+    should not have to compare two base-unit integers by eye. It is a
+    *prediction* and labelled as one everywhere it appears: task 5.12 tampers
+    with the displayed limit and submits anyway, and Privy still refuses, so
+    this is what the browser expects and never what decides.
+  */
+  const overLimit =
+    amount !== null && BigInt(amount) > BigInt(limitAmount);
+
   return (
-    <VStack gap={4}>
+    /*
+      `id="task"` because the treasury screen links here. Its "Request a task"
+      action points at `/console/agents/:id#task`, which landed at the top of a
+      long page until this existed — the one action on that table that did not
+      arrive anywhere.
+    */
+    <VStack gap={4} id="task" className="scroll-mt-8">
       <Grid columns={{ minWidth: 220, max: 2 }} gap={3}>
         <TextInput label="Task" value={task} onChange={setTask} />
         {/*
@@ -159,6 +177,36 @@ export function TaskRequest({
         />
       </Grid>
 
+      {/*
+        The cap, next to the field it caps.
+
+        This screen is entirely about a limit and the limit was not on it — the
+        budget merely defaulted to it, so an operator who typed over it had no
+        reference and learned the boundary only from a refusal. Showing both,
+        and which side of the line the current number falls on, turns the
+        refusal from a surprise into something the reader chose.
+      */}
+      <HStack gap={3} wrap="wrap" align="center">
+        <Text type="supporting">
+          Policy cap {formatAmount(limitAmount, token)} per transaction
+        </Text>
+        {amount !== null ? (
+          <Badge tone={overLimit ? "warn" : "good"}>
+            {overLimit ? "over the cap" : "within the cap"}
+          </Badge>
+        ) : null}
+        <Text type="supporting">
+          {/*
+            Never "will be allowed". The browser holds both numbers and can
+            compare them; it cannot make the decision, and a confident verb here
+            would invite trusting this page over the provider that does.
+          */}
+          {overLimit
+            ? "Privy should refuse this, and no funds move if it does."
+            : "Nothing here decides it — Privy is asked on the signing path."}
+        </Text>
+      </HStack>
+
       <Text type="code" size="sm" color="secondary" hasTabularNumbers>
         {ensName} → {recipient} ·{" "}
         {amount ? formatAmount(amount, token) : `— ${symbol}`}
@@ -172,8 +220,14 @@ export function TaskRequest({
           isDisabled={busy !== null || amount === null}
         />
         <Button
-          variant="primary"
-          label="Execute"
+          /*
+            Secondary once the amount is over the cap. A primary button is the
+            interface saying "this is the thing to do", and the thing to do with
+            an amount the policy will refuse is to send it deliberately, having
+            read the badge — which is a demonstration, not the happy path.
+          */
+          variant={overLimit ? "secondary" : "primary"}
+          label={overLimit ? "Execute anyway" : "Execute"}
           onClick={execute}
           isDisabled={busy !== null || amount === null}
         />
