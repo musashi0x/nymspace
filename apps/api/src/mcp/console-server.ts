@@ -32,6 +32,22 @@ import type { Deps } from "../deps";
  * deployed console calls it from a browser with no credential to offer, so
  * gating it without giving the web app a way to authenticate would take the
  * product offline.
+ *
+ * ## What it covers
+ *
+ * The five things the console is for, so an agent holding this endpoint can
+ * answer the same questions a person clicking through it can:
+ *
+ *   registry      create_agent, describe_agent
+ *   verification  get_permissions, verify_identity, write_record
+ *   discovery     discover_agents, connect_mcp
+ *   financial     get_treasury, preview_payment, send_payment
+ *   tracing       get_activity — the same rows /console/activity renders
+ *
+ * Every tool is the product route a screen already calls, reached by fetching
+ * this same application. None of them reimplements anything: a tool that built
+ * its own payment or its own permission grant would be a second implementation
+ * of the one thing this product is about, and the two would drift.
  */
 
 const VERSION = "0.1.0";
@@ -240,6 +256,259 @@ export function createConsoleServer(
         argument `docs/11` makes about rendering a denial as an error.
       */
       return text({ httpStatus: response.status, ...body });
+    },
+  );
+
+  //////////////////////////////////////////////////////////////////////////
+  // Verification — what the contracts say, not what the store recorded
+  //////////////////////////////////////////////////////////////////////////
+
+  server.registerTool(
+    "describe_agent",
+    {
+      title: "Describe one agent",
+      description:
+        "One agent's identity, assembled from chain during this call: owner, controller, " +
+        "resolver, its ENSIP 26 text records, its ERC 8004 registration and whether ENSIP 25 " +
+        "verifies. Nothing here is a stored profile. Read-only.",
+      inputSchema: {
+        agentId: z.string().describe("Store id, e.g. agent-research."),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ agentId }) =>
+      text(await (await call(`/v1/agents/${agentId}/identity`)).json()),
+  );
+
+  server.registerTool(
+    "get_permissions",
+    {
+      title: "Read the authority matrix",
+      description:
+        "Which record keys this agent's controller may write, and whether it may touch the " +
+        "registry itself. Every cell is a live hasRoles call against the permissioned " +
+        "resolver's own fallback chain — the intended policy is a table in the spec; this is " +
+        "what the contracts actually say. Read-only.",
+      inputSchema: {
+        agentId: z.string().describe("Store id, e.g. agent-research."),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ agentId }) =>
+      text(await (await call(`/v1/agents/${agentId}/permissions`)).json()),
+  );
+
+  server.registerTool(
+    "verify_identity",
+    {
+      title: "Verify the ENSIP 25 binding",
+      description:
+        "Checks registry-to-ENS: what the ERC 8004 registration claims, then whether the ENS " +
+        "record confirms it. Reads two chains and writes only the resulting status to the " +
+        "coordination store — no contract is called with a signer, so this costs no gas.",
+      inputSchema: {
+        agentId: z.string().describe("Store id, e.g. agent-research."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ agentId }) =>
+      text(
+        await (
+          await call(`/v1/agents/${agentId}/verify`, { method: "POST" })
+        ).json(),
+      ),
+  );
+
+  //////////////////////////////////////////////////////////////////////////
+  // Discovery — somebody else's registry, read through the guard
+  //////////////////////////////////////////////////////////////////////////
+
+  server.registerTool(
+    "discover_agents",
+    {
+      title: "Find agents in the public registry",
+      description:
+        "Searches the Agent0 subgraph for ERC 8004 agents matching a description and ranks " +
+        "them from what the registry returned. Not limited to this organization's fleet — " +
+        "this is the public index. Read-only.",
+      inputSchema: {
+        query: z.string().describe('What the agent should be able to do, in a sentence.'),
+        limit: z.number().int().positive().max(50).optional(),
+        requireMcp: z
+          .boolean()
+          .optional()
+          .describe("Only agents publishing an MCP endpoint. Defaults to true."),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ query, limit, requireMcp }) =>
+      text(
+        await (
+          await call("/v1/discover", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              query,
+              ...(limit !== undefined && { limit }),
+              ...(requireMcp !== undefined && { requireMcp }),
+            }),
+          })
+        ).json(),
+      ),
+  );
+
+  server.registerTool(
+    "connect_mcp",
+    {
+      title: "Handshake with an agent's MCP endpoint",
+      description:
+        "Reads the endpoint from ENS, performs an MCP handshake through the outbound guard, " +
+        "and lists what it serves. No tool on that server is called and nothing is signed. " +
+        "Every outcome including failure is a normal result — 'the endpoint did not answer' " +
+        "is this working. Writes one activity row.",
+      inputSchema: {
+        agentId: z.string().describe("Store id of a fleet agent, e.g. agent-research."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ agentId }) =>
+      text(
+        await (
+          await call("/v1/mcp/connect", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ target: { kind: "fleet", agentId } }),
+          })
+        ).json(),
+      ),
+  );
+
+  //////////////////////////////////////////////////////////////////////////
+  // Financial — Privy decides, and these tools say so
+  //////////////////////////////////////////////////////////////////////////
+
+  server.registerTool(
+    "get_treasury",
+    {
+      title: "What each agent may spend",
+      description:
+        "Every agent's wallet and the per-transaction cap, with the limit read from the live " +
+        "Privy policy during this call. An agent whose policy could not be read says so rather " +
+        "than reporting no limit — that is a third state, not a zero. Read-only.",
+      annotations: READ_ONLY,
+    },
+    async () => text(await (await call("/v1/treasury")).json()),
+  );
+
+  server.registerTool(
+    "preview_payment",
+    {
+      title: "Preview a payment against the spend limit",
+      description:
+        "Informational only, and the payload says so. Privy enforces on the signing path; this " +
+        "is a guess shown before committing, so a tampered preview changes nothing. Use it to " +
+        "show the same request flipping outcome when only the amount moves. Read-only.",
+      inputSchema: {
+        agentId: z.string(),
+        amount: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("Base units as a decimal string — wei for native ETH. Never a number."),
+        recipient: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ agentId, amount, recipient }) =>
+      text(
+        await (
+          await call(`/v1/agents/${agentId}/payments/preview`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ amount, recipient }),
+          })
+        ).json(),
+      ),
+  );
+
+  server.registerTool(
+    "send_payment",
+    {
+      title: "Send a payment from the agent wallet",
+      description:
+        "Moves real funds on Base Sepolia, capped by the agent's Privy policy. A refusal is a " +
+        "normal outcome and not an error: the policy holding is the control plane working. " +
+        "Preview first — the interesting demonstration is the same request changing outcome " +
+        "when only the cap moves.",
+      inputSchema: {
+        agentId: z.string(),
+        amount: z.string().regex(/^\d+$/).describe("Base units. Wei for native ETH."),
+        recipient: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+        memo: z.string().optional().describe("Recorded on the activity event, not on chain."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        // A transfer cannot be undone, and calling twice sends twice. Both
+        // hints say so rather than flattering the tool — a client that retries
+        // a timed-out call on `idempotentHint: true` would pay twice.
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ agentId, amount, recipient, memo }) =>
+      text(
+        await (
+          await call(`/v1/agents/${agentId}/payments`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ amount, recipient, ...(memo && { memo }) }),
+          })
+        ).json(),
+      ),
+  );
+
+  //////////////////////////////////////////////////////////////////////////
+  // Tracing — the rows /console/activity renders
+  //////////////////////////////////////////////////////////////////////////
+
+  server.registerTool(
+    "get_activity",
+    {
+      title: "Read the activity log",
+      description:
+        "What happened, newest first, with the evidence each row was recorded against. " +
+        "Denials are rows like any other and cannot be filtered away by accident — a trail " +
+        "showing only successes would be the one artifact here capable of proving nothing was " +
+        "ever refused. Same rows as /console/activity. Read-only.",
+      inputSchema: {
+        agent: z.string().optional().describe("Store id, to narrow to one agent."),
+        source: z
+          .enum(["ens", "erc8004", "graph", "privy", "app", "mcp"])
+          .optional()
+          .describe("Which system recorded it."),
+        status: z.enum(["pending", "success", "denied", "failed"]).optional(),
+        limit: z.number().int().positive().max(500).optional(),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ agent, source, status, limit }) => {
+      const query = new URLSearchParams();
+      if (agent) query.set("agent", agent);
+      if (source) query.set("source", source);
+      if (status) query.set("status", status);
+      if (limit !== undefined) query.set("limit", String(limit));
+      const suffix = query.toString() ? `?${query}` : "";
+      return text(await (await call(`/v1/activity${suffix}`)).json());
     },
   );
 

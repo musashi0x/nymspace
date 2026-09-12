@@ -179,6 +179,68 @@ describe("the console MCP gate", () => {
     expect(outcome).not.toHaveProperty("httpStatus");
   });
 
+  /**
+   * The toolset, pinned by name and by hint.
+   *
+   * Two things a client acts on without asking: whether a tool is safe to call
+   * speculatively, and whether it is safe to retry. `send_payment` moves funds
+   * and calling it twice sends twice, so it must never claim to be idempotent —
+   * a client retrying a timed-out call on that hint pays twice, and no test
+   * elsewhere would catch it.
+   */
+  it("offers the five console capabilities, hinted honestly", async () => {
+    process.env["CONSOLE_MCP_TOKEN"] = "s3cret";
+
+    const res = await consoleApp().fetch(
+      new Request("http://api.test/v1/mcp/console", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          authorization: "Bearer s3cret",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/list" }),
+      }),
+    );
+
+    const body = (await res.json()) as {
+      result: {
+        tools: {
+          name: string;
+          annotations?: { readOnlyHint?: boolean; idempotentHint?: boolean; destructiveHint?: boolean };
+        }[];
+      };
+    };
+    const byName = new Map(body.result.tools.map((t) => [t.name, t]));
+
+    for (const name of [
+      "list_agents",
+      "describe_parent",
+      "create_agent",
+      "describe_agent",
+      "get_permissions",
+      "verify_identity",
+      "discover_agents",
+      "connect_mcp",
+      "get_treasury",
+      "preview_payment",
+      "send_payment",
+      "get_activity",
+    ]) {
+      expect(byName.has(name), `${name} is missing`).toBe(true);
+    }
+
+    // Reads say they are reads, so a client may call them freely.
+    for (const name of ["get_permissions", "get_treasury", "get_activity", "describe_agent"]) {
+      expect(byName.get(name)?.annotations?.readOnlyHint, name).toBe(true);
+    }
+
+    // And the one that spends says both of the things that matter.
+    expect(byName.get("send_payment")?.annotations?.readOnlyHint).toBe(false);
+    expect(byName.get("send_payment")?.annotations?.destructiveHint).toBe(true);
+    expect(byName.get("send_payment")?.annotations?.idempotentHint).toBe(false);
+  });
+
   it("leaves the fleet's own public MCP servers ungated", async () => {
     /*
       The two surfaces must not converge. `/mcp/:label` is the endpoint written
