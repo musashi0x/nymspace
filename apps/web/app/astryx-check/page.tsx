@@ -14,6 +14,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useState } from "react";
+import { AddressChip } from "@/components/console/visitor";
 import {
   Absent,
   Badge,
@@ -189,6 +190,21 @@ export default function AstryxCheck() {
         />
         <Outcome tone="waiting" title="Registering" detail="tx 0x9f2c…" />
         <Outcome tone="fault" title="Could not reach the resolver" detail="RPC timeout after 10s" />
+      </Frame>
+
+      {/*
+        The connected-visitor chip, which is otherwise only reachable behind a
+        Privy login — so this is the only place its copied state can be checked
+        without an account.
+      */}
+      <Frame
+        title="connected visitor"
+        subtitle="The address is a label, never the value: six characters and four identify it, and the clipboard carries all forty-two."
+      >
+        <HStack gap={2} align="center" wrap="wrap">
+          <AddressChip address="0x3Fb7c1A6De0f4b9e2C8d5A03bE71f9cD4a2e8e95" />
+          <Button size="sm" variant="ghost" label="Disconnect" />
+        </HStack>
       </Frame>
 
       <Frame title="nothing here">

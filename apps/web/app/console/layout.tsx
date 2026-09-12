@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ConsoleNav } from "@/components/console/nav";
 import { ViewTransition } from "@/components/console/view-transition";
+import { ConnectVisitor, VisitorProvider } from "@/components/console/visitor";
 
 /**
  * The console shell.
@@ -60,39 +61,51 @@ export default function ConsoleLayout({ children }: LayoutProps<"/console">) {
       `Frame` by name, and nothing here needs one.
     */
     <VStack width="100%" minHeight="100vh" className="surface-body">
-      <VStack
-        gap={8}
-        paddingInline={6}
-        paddingBlock={8}
-        maxWidth="72rem"
-        width="100%"
-        className="mx-auto min-w-0"
-      >
-        <HStack
-          as="header"
-          gap={6}
-          justify="between"
-          align="center"
-          paddingBlockEnd={4}
-          className="frame-rule-below"
+      {/*
+        The provider wraps the whole console rather than the one page that
+        reads from it, because the connect control lives in this header and the
+        authority table lives on an agent's page — two subtrees, one session. It
+        is a pass-through when `NEXT_PUBLIC_PRIVY_APP_ID` is unset, so a clone
+        without credentials renders exactly as before.
+      */}
+      <VisitorProvider>
+        <VStack
+          gap={8}
+          paddingInline={6}
+          paddingBlock={8}
+          maxWidth="72rem"
+          width="100%"
+          className="mx-auto min-w-0"
         >
-          <HStack gap={6} align="end">
-            <Link href="/">
-              <Text type="code" size="xsm" color="secondary">
-                NYMSPACE
-              </Text>
-            </Link>
-            <ConsoleNav />
+          <HStack
+            as="header"
+            gap={6}
+            justify="between"
+            align="center"
+            paddingBlockEnd={4}
+            className="frame-rule-below"
+          >
+            <HStack gap={6} align="end">
+              <Link href="/">
+                <Text type="code" size="xsm" color="secondary">
+                  NYMSPACE
+                </Text>
+              </Link>
+              <ConsoleNav />
+            </HStack>
+            <HStack gap={4} align="center">
+              <ConnectVisitor />
+              <ThemeToggle />
+            </HStack>
           </HStack>
-          <ThemeToggle />
-        </HStack>
         {/*
           Only the screen fades. The header and nav sit outside, because chrome
           that re-animates on every navigation reads as the whole page reloading
           rather than as the content changing.
         */}
-        <ViewTransition>{children}</ViewTransition>
-      </VStack>
+          <ViewTransition>{children}</ViewTransition>
+        </VStack>
+      </VisitorProvider>
     </VStack>
   );
 }

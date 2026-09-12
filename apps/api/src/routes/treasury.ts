@@ -58,8 +58,13 @@ type WalletView =
    * financial authority; the other says we do not currently know what its
    * authority is. Rendering the second as the first understates an agent's
    * power, which is the direction that matters.
+   *
+   * Carries the address, because we have it — the store answered, and only the
+   * policy read failed. Dropping it here would make the screen say "no wallet
+   * address" about a wallet whose address is sitting in the same object, which
+   * is the understatement this state exists to prevent, one column over.
    */
-  | { status: "unavailable"; reason: string };
+  | { status: "unavailable"; address: string; reason: string };
 
 export const treasury = new Hono<DepsEnv>().get("/", async (c) => {
   /**
@@ -161,6 +166,7 @@ export const treasury = new Hono<DepsEnv>().get("/", async (c) => {
           ...base,
           wallet: {
             status: "unavailable",
+            address: ref.walletAddress,
             reason: message.split("\n")[0] ?? "unknown",
           } as WalletView,
           readAt: readAt(),

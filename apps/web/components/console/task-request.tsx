@@ -2,6 +2,7 @@
 
 import { Button } from "@astryxdesign/core/Button";
 import { Grid } from "@astryxdesign/core/Grid";
+import { Selector } from "@astryxdesign/core/Selector";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -11,7 +12,7 @@ import { formatAmount, fromBaseUnits, toBaseUnits } from "@nymspace/core";
 import { approvePayment, previewPayment, sendPayment } from "@/lib/api";
 import { classify } from "@/lib/console/errors";
 import { financialStateFrom, LOADING_COPY } from "@/lib/console/state";
-import { Field, Frame, Loading, Outcome } from "./primitives";
+import { Badge, Field, Frame, Loading, Outcome } from "./primitives";
 
 /**
  * Screens 4 and 5 — the task request and the policy denial.
@@ -40,16 +41,31 @@ type Preview = Awaited<ReturnType<typeof previewPayment>>;
  */
 type PolicyToken = { address: string; symbol: string; decimals: number };
 
+/** Another agent in the fleet, as a destination this one can pay. */
+export interface Peer {
+  ensName: string;
+  controllerAddress: string;
+  walletAddress?: string;
+}
+
 export function TaskRequest({
   agentId,
   ensName,
   recipient,
+  peers = [],
   limitAmount,
   token,
 }: {
   agentId: string;
   ensName: string;
+  /** The organization that owns this name — the fallback destination. */
   recipient: string;
+  /**
+   * The rest of the fleet. An agent paying another agent is the arrangement
+   * worth showing; paying the organization that owns it is a self-send that
+   * proves the cap and nothing else.
+   */
+  peers?: Peer[];
   /** The live policy limit, in base units. */
   limitAmount: string;
   /** What the policy is denominated in. `null` is native ETH. */
@@ -58,6 +74,20 @@ export function TaskRequest({
   const symbol = token?.symbol ?? "ETH";
 
   const [task, setTask] = useState("Review ENSv2 adoption");
+  /*
+    Default to a peer where the fleet has one.
+
+    Paying the organization that owns your name is a circle: the wallet is
+    org-owned, so the funds arrive where they started and the only thing
+    demonstrated is that the cap held. Paying *another agent* is the same proof
+    plus the reason the proof matters — one autonomous party paying another
+    under a limit a human set, which is what `docs/01`'s financial controller is
+    for. The organization stays available as a destination, because a controlled
+    address is the safe answer when no peer exists.
+  */
+  const [payee, setPayee] = useState(
+    () => peers[0]?.walletAddress ?? peers[0]?.controllerAddress ?? recipient,
+  );
   const [budget, setBudget] = useState(() => fromBaseUnits(limitAmount, token));
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -94,7 +124,7 @@ export function TaskRequest({
       setPreview(
         await previewPayment(agentId, {
           amount,
-          recipient,
+          recipient: payee,
           ...(token && { token: token.address }),
           memo: task,
         }),
@@ -112,7 +142,7 @@ export function TaskRequest({
       setResult(
         await sendPayment(agentId, {
           amount,
-          recipient,
+          recipient: payee,
           ...(token && { token: token.address }),
           memo: task,
         }),
@@ -140,17 +170,53 @@ export function TaskRequest({
   const escalation =
     result && "escalation" in result ? result.escalation : undefined;
 
+  /*
+    Whether the amount currently typed is inside the policy.
+
+    Computed here because both numbers are already on screen and the reader
+    should not have to compare two base-unit integers by eye. It is a
+    *prediction* and labelled as one everywhere it appears: task 5.12 tampers
+    with the displayed limit and submits anyway, and Privy still refuses, so
+    this is what the browser expects and never what decides.
+  */
+  const overLimit =
+    amount !== null && BigInt(amount) > BigInt(limitAmount);
+
+  /** The peer's name, or `null` when the destination is the organization. */
+  const payeeLabel =
+    peers.find(
+      (peer) => (peer.walletAddress ?? peer.controllerAddress) === payee,
+    )?.ensName ?? null;
+
   return (
-    <VStack gap={4}>
+    /*
+      `id="task"` because the treasury screen links here. Its "Request a task"
+      action points at `/console/agents/:id#task`, which landed at the top of a
+      long page until this existed — the one action on that table that did not
+      arrive anywhere.
+    */
+    <VStack gap={4} id="task" className="scroll-mt-8">
       <Grid columns={{ minWidth: 220, max: 2 }} gap={3}>
-        <TextInput label="Task" value={task} onChange={setTask} />
+        {/*
+          "Note", not "Task". Nothing here dispatches work — the agent never
+          receives this string and no job is created. It is a reason, recorded
+          beside the outcome on the activity event, and calling it a task
+          promised an execution that never happened.
+        */}
+        <TextInput label="Note" value={task} onChange={setTask} />
         {/*
           No `inputMode` — Astryx's TextInput does not expose it. The filter in
           onChange is what actually keeps this numeric, and it did before too:
           the attribute only ever picked the phone keyboard.
         */}
         <TextInput
-          label={`Budget (${symbol})`}
+          /*
+            "Amount", not "Budget". A budget is a ceiling you spend within; this
+            is the exact figure transferred. The ceiling is the policy cap shown
+            below it, and two fields that both read as limits — one of them not
+            one — is the confusion this screen exists to remove.
+          */
+          label={`Amount (${symbol})`}
           value={budget}
           onChange={(next) => setBudget(next.replace(/[^\d.]/g, ""))}
           {...(amountError && {
@@ -159,10 +225,84 @@ export function TaskRequest({
         />
       </Grid>
 
-      <Text type="code" size="sm" color="secondary" hasTabularNumbers>
-        {ensName} → {recipient} ·{" "}
-        {amount ? formatAmount(amount, token) : `— ${symbol}`}
-      </Text>
+      {/*
+        The cap, next to the field it caps.
+
+        This screen is entirely about a limit and the limit was not on it — the
+        budget merely defaulted to it, so an operator who typed over it had no
+        reference and learned the boundary only from a refusal. Showing both,
+        and which side of the line the current number falls on, turns the
+        refusal from a surprise into something the reader chose.
+      */}
+      <HStack gap={3} wrap="wrap" align="center">
+        <Text type="supporting">
+          Policy cap {formatAmount(limitAmount, token)} per transaction
+        </Text>
+        {amount !== null ? (
+          <Badge tone={overLimit ? "warn" : "good"}>
+            {overLimit ? "over the cap" : "within the cap"}
+          </Badge>
+        ) : null}
+        <Text type="supporting">
+          {/*
+            Never "will be allowed". The browser holds both numbers and can
+            compare them; it cannot make the decision, and a confident verb here
+            would invite trusting this page over the provider that does.
+          */}
+          {overLimit
+            ? "Privy should refuse this, and no funds move if it does."
+            : "Nothing here decides it — Privy is asked on the signing path."}
+        </Text>
+      </HStack>
+
+      {/*
+        The destination, chosen rather than assumed.
+
+        Options are the rest of the fleet plus the organization. An agent's
+        wallet address where it has one, because that is where the funds
+        actually land — the controller key is its identity, not its account.
+      */}
+      <Selector
+        label="Pay"
+        value={payee}
+        onChange={setPayee}
+        options={[
+          ...peers.map((peer) => ({
+            value: peer.walletAddress ?? peer.controllerAddress,
+            label: peer.ensName,
+            description: peer.walletAddress
+              ? "another agent in this fleet"
+              : "another agent — no wallet yet, this is its controller key",
+          })),
+          {
+            value: recipient,
+            label: "the organization",
+            description: "the account that owns this name",
+          },
+        ]}
+      />
+
+      {/*
+        Who pays whom, in words above the addresses.
+
+        The arrow alone left the direction to be inferred from two hex strings,
+        and the inference most readers make — that this pays the agent for the
+        work described — is backwards: the funds leave the agent's own wallet
+        and go to the organization that owns its name. That is the arrangement
+        being demonstrated, an agent spending under a cap its owner set, and it
+        only reads as one when the two roles are named.
+      */}
+      <VStack gap={1}>
+        <Text type="supporting">
+          {payeeLabel === null
+            ? `${ensName} spends from its own wallet, back to the organization that owns its name.`
+            : `${ensName} spends from its own wallet to pay ${payeeLabel}, under a cap the organization set.`}
+        </Text>
+        <Text type="code" size="sm" color="secondary" hasTabularNumbers>
+          {ensName} → {payee} ·{" "}
+          {amount ? formatAmount(amount, token) : `— ${symbol}`}
+        </Text>
+      </VStack>
 
       <HStack gap={2} wrap="wrap">
         <Button
@@ -172,8 +312,14 @@ export function TaskRequest({
           isDisabled={busy !== null || amount === null}
         />
         <Button
-          variant="primary"
-          label="Execute"
+          /*
+            Secondary once the amount is over the cap. A primary button is the
+            interface saying "this is the thing to do", and the thing to do with
+            an amount the policy will refuse is to send it deliberately, having
+            read the badge — which is a demonstration, not the happy path.
+          */
+          variant={overLimit ? "secondary" : "primary"}
+          label={overLimit ? "Execute anyway" : "Execute"}
           onClick={execute}
           isDisabled={busy !== null || amount === null}
         />

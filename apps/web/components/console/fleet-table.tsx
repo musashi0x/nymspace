@@ -101,7 +101,12 @@ function statusColumn(
   return {
     key: kind,
     header,
-    width: proportional(1),
+    // Two, not one. At one the widest labels clipped — "not registered" to
+    // "no registr…" and the header "verification" to "VERIFICATIO…" — and a
+    // truncated status is worse than a shorter one: the reader cannot tell
+    // "not registered" from "not reachable", which is the distinction these
+    // five columns exist to keep.
+    width: proportional(2),
     renderCell: (row) => {
       const t = track(kind, row.status[kind]);
       return <Badge tone={t.tone}>{t.text}</Badge>;
@@ -113,14 +118,21 @@ const COLUMNS: TableColumn<FleetRow>[] = [
   {
     key: "ensName",
     header: "agent",
-    width: proportional(2),
+    width: proportional(3),
     renderCell: (row) => (
       <VStack gap={0.5}>
         <Link href={`/console/agents/${row.id}`}>
           <Text type="code">{row.ensName}</Text>
         </Link>
-        <Text type="code" size="2xs" color="secondary" wordBreak="break-all">
-          {row.controllerAddress}
+        {/*
+          Shortened, because in full it was forty-two characters wrapped over
+          two lines and — in this deployment and any other with one delegated
+          key — the same forty-two characters on every row. A column whose value
+          never varies costs width and carries nothing; the inspector prints it
+          whole, with provenance and a copy button.
+        */}
+        <Text type="code" size="2xs" color="secondary">
+          {row.controllerAddress.slice(0, 6)}…{row.controllerAddress.slice(-4)}
         </Text>
       </VStack>
     ),

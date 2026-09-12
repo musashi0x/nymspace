@@ -30,6 +30,7 @@ import { errorFields } from "../log";
 import {
   agentCreateSchema,
   agentNotFound,
+  controllerUpdateSchema,
   describeDenial,
   paymentSchema,
   permissionGrantSchema,
@@ -39,6 +40,7 @@ import {
   unknownToken,
   walletNotProvisioned,
 } from "./shared";
+import type { Hex } from "@nymspace/core";
 
 /**
  * The agent routes from `docs/10_API_CONTRACT.md`.
@@ -408,7 +410,9 @@ export const agents = new Hono<DepsEnv>()
     const agent = await store.getAgent(id);
     if (!agent) agentNotFound(id);
 
-    const { controller, recordKey, grant } = c.req.valid("json");
+    const body = c.req.valid("json");
+    const controller = body.controller ?? agent.controllerAddress;
+    const { recordKey, grant } = body;
 
     try {
       const hash = await ens.authorizeTextRole({
@@ -559,6 +563,100 @@ export const agents = new Hono<DepsEnv>()
 
     await store.setProvisioning(agent.id, { ensip25: result.status });
     return c.json({ ...result, recordKey: result.key ?? null });
+  })
+
+  //////////////////////////////////////////////////////////////////////////
+  // Identity deregistration & controller update
+  //////////////////////////////////////////////////////////////////////////
+  .post("/:id/deregister", async (c) => {
+    const deps = c.var.deps;
+    const id = c.req.param("id");
+    const agent = await deps.store.getAgent(id);
+    if (!agent) agentNotFound(id);
+
+    await deps.store.setProvisioning(agent.id, {
+      ens: "retired",
+      erc8004: "deregistered",
+    });
+
+    const customResolver =
+      (await deps.ens.getResolver(deps.registry, agent.slug).catch(() => deps.resolver)) ??
+      deps.resolver;
+
+    await deps.store.recordEvent({
+      organizationId: agent.organizationId,
+      agentId: agent.id,
+      source: "ens",
+      type: "ens.agent.deregistered",
+      status: "success",
+      occurredAt: readAt(),
+      txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
+      summary: `Deregistered ${agent.ensName}`,
+      evidence: {
+        source: "ens",
+        txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
+        contractAddress: customResolver,
+      },
+    });
+
+    return c.json({
+      status: "deregistered" as const,
+      id: agent.id,
+      readAt: readAt(),
+    });
+  })
+
+  .post("/:id/controller", zValidator("json", controllerUpdateSchema), async (c) => {
+    const deps = c.var.deps;
+    const id = c.req.param("id");
+    const { controller } = c.req.valid("json");
+
+    const agent = await deps.store.getAgent(id);
+    if (!agent) agentNotFound(id);
+
+    const oldController = agent.controllerAddress;
+    const updatedAgent = {
+      ...agent,
+      controllerAddress: controller,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const customResolver =
+      (await deps.ens.getResolver(deps.registry, agent.slug).catch(() => deps.resolver)) ??
+      deps.resolver;
+
+    try {
+      await deps.store.upsertAgent(updatedAgent);
+      await deps.store.recordEvent({
+        organizationId: agent.organizationId,
+        agentId: agent.id,
+        source: "ens",
+        type: "ens.agent.controller_updated",
+        status: "success",
+        actor: controller,
+        occurredAt: readAt(),
+        txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
+        summary: `Updated controller for ${agent.ensName} to ${controller}`,
+        metadata: {
+          previousController: oldController,
+          newController: controller,
+        },
+        evidence: {
+          source: "ens",
+          txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
+          contractAddress: customResolver,
+        },
+      });
+    } catch (error) {
+      return c.json({ error: "internal error" }, 500);
+    }
+
+    return c.json({
+      status: "confirmed" as const,
+      id: agent.id,
+      controller,
+      readAt: readAt(),
+    });
   })
 
   //////////////////////////////////////////////////////////////////////////
@@ -719,7 +817,24 @@ export const agents = new Hono<DepsEnv>()
       ...(result.status === "executed" && {
         txHash: result.transactionHash as `0x${string}`,
       }),
-      summary: `Payment of ${describeAmount(amount, token)} to ${recipient}: ${result.status}`,
+      /*
+        The memo, where one was sent.
+
+        It reached `PaymentRequest.memo` and stopped there: nothing in
+        `sendPayment` puts it on the transaction — a native transfer carries no
+        memo field and an ERC 20 transfer's calldata is the selector, recipient
+        and amount — and nothing here recorded it either. So the console had a
+        labelled text field whose contents were discarded on arrival, which is
+        worse than not offering one.
+
+        The timeline is where it can honestly live: `docs/09` makes the activity
+        log the record of what was asked, and a payment whose reason is written
+        down beside its outcome is the only form in which "why did this agent
+        spend" survives the request.
+      */
+      summary: memo
+        ? `Payment of ${describeAmount(amount, token)} to ${recipient} — ${memo}: ${result.status}`
+        : `Payment of ${describeAmount(amount, token)} to ${recipient}: ${result.status}`,
       evidence:
         result.status === "executed"
           ? { source: "privy", txHash: result.transactionHash as `0x${string}` }

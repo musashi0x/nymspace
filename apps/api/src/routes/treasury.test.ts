@@ -78,6 +78,15 @@ describe("GET /v1/treasury", () => {
     // internals and `docs/10` keeps those off the wire.
     expect(byId["agent-a"].reason).toBe("Privy 500");
     expect(byId["agent-a"].reason).not.toContain("second line");
+    /*
+      And it still carries the address. The store answered; only Privy did not.
+      Dropping it would leave the console with nothing to print in the wallet
+      column for an agent that demonstrably has one, which is the same
+      understatement of an agent's authority that `unavailable` exists to stop
+      one column over.
+    */
+    expect(byId["agent-a"].address).toBe("0xWagent-a");
+    expect(byId["agent-c"].address).toBeUndefined();
     expect(calls).toBe(1);
   });
 

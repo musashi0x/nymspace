@@ -5,8 +5,8 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { agentMcpEndpoint, isPublishableEndpoint } from "@nymspace/core";
-import { fetchIdentity, fetchPermissions, fetchWallet } from "@/lib/api";
+import { agentMcpEndpoint, formatAmount, isPublishableEndpoint } from "@nymspace/core";
+import { fetchAgents, fetchIdentity, fetchPermissions, fetchWallet } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
 import {
   identityStateFrom,
@@ -18,6 +18,7 @@ import { ConnectFromClaude } from "@/components/console/connect-from-claude";
 import { McpConnect } from "@/components/console/mcp-connect";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
+import { VisitorAuthority } from "@/components/console/visitor-authority";
 import {
   Absent,
   Badge,
@@ -46,10 +47,16 @@ export default async function AgentPage({
 }: PageProps<"/console/agents/[id]">) {
   const { id } = await params;
 
-  const [identity, permissions, wallet] = await Promise.all([
+  const [identity, permissions, wallet, fleet] = await Promise.all([
     fetchIdentity(id).catch(() => null),
     fetchPermissions(id).catch(() => null),
     fetchWallet(id).catch(() => null),
+    /*
+      The rest of the fleet, so a payment has somewhere to go that is not this
+      agent's own owner. Tolerated as null: a failed fleet read should cost the
+      payee list, never the page.
+    */
+    fetchAgents().catch(() => null),
   ]);
 
   if (!identity) notFound();
@@ -226,6 +233,22 @@ export default async function AgentPage({
             />
 
             {/*
+              The same read, about whoever is looking.
+
+              Everything above is answered for an address this deployment
+              configured, which makes it believable rather than checkable. This
+              runs the identical `hasRoles` query against a wallet the reader
+              connected — no transaction, no gas — and the denials it returns
+              are ones they chose the subject of.
+            */}
+            <Frame
+              title="you"
+              subtitle="The authority boundary, computed for an address you control rather than one this deployment configured."
+            >
+              <VisitorAuthority agentId={id} />
+            </Frame>
+
+            {/*
               Task 7.7. A wrong resource derivation and a genuine denial are the
               same value, so a table of "Denied" proves nothing on its own. This
               is the control that ran in the same request through the same code
@@ -328,9 +351,17 @@ export default async function AgentPage({
             />
             {wallet.policy ? (
               <>
+                {/*
+                  The formatted limit, not the rule sentence. Privy names the
+                  rule "Restrict native transfers to 1000000000000000 wei",
+                  which is the confidently-wrong figure the token helpers exist
+                  to prevent — eighteen decimals is not a detail the reader
+                  should be made to carry, and the treasury screen prints the
+                  same policy as 0.001 ETH two clicks away.
+                */}
                 <Field
                   label="Policy"
-                  value={`${wallet.policy.label} — ${wallet.policy.ruleName}`}
+                  value={`${wallet.policy.label} — at most ${formatAmount(wallet.policy.maxAmount, wallet.policy.token)} per transaction`}
                   source="privy"
                   readAt={wallet.readAt}
                   mono={false}
@@ -346,6 +377,12 @@ export default async function AgentPage({
                   agentId={id}
                   ensName={identity.ensName}
                   recipient={identity.owner}
+                  peers={(fleet?.agents ?? [])
+                    .filter((peer) => peer.id !== id)
+                    .map((peer) => ({
+                      ensName: peer.ensName,
+                      controllerAddress: peer.controllerAddress,
+                    }))}
                   limitAmount={wallet.policy.maxAmount}
                   token={wallet.policy.token}
                 />

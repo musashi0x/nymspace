@@ -15,7 +15,7 @@ import Link from "next/link";
 // guarded and importing it here would break the client boundary. `task-request`
 // takes the same route to the same function.
 import { formatAmount } from "@nymspace/core";
-import { Absent, Badge, Provenance } from "./primitives";
+import { Absent, Provenance } from "./primitives";
 import { RowWindowFooter, ScrollRegion, useRowWindow } from "./row-window";
 
 /**
@@ -61,85 +61,97 @@ export interface TreasuryRow extends Record<string, unknown> {
         } | null;
       }
     | { status: "no_wallet" }
-    | { status: "unavailable"; reason: string };
+    | { status: "unavailable"; address: string; reason: string };
   readAt: string;
-}
-
-/**
- * Four states, and the third one is why this screen needed its own route.
- *
- * `no_wallet` and `unavailable` are opposite claims — one says this agent has
- * no financial authority, the other says we do not currently know what its
- * authority is — so they get different words, different tones, and different
- * copy in every cell. Collapsing them would understate an agent's power, which
- * is the direction that actually matters.
- */
-function walletBadge(wallet: TreasuryRow["wallet"]) {
-  if (wallet.status === "no_wallet") {
-    return <Badge tone="neutral">not provisioned</Badge>;
-  }
-  if (wallet.status === "unavailable") {
-    return <Badge tone="bad">policy unreadable</Badge>;
-  }
-  return wallet.policy ? (
-    <Badge tone="good">policy enforced</Badge>
-  ) : (
-    <Badge tone="warn">wallet, no policy</Badge>
-  );
 }
 
 const COLUMNS: TableColumn<TreasuryRow>[] = [
   {
+    /*
+      The name alone. `controllerAddress` is on the row and the fleet table
+      shows it, but the controller is the identity key and this screen is about
+      money — the address that matters here is the wallet's, one column over.
+      Printing both put two 42-character strings in one row, and the narrower
+      one wrapped to three lines with a two-character orphan on the last.
+    */
     key: "ensName",
     header: "agent",
-    width: proportional(2),
+    // Three: `research.nymspace.eth` is twenty-one characters and broke after
+    // the twentieth at two, leaving a lone "h" on the second line.
+    width: proportional(3),
     renderCell: (row) => (
-      <VStack gap={0.5}>
-        <Link href={`/console/agents/${row.id}`}>
-          <Text type="code">{row.ensName}</Text>
-        </Link>
-        <Text type="code" size="2xs" color="secondary" wordBreak="break-all">
-          {row.controllerAddress}
-        </Text>
-      </VStack>
+      <Link href={`/console/agents/${row.id}`}>
+        <Text type="code">{row.ensName}</Text>
+      </Link>
     ),
   },
+  /*
+    No status badge.
+
+    There was one — an `authority` column reading "not provisioned" / "policy
+    enforced" / "policy unreadable" — and it was this table repeating the fleet
+    screen's `FINANCIAL` column back at the reader. Two screens in the
+    navigation, and the cell they shared was the only one either could show
+    while nothing is provisioned, so they looked like the same table twice.
+
+    The states are still all four, and still distinguishable, because the two
+    remaining columns carry them between the address and the limit: an absent
+    address is `no_wallet`, an address with a figure is governed, an address
+    with "nothing constrains this wallet" is not, and an address whose limit
+    reads "Privy did not answer" is `unavailable`. A badge saying the same
+    thing beside them added a word, not a fact.
+
+    What the fleet screen cannot do is the reason this table still exists:
+    `provisioning.financial` is an enum of five recorded stages with no value
+    for "we asked Privy and it did not answer", so a fleet row keeps showing
+    the last stage it reached while nobody can currently verify it. These rows
+    are read live, and say so.
+  */
   {
-    // Two, not one: at `proportional(1)` the badge clipped to "not provisi…",
-    // and a truncated status is worse than a shorter word — the reader cannot
-    // tell "not provisioned" from "policy unreadable", which are the two states
-    // this column exists to keep apart.
-    key: "wallet",
-    header: "authority",
-    width: proportional(2),
-    renderCell: (row) => walletBadge(row.wallet),
-  },
-  {
+    /*
+      An address whenever one exists, which includes `unavailable` — the store
+      answered and only the policy read failed, so the wallet is as real there
+      as it is in `provisioned`.
+
+      Only `no_wallet` is absent, and the sentence names the remedy rather than
+      restating the badge beside it. Three cells saying "not provisioned" three
+      different ways is what this row looked like first, and none of the three
+      told the reader what to do about it.
+    */
     key: "address",
     header: "wallet",
-    width: proportional(2),
+    // Three, because this column holds a 42-character address once anything is
+    // provisioned, and at two it wrapped even the placeholder sentence to a
+    // one-word second line.
+    width: proportional(3),
     renderCell: (row) =>
-      row.wallet.status === "provisioned" ? (
+      row.wallet.status === "no_wallet" ? (
+        <Absent what="provisioning has not run" />
+      ) : (
         <Text type="code" size="2xs" wordBreak="break-all">
           {row.wallet.address}
         </Text>
-      ) : row.wallet.status === "unavailable" ? (
-        <Absent what="the wallet exists; its policy could not be read" />
-      ) : (
-        <Absent what="no wallet provisioned" />
       ),
   },
   {
     key: "limit",
+    // Three now that the badge column is gone: an `unavailable` row prints the
+    // provider's first line here, and that is the longest string the table can
+    // hold.
+    width: proportional(3),
     header: "per transaction",
-    width: proportional(2),
     renderCell: (row) => {
       if (row.wallet.status === "no_wallet") {
-        return <Absent what="no policy, so no limit" />;
+        return <Absent what="no policy until a wallet exists" />;
       }
       if (row.wallet.status === "unavailable") {
-        // Unknown, not absent. The distinction is the whole point of the state.
-        return <Absent what="Privy did not answer — the limit is unknown" />;
+        /*
+          Unknown, not absent — the distinction is the whole point of the state,
+          and this is the cell where it costs something. The reason lands here
+          rather than in the wallet column because it explains a missing
+          *number*, which is the one kind of blank that gets misread as zero.
+        */
+        return <Absent what={`Privy did not answer: ${row.wallet.reason}`} />;
       }
       if (!row.wallet.policy) {
         return <Absent what="nothing constrains this wallet" />;
