@@ -12,7 +12,19 @@ export const REPO_OWNER = process.env.GITHUB_OWNER ?? "musashi0x";
 export const REPO_NAME = process.env.GITHUB_REPO ?? "nymspace";
 export const REPO_BRANCH = process.env.GITHUB_BRANCH ?? "";
 
-/** Cap on pages of 100 commits. Keeps us inside the unauthenticated rate limit. */
+/**
+ * Cap on pages of 100 commits.
+ *
+ * It does *not* keep us inside the unauthenticated rate limit, which is what
+ * this comment used to claim. One `getActivity` costs a repository read plus up
+ * to five commit pages — six requests — and `REVALIDATE_SECONDS` below is 60,
+ * so an idle deployment spends up to 360 requests an hour against an
+ * unauthenticated allowance of 60. Six times over, with no traffic at all.
+ *
+ * `GITHUB_TOKEN` is therefore not an optimisation for a busy site; it is the
+ * thing that makes the feed work anywhere it runs for more than a few minutes.
+ * With one the allowance is 5,000/hr and the same 360 is comfortable.
+ */
 const MAX_PAGES = 5;
 const PER_PAGE = 100;
 /** Seconds before the route re-fetches from GitHub. */

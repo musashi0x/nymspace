@@ -87,12 +87,26 @@ export default async function Home() {
               Commit data unavailable
             </p>
             <p>{data.error.message}</p>
+            {/*
+              No `.env.local` here. This panel renders wherever the read
+              failed, and on the deployed site it was telling a visitor to edit
+              a file on a machine they do not have — an instruction addressed to
+              whoever runs the deployment, shown to everybody else.
+
+              The arithmetic is worth stating plainly, because it is the whole
+              explanation: a refresh costs a repository read plus up to five
+              pages of commits, and the page refreshes on its revalidate
+              interval, so unauthenticated it exceeds the hourly allowance
+              within minutes of any deploy. It is not a traffic problem, and
+              waiting does not fix it.
+            */}
             {data.error.kind === "rate_limited" && (
               <p className="mt-2">
-                The unauthenticated API allows 60 requests per hour. Set{" "}
-                <code className="font-mono text-xs">GITHUB_TOKEN</code> in{" "}
-                <code className="font-mono text-xs">.env.local</code> to raise
-                the limit to 5,000/hr, then reload.
+                Unauthenticated, GitHub allows 60 requests an hour, and one
+                refresh of this page costs up to six. Setting{" "}
+                <code className="font-mono text-xs">GITHUB_TOKEN</code> on the
+                environment that serves this page raises the allowance to
+                5,000/hr.
               </p>
             )}
           </div>
