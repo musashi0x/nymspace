@@ -161,14 +161,26 @@ export function TaskRequest({
     */
     <VStack gap={4} id="task" className="scroll-mt-8">
       <Grid columns={{ minWidth: 220, max: 2 }} gap={3}>
-        <TextInput label="Task" value={task} onChange={setTask} />
+        {/*
+          "Note", not "Task". Nothing here dispatches work — the agent never
+          receives this string and no job is created. It is a reason, recorded
+          beside the outcome on the activity event, and calling it a task
+          promised an execution that never happened.
+        */}
+        <TextInput label="Note" value={task} onChange={setTask} />
         {/*
           No `inputMode` — Astryx's TextInput does not expose it. The filter in
           onChange is what actually keeps this numeric, and it did before too:
           the attribute only ever picked the phone keyboard.
         */}
         <TextInput
-          label={`Budget (${symbol})`}
+          /*
+            "Amount", not "Budget". A budget is a ceiling you spend within; this
+            is the exact figure transferred. The ceiling is the policy cap shown
+            below it, and two fields that both read as limits — one of them not
+            one — is the confusion this screen exists to remove.
+          */
+          label={`Amount (${symbol})`}
           value={budget}
           onChange={(next) => setBudget(next.replace(/[^\d.]/g, ""))}
           {...(amountError && {
@@ -207,10 +219,26 @@ export function TaskRequest({
         </Text>
       </HStack>
 
-      <Text type="code" size="sm" color="secondary" hasTabularNumbers>
-        {ensName} → {recipient} ·{" "}
-        {amount ? formatAmount(amount, token) : `— ${symbol}`}
-      </Text>
+      {/*
+        Who pays whom, in words above the addresses.
+
+        The arrow alone left the direction to be inferred from two hex strings,
+        and the inference most readers make — that this pays the agent for the
+        work described — is backwards: the funds leave the agent's own wallet
+        and go to the organization that owns its name. That is the arrangement
+        being demonstrated, an agent spending under a cap its owner set, and it
+        only reads as one when the two roles are named.
+      */}
+      <VStack gap={1}>
+        <Text type="supporting">
+          {ensName} spends from its own wallet, to the organization that owns
+          its name.
+        </Text>
+        <Text type="code" size="sm" color="secondary" hasTabularNumbers>
+          {ensName} → {recipient} ·{" "}
+          {amount ? formatAmount(amount, token) : `— ${symbol}`}
+        </Text>
+      </VStack>
 
       <HStack gap={2} wrap="wrap">
         <Button
