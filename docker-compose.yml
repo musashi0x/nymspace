@@ -11,6 +11,15 @@
 # Port 5433, not 5432. The default is frequently already taken by another
 # project's database, and a connection that silently lands in the wrong
 # database is worse than one that is refused.
+#
+# 5433 is frequently taken too — by the next project that read this same advice.
+# So it is the default and not the rule: set POSTGRES_PORT to move it, and set
+# DATABASE_URL to match, because the two are not derived from each other.
+#
+#   POSTGRES_PORT=5443 docker compose up -d
+#
+# It was hardcoded until a second project held 5433 and compose answered "port
+# is already allocated" — with the fix being a number this file would not read.
 services:
   postgres:
     image: postgres:16-alpine
@@ -21,7 +30,7 @@ services:
       POSTGRES_PASSWORD: nymspace
       POSTGRES_DB: nymspace
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       # Named rather than anonymous: task 2.6 restarts the process and reads
       # both records back, and task 8.6 restarts the whole demo. A volume that

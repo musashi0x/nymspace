@@ -41,10 +41,26 @@ type Preview = Awaited<ReturnType<typeof previewPayment>>;
  */
 type PolicyToken = { address: string; symbol: string; decimals: number };
 
-/** Another agent in the fleet, as a destination this one can pay. */
+/**
+ * The option value standing for the organization.
+ *
+ * A sentinel rather than its address, so every option in the selector is keyed
+ * by something unique: the organization's address and an unprovisioned agent's
+ * controller key are both real addresses that can collide with each other.
+ */
+const ORGANIZATION = "__organization__";
+
+/**
+ * Another agent in the fleet, as a destination this one can pay.
+ *
+ * `walletAddress` is absent until that agent is provisioned, and an agent
+ * without one cannot be paid: every agent in a fleet shares the delegated
+ * controller key, so sending to a controller sends to an address that is not
+ * the agent's and is not even unique to it. Those are offered and disabled
+ * rather than hidden, because "trader has no wallet yet" is the useful answer.
+ */
 export interface Peer {
   ensName: string;
-  controllerAddress: string;
   walletAddress?: string;
 }
 
@@ -85,8 +101,16 @@ export function TaskRequest({
     for. The organization stays available as a destination, because a controlled
     address is the safe answer when no peer exists.
   */
+  /*
+    Keyed by ENS name, not by address.
+
+    Two agents in this fleet share one delegated controller key, so addresses
+    are not unique across the options — React saw two children with the same
+    key, and worse, picking either peer would have sent to the identical
+    address. The name is the identity; the address is resolved from it below.
+  */
   const [payee, setPayee] = useState(
-    () => peers[0]?.walletAddress ?? peers[0]?.controllerAddress ?? recipient,
+    () => peers.find((peer) => peer.walletAddress)?.ensName ?? ORGANIZATION,
   );
   const [budget, setBudget] = useState(() => fromBaseUnits(limitAmount, token));
   const [busy, setBusy] = useState<string | null>(null);
@@ -124,7 +148,7 @@ export function TaskRequest({
       setPreview(
         await previewPayment(agentId, {
           amount,
-          recipient: payee,
+          recipient: payeeAddress,
           ...(token && { token: token.address }),
           memo: task,
         }),
@@ -142,7 +166,7 @@ export function TaskRequest({
       setResult(
         await sendPayment(agentId, {
           amount,
-          recipient: payee,
+          recipient: payeeAddress,
           ...(token && { token: token.address }),
           memo: task,
         }),
@@ -182,11 +206,11 @@ export function TaskRequest({
   const overLimit =
     amount !== null && BigInt(amount) > BigInt(limitAmount);
 
-  /** The peer's name, or `null` when the destination is the organization. */
-  const payeeLabel =
-    peers.find(
-      (peer) => (peer.walletAddress ?? peer.controllerAddress) === payee,
-    )?.ensName ?? null;
+  /** The peer chosen, or `undefined` when the destination is the organization. */
+  const chosen = peers.find((peer) => peer.ensName === payee);
+  const payeeLabel = chosen?.ensName ?? null;
+  /** Where the funds actually go. Only a provisioned peer has somewhere. */
+  const payeeAddress = chosen?.walletAddress ?? recipient;
 
   return (
     /*
@@ -238,14 +262,15 @@ export function TaskRequest({
         onChange={setPayee}
         options={[
           ...peers.map((peer) => ({
-            value: peer.walletAddress ?? peer.controllerAddress,
+            value: peer.ensName,
             label: peer.ensName,
             description: peer.walletAddress
               ? "another agent in this fleet"
-              : "another agent — no wallet yet, this is its controller key",
+              : "no wallet yet — nothing to pay into",
+            disabled: !peer.walletAddress,
           })),
           {
-            value: recipient,
+            value: ORGANIZATION,
             label: "the organization",
             description: "the account that owns this name",
           },
@@ -300,7 +325,7 @@ export function TaskRequest({
             : `${ensName} spends from its own wallet to pay ${payeeLabel}, under a cap the organization set.`}
         </Text>
         <Text type="code" size="sm" color="secondary" hasTabularNumbers>
-          {ensName} → {payee} ·{" "}
+          {ensName} → {payeeAddress} ·{" "}
           {amount ? formatAmount(amount, token) : `— ${symbol}`}
         </Text>
       </VStack>

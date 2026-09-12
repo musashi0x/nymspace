@@ -6,7 +6,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { agentMcpEndpoint, formatAmount, isPublishableEndpoint } from "@nymspace/core";
-import { fetchAgents, fetchIdentity, fetchPermissions, fetchWallet } from "@/lib/api";
+import { fetchIdentity, fetchPermissions, fetchTreasury, fetchWallet } from "@/lib/api";
 import { EMPTY_STATES } from "@/lib/console/errors";
 import {
   identityStateFrom,
@@ -52,11 +52,18 @@ export default async function AgentPage({
     fetchPermissions(id).catch(() => null),
     fetchWallet(id).catch(() => null),
     /*
-      The rest of the fleet, so a payment has somewhere to go that is not this
-      agent's own owner. Tolerated as null: a failed fleet read should cost the
-      payee list, never the page.
+      The fleet with each agent's wallet, so a payment has somewhere to go that
+      is not this agent's own owner.
+
+      The treasury aggregate rather than `fetchAgents`, because the payee list
+      needs the wallet address and the fleet route does not carry one. Paying an
+      agent's controller key instead is not a fallback: every agent here shares
+      one delegated key, so it is neither that agent's address nor unique to it.
+
+      Tolerated as null — a failed read should cost the payee list, never the
+      page.
     */
-    fetchAgents().catch(() => null),
+    fetchTreasury().catch(() => null),
   ]);
 
   if (!identity) notFound();
@@ -381,7 +388,9 @@ export default async function AgentPage({
                     .filter((peer) => peer.id !== id)
                     .map((peer) => ({
                       ensName: peer.ensName,
-                      controllerAddress: peer.controllerAddress,
+                      ...(peer.wallet.status === "provisioned" && {
+                        walletAddress: peer.wallet.address,
+                      }),
                     }))}
                   limitAmount={wallet.policy.maxAmount}
                   token={wallet.policy.token}
