@@ -32,8 +32,9 @@
  * run to fix, because it would look like it had checked.
  */
 
+import { privateKeyToAccount } from "viem/accounts";
 import { requireServerEnv } from "@nymspace/core/env";
-import type { Address } from "@nymspace/core";
+import type { Address, Hex } from "@nymspace/core";
 import {
   AGENT_CONTEXT_KEY,
   EnsService,
@@ -130,13 +131,55 @@ async function targets(store: Store): Promise<Target[]> {
   return [...found.values()].sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-async function main(): Promise<void> {
-  const config = chainConfig();
-  const deployed = requireDeployed(config);
+/**
+ * The two accounts to check permissions for — as addresses, never as signers.
+ *
+ * Taken from `ENSV2_*_ADDRESS` when set, and otherwise *derived* from the
+ * private keys. Both spellings express the same fact, and which one a given
+ * environment holds is not this script's business: `.env.example` says the
+ * address form is set instead of the keys and ignored when both are present,
+ * and `apps/api/src/deps.ts` already treats them as alternatives. Demanding the
+ * address form regardless meant this script could not run against the deployed
+ * environment at all — Railway holds the keys, which is the correct way to
+ * configure a service that signs, and the two address variables are empty
+ * there and in `.env.example` because nothing is supposed to set both.
+ *
+ * Deriving does not weaken the guarantee in this file's header. The key is read
+ * here and goes no further: what reaches `createViemChainClient` is an address,
+ * so the client it builds has no signer and every write method on it still
+ * throws `NoSignerError`. "No keys used — reads only" remains structurally
+ * true rather than merely intended.
+ */
+function readAddresses(): { organization: Address; controller: Address } {
+  const organizationKey = process.env["ENSV2_ORGANIZATION_PRIVATE_KEY"] as
+    | Hex
+    | undefined;
+  const controllerKey = process.env["ENSV2_AGENT_CONTROLLER_PRIVATE_KEY"] as
+    | Hex
+    | undefined;
+
+  if (organizationKey && controllerKey) {
+    return {
+      organization: privateKeyToAccount(organizationKey).address,
+      controller: privateKeyToAccount(controllerKey).address,
+    };
+  }
+
   const env = requireServerEnv([
     "ENSV2_ORGANIZATION_ADDRESS",
     "ENSV2_AGENT_CONTROLLER_ADDRESS",
   ] as const);
+
+  return {
+    organization: env.ENSV2_ORGANIZATION_ADDRESS as Address,
+    controller: env.ENSV2_AGENT_CONTROLLER_ADDRESS as Address,
+  };
+}
+
+async function main(): Promise<void> {
+  const config = chainConfig();
+  const deployed = requireDeployed(config);
+  const readers = readAddresses();
 
   // Addresses, not keys. Every write method on this client throws
   // `NoSignerError`, which is the guarantee that this script cannot provision
@@ -144,8 +187,8 @@ async function main(): Promise<void> {
   const client = createViemChainClient({
     rpcUrl: config.rpcUrl,
     chainId: config.chainId,
-    organizationAddress: env.ENSV2_ORGANIZATION_ADDRESS as Address,
-    controllerAddress: env.ENSV2_AGENT_CONTROLLER_ADDRESS as Address,
+    organizationAddress: readers.organization,
+    controllerAddress: readers.controller,
   });
 
   const ens = new EnsService({ client, config });
@@ -167,8 +210,8 @@ async function main(): Promise<void> {
     ? createViemChainClient({
         rpcUrl: process.env["BASE_SEPOLIA_RPC_URL"] ?? "https://sepolia.base.org",
         chainId: REGISTRATION_CHAIN_ID,
-        organizationAddress: env.ENSV2_ORGANIZATION_ADDRESS as Address,
-        controllerAddress: env.ENSV2_AGENT_CONTROLLER_ADDRESS as Address,
+        organizationAddress: readers.organization,
+        controllerAddress: readers.controller,
       })
     : undefined;
 
