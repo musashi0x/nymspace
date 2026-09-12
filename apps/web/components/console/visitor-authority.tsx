@@ -1,7 +1,11 @@
 "use client";
 
+import { HStack } from "@astryxdesign/core/HStack";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { useClipboard } from "@astryxdesign/core/hooks";
 import { useEffect, useState } from "react";
 import { fetchPermissions } from "@/lib/api";
 import { AuthorityMatrix, type AuthorityRow } from "./authority-matrix";
@@ -61,6 +65,9 @@ interface Answer {
 export function VisitorAuthority({ agentId }: { agentId: string }) {
   const visitor = useVisitor();
   const [answer, setAnswer] = useState<Answer | undefined>(undefined);
+  // Before every early return: this component has four of them, and a hook
+  // called after one runs on some renders and not others.
+  const { copy, isCopied } = useClipboard({ announce: "Address copied" });
   const address = visitor.address;
 
   useEffect(() => {
@@ -157,14 +164,25 @@ export function VisitorAuthority({ agentId }: { agentId: string }) {
           The same `hasRoles` read, against the wallet you connected.
         </Text>
         {/*
-          In full, not truncated. The header shows six characters and four,
-          which is enough to recognise an address and not enough to verify one,
-          and this table's entire claim is that the reader can check the subject
-          of the read.
+          In full, not truncated, and copyable. The header shows six characters
+          and four, which is enough to recognise an address and not enough to
+          verify one — and this table's entire claim is that the reader can
+          check the subject of the read, which means taking the address
+          somewhere else to compare it.
         */}
-        <Text type="code" size="2xs" wordBreak="break-all">
-          {read.controller}
-        </Text>
+        <HStack gap={2} align="center" wrap="wrap">
+          <Text type="code" size="sm" wordBreak="break-all">
+            {read.controller}
+          </Text>
+          <IconButton
+            size="sm"
+            variant="ghost"
+            tooltip="Copy address"
+            label={isCopied ? "Address copied" : "Copy address"}
+            icon={<Icon icon={isCopied ? "check" : "copy"} size="xsm" />}
+            onClick={() => void copy(read.controller)}
+          />
+        </HStack>
       </VStack>
 
       <AuthorityMatrix rows={read.rows} header="you" />

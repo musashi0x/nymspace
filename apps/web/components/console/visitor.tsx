@@ -3,7 +3,10 @@
 import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
+import { useClipboard } from "@astryxdesign/core/hooks";
 import { publicEnv } from "@nymspace/core";
 import { createContext, useContext, type ReactNode } from "react";
 
@@ -94,13 +97,27 @@ export function VisitorProvider({ children }: { children: ReactNode }) {
 }
 
 function Bridge({ children }: { children: ReactNode }) {
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready, authenticated, user, login, logout } = usePrivy();
   const { wallets } = useWallets();
+
+  /*
+    `user.wallet` first, `wallets[0]` second.
+
+    They resolve at different times. `useWallets` builds its list from live
+    connectors, which on a reload is empty for a moment while they reconnect,
+    whereas `user.wallet` comes straight from the restored session. Reading only
+    the list meant that after every reload the header showed "Connect" to
+    someone who was still signed in — a false claim about their state, and the
+    one thing this header exists to report.
+  */
+  const address = authenticated
+    ? (user?.wallet?.address ?? wallets[0]?.address)
+    : undefined;
 
   const value: Visitor = {
     configured: true,
     ready,
-    address: authenticated ? wallets[0]?.address : undefined,
+    address,
     connect: login,
     disconnect: logout,
   };
@@ -139,19 +156,63 @@ export function ConnectVisitor() {
 
   return (
     <HStack gap={2} align="center">
-      {/*
-        Truncated, and never the only place the address appears — the matrix
-        below prints it in full beside the answers it produced, because a
-        shortened address in a header is an identity hint and not evidence.
-      */}
-      <Text type="code" size="2xs" color="secondary">
-        {visitor.address.slice(0, 6)}…{visitor.address.slice(-4)}
-      </Text>
+      <AddressChip address={visitor.address} />
       <Button
         size="sm"
         variant="ghost"
         label="Disconnect"
         onClick={visitor.disconnect}
+      />
+    </HStack>
+  );
+}
+
+/**
+ * The connected address, shortened, with the full one a click away.
+ *
+ * Bordered because it is a value and not a control, and the two sat side by
+ * side as bare text before — a shortened hex string beside a ghost button reads
+ * as two labels rather than as "here is who you are, and here is how to stop
+ * being them". The border is what makes the address look deliberate rather than
+ * like selected text.
+ *
+ * Copy rather than select: six characters and four are enough to recognise an
+ * address and not enough to use one, so the shortened form is only ever a label
+ * and the clipboard carries the whole thing.
+ */
+export function AddressChip({ address }: { address: string }) {
+  // `useClipboard` owns the copied flag and its reset timer. Astryx's own note
+  // on the hook is explicit that a second `useState` beside it is the mistake:
+  // `isCopied` already resets itself, and a rapid re-copy restarts the window.
+  const { copy, isCopied } = useClipboard({ announce: "Address copied" });
+
+  return (
+    <HStack
+      gap={2}
+      align="center"
+      paddingInline={2}
+      paddingBlock={1}
+      className="rounded-lg border border-border"
+    >
+      {/*
+        `sm`, not `2xs`. The table cells use `2xs` because density is the point
+        there; in this header it resolved to eight pixels against the
+        fourteen-pixel button beside it, and the address read as a caption under
+        the control rather than as the thing the control acts on. `xsm` is ten,
+        still short of it — `sm` is the first step that sits level.
+      */}
+      <Text type="code" size="sm" color="secondary">
+        {address.slice(0, 6)}…{address.slice(-4)}
+      </Text>
+      <IconButton
+        size="sm"
+        variant="ghost"
+        // The tooltip stays "Copy"; the icon flip is the confirmation. The
+        // label moves, because that is what a screen reader reads back.
+        tooltip="Copy address"
+        label={isCopied ? "Address copied" : "Copy address"}
+        icon={<Icon icon={isCopied ? "check" : "copy"} size="xsm" />}
+        onClick={() => void copy(address)}
       />
     </HStack>
   );
