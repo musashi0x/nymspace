@@ -14,6 +14,7 @@ import { discover } from "./routes/discover";
 import { github } from "./routes/github";
 import { signers } from "./routes/signers";
 import { traffic } from "./routes/traffic";
+import { treasury } from "./routes/treasury";
 
 /**
  * Builds the application. Separate from `index.ts` so importing it binds no
@@ -53,6 +54,7 @@ export const DEPENDENT_ROUTES = [
   "/v1/chat",
   "/v1/signers",
   "/v1/mcp",
+  "/v1/treasury",
 ] as const;
 
 /** The agent MCP servers. Public, read-only, and never given `deps`. */
@@ -134,6 +136,7 @@ export function createApp(config: ApiConfig, deps?: Deps, sink: Sink = stdoutSin
     .route("/v1/chat", chat)
     .route("/v1/signers", signers)
     .route("/v1/github", github)
+    .route("/v1/treasury", treasury)
     .route("/v1/traffic", traffic)
     .route(
       "/v1/mcp",

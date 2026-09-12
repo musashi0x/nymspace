@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * The console's five links, and which one you are standing on.
+ * The console's six links, and which one you are standing on.
  *
  * A client component for one reason: `usePathname`. The shell around it stays
  * a server component, so the cost of knowing the current route is this file
@@ -15,7 +15,7 @@ import { usePathname } from "next/navigation";
  * ## Matching, and why `/console` is not `startsWith`
  *
  * Every href is a prefix of nothing except its own section — apart from
- * `/console`, which is a prefix of all four others. Matching it the same way
+ * `/console`, which is a prefix of all five others. Matching it the same way
  * would light Fleet up on every page in the console, which is an indicator
  * that indicates nothing. So the index matches exactly and the sections match
  * by prefix, the prefix being what keeps Fleet's sibling lit on a detail route
@@ -38,6 +38,7 @@ const NAV = [
   { href: "/console/new", label: "New agent" },
   { href: "/console/discover", label: "Discover" },
   { href: "/console/chat", label: "Chat" },
+  { href: "/console/treasury", label: "Treasury" },
   { href: "/console/activity", label: "Activity" },
 ] as const;
 

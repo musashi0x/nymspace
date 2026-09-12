@@ -10,9 +10,12 @@ import { ViewTransition } from "@/components/console/view-transition";
  * The console shell.
  *
  * Fleet, Discover and Activity, which is the navigation `docs/03` calls
- * mandatory plus the one it calls recommended. Settings is deliberately absent:
- * the spec allows it to be minimal, and an empty settings page is a promise the
- * product does not keep.
+ * mandatory plus the one it calls recommended; Chat and Treasury are the two
+ * the product added. Settings is deliberately absent: the spec allows it to be
+ * minimal, and an empty settings page is a promise the product does not keep.
+ *
+ * The links themselves live in `components/console/nav.tsx`, which needs the
+ * pathname to mark the current one and so cannot be a server component.
  *
  * `surface-body` paints the Astryx body token rather than leaving the shell on
  * the shadcn `--background` the landing page uses. Two token systems both claim

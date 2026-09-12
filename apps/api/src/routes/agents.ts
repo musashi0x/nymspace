@@ -877,7 +877,7 @@ function resolveToken(
 }
 
 /** What a response may say about a token. Address, symbol, decimals. */
-function tokenPayload(token: TokenSpec | null): {
+export function tokenPayload(token: TokenSpec | null): {
   address: string;
   symbol: string;
   decimals: number;
@@ -898,7 +898,7 @@ function tokenPayload(token: TokenSpec | null): {
  * screen that claims an owner path while none is configured is the simulated
  * approval the doc forbids, one indirection removed.
  */
-function signerMode(hasOwner: boolean): string {
+export function signerMode(hasOwner: boolean): string {
   return hasOwner
     ? "agent key, capped by policy; organization owner key can escalate"
     : "agent key, capped by policy";

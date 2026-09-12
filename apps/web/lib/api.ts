@@ -157,6 +157,21 @@ export async function fetchWallet(id: string) {
   return res.json();
 }
 
+/**
+ * Every agent's financial authority in one read.
+ *
+ * Not a loop over `fetchWallet`. That route throws when a policy cannot be
+ * read, so looping it from here would force a choice between failing the whole
+ * screen and swallowing each failure into `null` — and `null` is
+ * indistinguishable from "this agent has no wallet". The aggregate answers with
+ * a third state per agent instead; see `apps/api/src/routes/treasury.ts`.
+ */
+export async function fetchTreasury() {
+  const res = await api.v1.treasury.$get();
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
 /** Informational only. Privy still decides. */
 export async function previewPayment(
   id: string,
