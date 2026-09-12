@@ -63,18 +63,71 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 /** ERC 8004 registrations live on Base Sepolia; ENS lives on Sepolia. */
 const REGISTRATION_CHAIN_ID = 84532;
 
-/** Kept in step with `provision-fleet.ts` by hand. */
-const AGENTS = [
-  { slug: "research", displayName: "Research" },
-  { slug: "trader", displayName: "Trader" },
-  { slug: "deploy", displayName: "Deploy" },
-] as const;
+/**
+ * The names `provision-fleet.ts` creates, kept in step with it by hand.
+ *
+ * A seed list, not the fleet. A store that already holds agents is the better
+ * answer to "which names are there", and the two disagree the moment one is
+ * created through the console — production grew a fourth, `stalker`, that way.
+ * Syncing only this list would have left exactly the row most likely to be
+ * stale untouched, which is the failure this script exists to end.
+ *
+ * So the list below is the floor: it is what gets synced when the store is
+ * empty, and everything the store holds is synced alongside it. See
+ * {@link targets}.
+ */
+const SEED_SLUGS = ["research", "trader", "deploy"] as const;
 
 interface Finding {
   slug: string;
   ensName: string;
   patch: Partial<ProvisioningStatus>;
   notes: string[];
+}
+
+/** One name to sync, and what the store already knows about it. */
+interface Target {
+  slug: string;
+  agentId: string;
+  /**
+   * Undefined for a seed the store has never seen. Every other field follows
+   * from this: a row the store holds is the authority on its own controller
+   * and registration, and this script must not overwrite either with a
+   * configured default it happens to have to hand.
+   */
+  known?: { controllerAddress: Address; erc8004AgentId?: string };
+}
+
+/**
+ * Every name worth syncing: what the store holds, plus any seed it does not.
+ *
+ * Store rows first so a console-created agent keeps its own identity — it was
+ * registered by whoever created it, and re-imposing this process's configured
+ * controller on it would be this script writing rather than reading.
+ */
+async function targets(store: Store): Promise<Target[]> {
+  const rows = await store.listAgents(ORGANIZATION_ID);
+  const found = new Map<string, Target>(
+    rows.map((row) => [
+      row.slug,
+      {
+        slug: row.slug,
+        agentId: row.id,
+        known: {
+          controllerAddress: row.controllerAddress,
+          ...(row.erc8004AgentId && { erc8004AgentId: row.erc8004AgentId }),
+        },
+      },
+    ]),
+  );
+
+  for (const slug of SEED_SLUGS) {
+    if (!found.has(slug)) {
+      found.set(slug, { slug, agentId: `agent-${slug}` });
+    }
+  }
+
+  return [...found.values()].sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 async function main(): Promise<void> {
@@ -128,11 +181,6 @@ async function main(): Promise<void> {
         })
       : undefined;
 
-  console.log(`syncing ${AGENTS.length} agents under ${parentName}`);
-  console.log(`  resolver  ${deployed.permissionedResolver}`);
-  console.log(`  registry  ${deployed.parentRegistry}`);
-  console.log(`  no keys used — reads only\n`);
-
   const db = database();
   await migrate(db);
   const store = new Store(db);
@@ -144,11 +192,23 @@ async function main(): Promise<void> {
     chainId: config.chainId,
   });
 
+  // After the store is open, because which names to sync is partly its answer.
+  const fleet = await targets(store);
+  const fresh = fleet.filter((target) => !target.known).length;
+
+  console.log(`syncing ${fleet.length} agents under ${parentName}`);
+  console.log(`  resolver  ${deployed.permissionedResolver}`);
+  console.log(`  registry  ${deployed.parentRegistry}`);
+  console.log(
+    `  ${fleet.length - fresh} already in the store, ${fresh} seeded from this script`,
+  );
+  console.log(`  no keys used — reads only\n`);
+
   const findings: Finding[] = [];
 
-  for (const agent of AGENTS) {
+  for (const agent of fleet) {
     const ensName = `${agent.slug}.${parentName}`;
-    const agentId = `agent-${agent.slug}`;
+    const agentId = agent.agentId;
     const notes: string[] = [];
     const patch: Partial<ProvisioningStatus> = {};
 
@@ -179,10 +239,20 @@ async function main(): Promise<void> {
     }
 
     // --- ERC 8004 and ENSIP 25 -------------------------------------------
-    // Only the research agent has a registered identity today; the other two
-    // were never registered, so reporting them "unregistered" is accurate
-    // rather than a gap.
-    const knownAgentId = agent.slug === "research" ? researchAgentId : undefined;
+    /**
+     * The store's own id first, the configured one only as a seed.
+     *
+     * `ERC8004_RESEARCH_AGENT_ID` names one agent, which was fine while the
+     * fleet was the three this script created and only `research` had ever
+     * been registered. An agent created through the console registers its own
+     * identity and the store is the only place that id exists — reading it
+     * from the row is what lets this script verify ENSIP 25 for a name it did
+     * not create, rather than reporting it unregistered because it had nowhere
+     * to look.
+     */
+    const knownAgentId =
+      agent.known?.erc8004AgentId ??
+      (agent.slug === "research" ? researchAgentId : undefined);
 
     if (!erc8004) {
       notes.push(
@@ -222,7 +292,17 @@ async function main(): Promise<void> {
       organizationId: ORGANIZATION_ID,
       slug: agent.slug,
       ensName,
-      controllerAddress: client.controller,
+      /**
+       * A stored controller is left alone.
+       *
+       * `client.controller` is this process's configured address, which is the
+       * right seed for a name this script is creating a row for and the wrong
+       * thing to write over a name someone else registered under a controller
+       * of their own. This field is not coalesced by `upsertAgent` — it is
+       * written on conflict — so passing the configured value unconditionally
+       * would silently reassign authority on every run.
+       */
+      controllerAddress: agent.known?.controllerAddress ?? client.controller,
       erc8004AgentId: knownAgentId,
       erc8004Registry: knownAgentId ? identityRegistry : undefined,
     });
