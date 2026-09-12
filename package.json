@@ -21,7 +21,8 @@
     "audit:secrets": "tsx --env-file-if-exists=.env --conditions=react-server scripts/audit-secrets.ts",
     "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts",
     "read:privy": "tsx --env-file-if-exists=.env --conditions=react-server scripts/read-privy.ts",
-    "bind:wallet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/bind-wallet.ts"
+    "bind:wallet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/bind-wallet.ts",
+    "sync:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/sync-fleet.ts"
   },
   "devDependencies": {
     "@nymspace/api": "workspace:*",

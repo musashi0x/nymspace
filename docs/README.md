@@ -97,6 +97,7 @@ If this does not work, stop and fix ENSv2 before building the rest.
 | `20_SOURCES.md` | Current technical references checked on 2026 09 08 |
 | `21_ARCHITECTURE_DECISIONS.md` | Decisions of record and their trade offs |
 | `22_DEPLOYMENT.md` | Railway deployment runbook and config as code |
+| `23_LOCAL_DEMO_RUNBOOK.md` | Bringing the demo up on a laptop, and what to say about the gaps |
 
 ## Product name
 
