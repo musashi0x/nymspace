@@ -114,6 +114,17 @@ const secrets = {
   PRIVY_OWNER_PRIVATE_KEY: preserve(),
   PRIVY_OWNER_POLICY_ID: preserve(),
 
+  /*
+    Gates `/v1/mcp/console`, which creates agents and spends gas.
+
+    `preserve()` rather than a literal for the obvious reason, and declared at
+    all for the less obvious one: unset, the endpoint reports itself
+    unconfigured, which is a supported arrangement. Undeclared, "this
+    deployment has no console MCP" and "somebody left it out of the file" look
+    identical — and only one of those is a decision.
+  */
+  CONSOLE_MCP_TOKEN: preserve(),
+
   GITHUB_TOKEN: preserve(),
   /** The `gh` CLI's spelling of the same token; `@nymspace/github` reads either. */
   GH_TOKEN: preserve(),

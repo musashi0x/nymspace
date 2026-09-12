@@ -87,6 +87,39 @@ export interface LensDetail {
   provenance?: string;
 }
 
+/**
+ * Exact numbers on both axes — the register's `graph-matrix`.
+ *
+ * A separate shape from {@link LensAnswer}'s lanes and nodes because it answers
+ * a different question. A diagram says "this connects to that"; a matrix says
+ * "this many, crossed with that". The audit trail had been rendered as the
+ * former: every event became three nodes in three lanes, so an agent with fifty
+ * events produced a hundred and fifty boxes and the edges between them carried
+ * nothing — an event is not connected to its own timestamp, it *has* one.
+ *
+ * Counts, not statuses. `mdx-graphs.kshv.me/docs/graph-matrix` is a numeric
+ * grid with tabular figures, and a grid of words in the same frame would borrow
+ * a form that means "compare these quantities" to show something that cannot be
+ * compared.
+ */
+export interface LensMatrix {
+  /** Drawn as `[ TITLE ]` on the frame. One or two words, uppercase. */
+  title: string;
+  /** Headings across the top, left to right. */
+  columns: string[];
+  /** Heading for the row-label column. Often empty — the rows name themselves. */
+  rowHeader?: string;
+  rows: LensMatrixRow[];
+  /** One line under the title, saying what was counted and over what. */
+  caption?: string;
+}
+
+export interface LensMatrixRow {
+  label: string;
+  /** One number per column, in the same order. */
+  values: number[];
+}
+
 export interface LensAnswer {
   title: string;
   pills: LensPill[];
@@ -97,6 +130,14 @@ export interface LensAnswer {
   /** One line under the diagram, e.g. "5 components across 3 lanes". */
   caption: string;
   detail: LensDetail[];
+  /**
+   * A counted grid, when the answer has one.
+   *
+   * Rendered *instead of* the lane diagram, never beside it. Two figures of the
+   * same data on one screen is the gallery the register's own rules forbid, and
+   * the second one is always the one the reader has to work out is redundant.
+   */
+  matrix?: LensMatrix;
   /** When the reads happened. */
   readAt: string;
 }

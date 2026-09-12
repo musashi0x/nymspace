@@ -12,6 +12,7 @@ import type {
   ConsoleAnswer,
   LensDetail,
   LensEdge,
+  LensMatrix,
   LensNode,
   LensPlan,
   LensTone,
@@ -209,6 +210,20 @@ async function auditLens(id: string, deps: Deps): Promise<ConsoleAnswer> {
     lanes,
     nodes,
     edges,
+    /*
+      The counted grid, which is what this answer mostly is.
+
+      A trail is a sequence, so lanes are an honest shape for reading one — but
+      "what happened to this agent" is answered first by which systems acted and
+      how those acts ended, and that is a grid. Rendered instead of the diagram,
+      never beside it: the same events drawn twice is the gallery the register
+      forbids, and at fifty events the diagram is a hundred and fifty boxes
+      whose edges say only that an event has a timestamp.
+
+      Nothing is lost by choosing. `detail` below still lists every event in
+      order, so the grid summarises rather than replaces.
+    */
+    matrix: outcomeMatrix(ordered),
     caption:
       ordered.length === 0
         ? "Nothing has been recorded for this agent yet."
@@ -233,6 +248,56 @@ function unrecognised(): ConsoleAnswer {
 
 //////////////////////////////////////////////////////////////////////////////
 // Plans — understood, described, and not performed
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Which system acted, crossed with how it ended.
+ *
+ * Counted here rather than read from `store.summarizeActivity`, which counts
+ * every event in the organization. This answer is about one agent, and a grid
+ * counted over the whole fleet under a title naming a single name would be the
+ * most confident wrong number on the screen.
+ *
+ * Every status gets a column whether or not it occurred. A zero under `denied`
+ * is a finding — it is this product's central claim, stated as a number — and a
+ * column that disappears when empty turns "nothing was refused" into "refusals
+ * are not counted here".
+ */
+const OUTCOMES = ["success", "denied", "failed", "pending"] as const;
+
+function outcomeMatrix(
+  events: readonly { source: string; status: string }[],
+): LensMatrix {
+  const bySource = new Map<string, number[]>();
+
+  for (const event of events) {
+    const row = bySource.get(event.source) ?? OUTCOMES.map(() => 0);
+    const column = OUTCOMES.indexOf(event.status as (typeof OUTCOMES)[number]);
+    if (column >= 0) row[column] = (row[column] ?? 0) + 1;
+    bySource.set(event.source, row);
+  }
+
+  const total = (values: readonly number[]) =>
+    values.reduce((sum, n) => sum + n, 0);
+
+  const rows = [...bySource.entries()]
+    .map(([label, values]) => ({ label, values }))
+    // Busiest first, then alphabetical, so the order is stable between reads
+    // rather than following whatever the log happened to return.
+    .sort((a, b) => total(b.values) - total(a.values) || a.label.localeCompare(b.label));
+
+  return {
+    title: "OUTCOMES",
+    rowHeader: "source",
+    columns: [...OUTCOMES],
+    rows,
+    caption:
+      rows.length === 0
+        ? "No events recorded, so nothing to count."
+        : `${events.length} events by the system that recorded them.`,
+  };
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 /**

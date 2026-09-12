@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import * as React from "react";
+import { GraphMatrix } from "./graph-matrix";
 import type {
   LensAnswer,
   LensEdge,
@@ -85,7 +86,24 @@ export function LensCard({ answer }: { answer: LensAnswer }) {
         </div>
       </header>
 
-      <Diagram answer={answer} showLabels={showLabels} />
+      {/*
+        A counted grid replaces the diagram, it does not join it.
+
+        The register's rules forbid a gallery, and two figures of the same
+        events would leave the reader working out which one is redundant. The
+        answer decides which shape it is — `chat.ts` attaches a matrix only when
+        the question is "how many, crossed with what" — and the detail table
+        below still lists every row, so choosing a figure never costs the
+        reader a fact.
+
+        `surface="card"` because the frame's corner marks and title paint over
+        the edge beneath them, and this card is not the page background.
+      */}
+      {answer.matrix ? (
+        <GraphMatrix matrix={answer.matrix} surface="card" />
+      ) : (
+        <Diagram answer={answer} showLabels={showLabels} />
+      )}
 
       <p className="text-xs leading-relaxed text-muted-foreground">
         {answer.caption}
@@ -97,9 +115,14 @@ export function LensCard({ answer }: { answer: LensAnswer }) {
         <Toggle checked={showDetail} onChange={setShowDetail}>
           Show every detail
         </Toggle>
-        <Toggle checked={showLabels} onChange={setShowLabels}>
-          Edge labels
-        </Toggle>
+        {/* Nothing to label when there are no edges on screen. A toggle that
+            controls nothing is worse than an absent one: it invites a click
+            that reads as broken. */}
+        {!answer.matrix && (
+          <Toggle checked={showLabels} onChange={setShowLabels}>
+            Edge labels
+          </Toggle>
+        )}
         <span className="ml-auto font-mono text-[0.65rem] text-muted-foreground">
           read {answer.readAt.slice(11, 19)}Z
         </span>
