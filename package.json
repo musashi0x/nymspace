@@ -20,7 +20,8 @@
     "verify:acceptance": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-acceptance.ts",
     "audit:secrets": "tsx --env-file-if-exists=.env --conditions=react-server scripts/audit-secrets.ts",
     "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts",
-    "read:privy": "tsx --env-file-if-exists=.env --conditions=react-server scripts/read-privy.ts"
+    "read:privy": "tsx --env-file-if-exists=.env --conditions=react-server scripts/read-privy.ts",
+    "bind:wallet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/bind-wallet.ts"
   },
   "devDependencies": {
     "@nymspace/api": "workspace:*",

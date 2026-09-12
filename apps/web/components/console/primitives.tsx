@@ -2,10 +2,12 @@ import { Badge as AstryxBadge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Icon } from "@astryxdesign/core/Icon";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import type { ReactNode } from "react";
+import { CopyableValue } from "./copyable-value";
 import { EvidenceJson } from "./evidence-json";
 
 /**
@@ -75,6 +77,22 @@ export function Field({
   value: ReactNode;
   mono?: boolean;
 } & FieldProvenance) {
+  /*
+    Copyable when the value is a plain string, which in practice is every
+    address, hash, registry id and resolved name on the inspector.
+
+    They were selectable and nothing more, and a forty-two character hex string
+    that can only be selected is a value the reader has to drag across
+    accurately to check anywhere else — against Etherscan, against their wallet,
+    against the address in the header. The whole page argues that its values are
+    verifiable; getting one out of it was the step that was missing.
+
+    A `ReactNode` value is skipped: those are the `Absent` and `Badge` branches,
+    where there is no string to put on a clipboard and a copy button would offer
+    to copy the words "not set".
+  */
+  const copyable = typeof value === "string" ? value : undefined;
+
   return (
     <VStack gap={1} paddingBlock={2} className="frame-rule-below last:bg-none">
       <HStack gap={4} justify="between" align="end">
@@ -85,13 +103,17 @@ export function Field({
           <Provenance source={provenance.source} readAt={provenance.readAt} />
         ) : null}
       </HStack>
-      <Text
-        type={mono ? "code" : "body"}
-        hasTabularNumbers={mono}
-        wordBreak="break-all"
-      >
-        {value}
-      </Text>
+      {copyable ? (
+        <CopyableValue value={copyable} label={label} mono={mono} />
+      ) : (
+        <Text
+          type={mono ? "code" : "body"}
+          hasTabularNumbers={mono}
+          wordBreak="break-all"
+        >
+          {value}
+        </Text>
+      )}
     </VStack>
   );
 }
@@ -151,7 +173,20 @@ export function Badge({
 const OUTCOME_STATUS = {
   allowed: "success",
   proof: "info",
-  waiting: "warning",
+  /*
+    `info`, not `warning`.
+
+    A transaction in flight is not a warning — nothing is wrong and nothing
+    needs the operator. `warning` painted it amber with a ⚠, which is the
+    loudest thing on a screen otherwise built from dashed rules and greys, and
+    it said "attend to this" about the one state whose correct response is to
+    wait. `docs/03`'s argument against rendering a denial as a red error is the
+    same argument: the colour is a claim about what happened.
+
+    It shares `info` with `proof` and is told apart by its icon below, because
+    Astryx's Banner has four statuses and none of them means "pending".
+  */
+  waiting: "info",
   fault: "error",
 } as const;
 
@@ -170,6 +205,10 @@ export function Outcome({
   return (
     <Banner
       status={OUTCOME_STATUS[tone]}
+      // The only tone whose status does not identify it: `waiting` and `proof`
+      // are both `info`, and a clock is what separates "still happening" from
+      // "happened, and was refused".
+      icon={tone === "waiting" ? <Icon icon="clock" /> : undefined}
       title={title}
       description={
         detail ? (
