@@ -1145,3 +1145,38 @@ describe("the signing accounts", () => {
     expect(res.status).not.toBe(500);
   });
 });
+
+describe("GET /v1/activity/summary", () => {
+  const summary = {
+    bySource: [
+      { source: "privy", pending: 0, success: 41, denied: 18, failed: 0, total: 59 },
+      { source: "graph", pending: 0, success: 5, denied: 0, failed: 3, total: 8 },
+    ],
+    total: 67,
+  };
+
+  it("serves the counts with denied and failed intact, and the read time", async () => {
+    const calls: unknown[] = [];
+    const deps = {
+      store: {
+        summarizeActivity: async (filter: unknown) => {
+          calls.push(filter);
+          return summary;
+        },
+      },
+    } as unknown as Deps;
+
+    const res = await createApp(config, deps).fetch(
+      new Request("http://api.test/v1/activity/summary"),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as typeof summary & { readAt: string };
+    expect(json.bySource).toEqual(summary.bySource);
+    expect(json.total).toBe(67);
+    expect(Date.parse(json.readAt)).not.toBeNaN();
+    // Scoped to this deployment's organization, never unscoped: the store is
+    // multi-tenant and an unscoped count is every organization's events.
+    expect(calls).toEqual([{ organizationId: expect.any(String) }]);
+  });
+});

@@ -262,6 +262,15 @@ Each activity should include provenance:
 * Privy request
 * app only event
 
+Above the timeline, an outcome summary: one stacked bar per source, one
+segment per status (success, denied, failed, pending), counted by the API over
+the whole log rather than from the rows the timeline loaded. Status uses the
+same colours as the timeline's badges. Selecting a segment filters the
+timeline through the URL (`?source=privy&status=denied`), so a filtered view
+survives a reload and can be shared; the chart keeps showing every source and
+mutes the segments outside the filter. The same filters are reachable from
+controls beside the chart, because a chart segment is not a keyboard target.
+
 ## Loading states
 
 Never show fake success placeholders.

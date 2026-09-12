@@ -486,3 +486,26 @@ Filters:
 * status
 
 Used for the activity timeline and demo evidence.
+
+## GET `/api/activity/summary`
+
+Counts of activity events grouped by source and status, over every event in
+the organization. Takes no filters. The console's outcome chart always shows
+the whole log and highlights the selected segment, so a summary that followed
+the timeline's filter would collapse to one bar the moment it was used.
+
+```json
+{
+  "bySource": [
+    { "source": "privy", "pending": 0, "success": 41, "denied": 18, "failed": 0, "total": 59 },
+    { "source": "ens", "pending": 0, "success": 26, "denied": 4, "failed": 0, "total": 30 }
+  ],
+  "total": 89,
+  "readAt": "2026-09-12T03:20:57.000Z"
+}
+```
+
+Only sources with at least one event appear, largest first, and every status is
+present on each, zero included. The counts are not bounded by the timeline's
+`limit`: the timeline caps a page at 500, and a count taken from its rows would
+stop there however large the log grew.

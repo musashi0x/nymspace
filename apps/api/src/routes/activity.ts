@@ -16,10 +16,8 @@ import { activityFilterSchema, readAt } from "./shared";
  * denial is the evidence rather than the exception.
  */
 
-export const activity = new Hono<DepsEnv>().get(
-  "/",
-  zValidator("query", activityFilterSchema),
-  async (c) => {
+export const activity = new Hono<DepsEnv>()
+  .get("/", zValidator("query", activityFilterSchema), async (c) => {
     const { store } = c.var.deps;
     const filter = c.req.valid("query");
 
@@ -40,5 +38,20 @@ export const activity = new Hono<DepsEnv>().get(
       filter,
       readAt: readAt(),
     });
-  },
-);
+  })
+  /**
+   * The log counted by source and outcome, over every event.
+   *
+   * Takes no filter on purpose. The console's outcome chart always shows the
+   * whole log and highlights the selected segment; a summary that followed the
+   * timeline's filter would collapse to one bar at the moment it is used.
+   *
+   * Chained rather than added with a statement, so it stays in `AppType` and
+   * the web client sees it (see `CLAUDE.md`, "web ↔ api").
+   */
+  .get("/summary", async (c) => {
+    const summary = await c.var.deps.store.summarizeActivity({
+      organizationId: ORGANIZATION_ID,
+    });
+    return c.json({ ...summary, readAt: readAt() });
+  });

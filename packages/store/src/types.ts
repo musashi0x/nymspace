@@ -420,6 +420,31 @@ export interface ActivityFilter {
   limit?: number;
 }
 
+/**
+ * One source's events, counted by outcome.
+ *
+ * Every status is present, zero included, so a reader never has to decide
+ * whether a missing key means "none" or "not counted".
+ */
+export type ActivitySourceCounts = { source: ActivitySource; total: number } & Record<
+  ActivityStatus,
+  number
+>;
+
+/**
+ * The activity log counted by source and outcome, over every event.
+ *
+ * Over every event, not a page. The timeline loads the newest hundred, and a
+ * chart counted from those rows would undercount the moment the log passed a
+ * hundred and say nothing about it — the fabricated state `agent-console`
+ * forbids.
+ */
+export interface ActivitySummary {
+  /** Sources with at least one event, largest first. */
+  bySource: ActivitySourceCounts[];
+  total: number;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // Site traffic
 //////////////////////////////////////////////////////////////////////////////
