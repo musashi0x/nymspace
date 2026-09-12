@@ -94,7 +94,29 @@ const secrets = {
   PRIVY_AUTHORIZATION_KEY_ID: preserve(),
   PRIVY_AUTHORIZATION_PRIVATE_KEY: preserve(),
   PRIVY_POLICY_ID: preserve(),
+  PRIVY_AGENT_SIGNER_ID: preserve(),
+
+  /*
+    The owner key, and the escalation path that exists only when it is set.
+
+    `deps.ts` builds `privyOwner` from these and the payment route renders an
+    escalation affordance only when it did — `docs/08` forbids simulating an
+    approval path, and design.md D6 makes the absence of the button the honest
+    rendering of an absent higher authority. So leaving them unset is a
+    supported arrangement, not a broken one.
+
+    Declared anyway. `preserve()` writes no value; it says the slot exists and
+    that Railway owns what goes in it. Undeclared, the difference between
+    "this deployment has no owner key" and "someone forgot the file" is not
+    recorded anywhere.
+  */
+  PRIVY_OWNER_KEY_ID: preserve(),
+  PRIVY_OWNER_PRIVATE_KEY: preserve(),
+  PRIVY_OWNER_POLICY_ID: preserve(),
+
   GITHUB_TOKEN: preserve(),
+  /** The `gh` CLI's spelling of the same token; `@nymspace/github` reads either. */
+  GH_TOKEN: preserve(),
 } as const;
 
 /**
@@ -105,7 +127,19 @@ const demo = {
   DEMO_ALLOWED_PAYMENT_AMOUNT: "100000000000000",
   DEMO_DENIED_PAYMENT_AMOUNT: "10000000000000000",
   /** Native ETH on Base Sepolia — deliberately empty, no token faucet. */
+  /*
+    Empty, which selects the native-ETH arrangement.
+
+    The symbol and decimals travel with the address and are meaningless without
+    it — `demoToken()` returns null on an empty address and every amount is then
+    wei. They are here as empty literals rather than omitted so that configuring
+    this deployment for a token is one diff that sets three adjacent values,
+    rather than one that sets the address and leaves the other two to be
+    discovered missing when an amount renders twelve orders of magnitude wrong.
+  */
   DEMO_PAYMENT_TOKEN_ADDRESS: "",
+  DEMO_PAYMENT_TOKEN_SYMBOL: "",
+  DEMO_PAYMENT_TOKEN_DECIMALS: "",
 } as const;
 
 /** The commit feed on the landing page. The token only lifts the rate limit. */
