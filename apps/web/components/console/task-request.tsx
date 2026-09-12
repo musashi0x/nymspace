@@ -2,6 +2,7 @@
 
 import { Button } from "@astryxdesign/core/Button";
 import { Grid } from "@astryxdesign/core/Grid";
+import { Selector } from "@astryxdesign/core/Selector";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -40,16 +41,31 @@ type Preview = Awaited<ReturnType<typeof previewPayment>>;
  */
 type PolicyToken = { address: string; symbol: string; decimals: number };
 
+/** Another agent in the fleet, as a destination this one can pay. */
+export interface Peer {
+  ensName: string;
+  controllerAddress: string;
+  walletAddress?: string;
+}
+
 export function TaskRequest({
   agentId,
   ensName,
   recipient,
+  peers = [],
   limitAmount,
   token,
 }: {
   agentId: string;
   ensName: string;
+  /** The organization that owns this name — the fallback destination. */
   recipient: string;
+  /**
+   * The rest of the fleet. An agent paying another agent is the arrangement
+   * worth showing; paying the organization that owns it is a self-send that
+   * proves the cap and nothing else.
+   */
+  peers?: Peer[];
   /** The live policy limit, in base units. */
   limitAmount: string;
   /** What the policy is denominated in. `null` is native ETH. */
@@ -58,6 +74,20 @@ export function TaskRequest({
   const symbol = token?.symbol ?? "ETH";
 
   const [task, setTask] = useState("Review ENSv2 adoption");
+  /*
+    Default to a peer where the fleet has one.
+
+    Paying the organization that owns your name is a circle: the wallet is
+    org-owned, so the funds arrive where they started and the only thing
+    demonstrated is that the cap held. Paying *another agent* is the same proof
+    plus the reason the proof matters — one autonomous party paying another
+    under a limit a human set, which is what `docs/01`'s financial controller is
+    for. The organization stays available as a destination, because a controlled
+    address is the safe answer when no peer exists.
+  */
+  const [payee, setPayee] = useState(
+    () => peers[0]?.walletAddress ?? peers[0]?.controllerAddress ?? recipient,
+  );
   const [budget, setBudget] = useState(() => fromBaseUnits(limitAmount, token));
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -94,7 +124,7 @@ export function TaskRequest({
       setPreview(
         await previewPayment(agentId, {
           amount,
-          recipient,
+          recipient: payee,
           ...(token && { token: token.address }),
           memo: task,
         }),
@@ -112,7 +142,7 @@ export function TaskRequest({
       setResult(
         await sendPayment(agentId, {
           amount,
-          recipient,
+          recipient: payee,
           ...(token && { token: token.address }),
           memo: task,
         }),
@@ -151,6 +181,12 @@ export function TaskRequest({
   */
   const overLimit =
     amount !== null && BigInt(amount) > BigInt(limitAmount);
+
+  /** The peer's name, or `null` when the destination is the organization. */
+  const payeeLabel =
+    peers.find(
+      (peer) => (peer.walletAddress ?? peer.controllerAddress) === payee,
+    )?.ensName ?? null;
 
   return (
     /*
@@ -220,6 +256,33 @@ export function TaskRequest({
       </HStack>
 
       {/*
+        The destination, chosen rather than assumed.
+
+        Options are the rest of the fleet plus the organization. An agent's
+        wallet address where it has one, because that is where the funds
+        actually land — the controller key is its identity, not its account.
+      */}
+      <Selector
+        label="Pay"
+        value={payee}
+        onChange={setPayee}
+        options={[
+          ...peers.map((peer) => ({
+            value: peer.walletAddress ?? peer.controllerAddress,
+            label: peer.ensName,
+            description: peer.walletAddress
+              ? "another agent in this fleet"
+              : "another agent — no wallet yet, this is its controller key",
+          })),
+          {
+            value: recipient,
+            label: "the organization",
+            description: "the account that owns this name",
+          },
+        ]}
+      />
+
+      {/*
         Who pays whom, in words above the addresses.
 
         The arrow alone left the direction to be inferred from two hex strings,
@@ -231,11 +294,12 @@ export function TaskRequest({
       */}
       <VStack gap={1}>
         <Text type="supporting">
-          {ensName} spends from its own wallet, to the organization that owns
-          its name.
+          {payeeLabel === null
+            ? `${ensName} spends from its own wallet, back to the organization that owns its name.`
+            : `${ensName} spends from its own wallet to pay ${payeeLabel}, under a cap the organization set.`}
         </Text>
         <Text type="code" size="sm" color="secondary" hasTabularNumbers>
-          {ensName} → {recipient} ·{" "}
+          {ensName} → {payee} ·{" "}
           {amount ? formatAmount(amount, token) : `— ${symbol}`}
         </Text>
       </VStack>
