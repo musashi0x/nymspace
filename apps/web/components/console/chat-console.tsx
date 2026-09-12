@@ -16,7 +16,7 @@ import * as React from "react";
 import type { ConsoleAnswer, LensPlan, PlanStep } from "@nymspace/core";
 import { LensCard } from "@/components/console/lens-card";
 import { Loading, Outcome } from "@/components/console/primitives";
-import { apiBaseUrl } from "@/lib/api";
+import { apiBaseUrl, gatewayFetch } from "@/lib/api";
 import { classify, type ConsoleError } from "@/lib/console/errors";
 import { LOADING_COPY } from "@/lib/console/state";
 
@@ -96,6 +96,15 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
     setBusy(true);
 
     try {
+      /*
+        Straight to the API, not through the gateway.
+
+        `/v1/chat` reads and never writes — it is the one POST `write-gate.ts`
+        leaves open — so a hop through this app's own origin would add latency
+        to the most-used endpoint in the demo and hide which origin actually
+        answered. If that route ever starts writing, this call has to move to
+        `gatewayFetch` with it.
+      */
       const res = await fetch(`${apiBaseUrl}/v1/chat`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -177,7 +186,20 @@ export function ChatConsole({ suggestions }: { suggestions: readonly string[] })
     const outcomes: StepOutcome[] = [];
     for (const step of plan.steps) {
       try {
-        const res = await fetch(`${apiBaseUrl}${step.path}`, {
+        /*
+          Through `gatewayFetch`, not a bare `fetch`.
+
+          Every path a plan names is a write — granting a permission, writing a
+          record, sending a payment — and those need a bearer token the browser
+          must not hold. `gatewayFetch` rewrites them to this app's own origin,
+          where a route handler adds it server-side.
+
+          A plain `fetch` here answered 401 with "this endpoint spends the
+          organization's funds": the plan ran, both steps failed, and the
+          console reported it as the product refusing rather than as the console
+          being unable to ask.
+        */
+        const res = await gatewayFetch(`${apiBaseUrl}${step.path}`, {
           method: step.method,
           headers: { "content-type": "application/json" },
           body: JSON.stringify(step.body),

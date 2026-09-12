@@ -49,8 +49,17 @@ export const apiBaseUrl =
  * Server-side callers skip the rewrite: `window` is undefined there, the token
  * is already in the environment, and a server component calling its own route
  * handler over HTTP would be a request to itself for no reason.
+ *
+ * Exported because `hc` is not the only caller. The chat console runs a plan by
+ * fetching the exact paths the plan names — it cannot use the typed client,
+ * since the whole point of a plan is that the path came from the API at runtime
+ * rather than from a route literal at compile time. That hand-built fetch went
+ * straight to the API and started failing with 401 the moment writes were
+ * gated, which is how this ended up exported rather than private: the rule
+ * about where a write goes belongs in one place, and anything that sends one
+ * has to be able to reach it.
  */
-function gatewayFetch(input: RequestInfo | URL, init?: RequestInit) {
+export function gatewayFetch(input: RequestInfo | URL, init?: RequestInit) {
   const method = (init?.method ?? "GET").toUpperCase();
   const inBrowser = typeof window !== "undefined";
 
