@@ -25,6 +25,7 @@
 import { formatEther } from "viem";
 import { requireServerEnv } from "@nymspace/core/env";
 import {
+  fleetAgent,
   publishableAgentMcpEndpoint,
   type Address,
   type Hex,
@@ -46,7 +47,17 @@ import { Agent0Client } from "@nymspace/graph";
 import { Store, closeDatabase, database, migrate } from "@nymspace/store";
 
 const ORGANIZATION_ID = "nymspace";
-const AGENT_SLUG = "research";
+
+/**
+ * Which agent gets registered. Overridable, because which one is a choice.
+ *
+ * `research` by default, since it is the one `docs/02`'s golden path walks and
+ * the one every gate asserts on. It was the only one for as long as it was the
+ * only agent with a registration — and then a second agent needed one, and the
+ * hardcoded slug meant editing this file to get it. The same shape
+ * `bind-wallet.ts` already uses for the same reason.
+ */
+const AGENT_SLUG = process.env["REGISTER_AGENT_SLUG"] ?? "research";
 const AGENT_DB_ID = `agent-${AGENT_SLUG}`;
 
 /** Base Sepolia. The registry address is identical to Sepolia's. */
@@ -154,10 +165,28 @@ async function main(): Promise<void> {
   // 3.8 — register on Base Sepolia
   ////////////////////////////////////////////////////////////////////////////
 
+  /*
+    Name and description from `FLEET`, not from a literal here.
+
+    They were "Nymspace Research" and a sentence about ranking agents, which is
+    true of exactly one agent and was about to be written into a second one's
+    registration on a public registry. `FLEET` is where the console, the MCP
+    servers and `provision-fleet.ts` already read an agent's identity from, so
+    an agent describes itself the same way everywhere or the difference is a
+    bug somebody has to notice.
+  */
+  const identity = fleetAgent(AGENT_SLUG);
+  if (!identity) {
+    throw new Error(
+      `${AGENT_SLUG} is not in FLEET. Add it to packages/core/src/fleet.ts first — ` +
+        "a registration published from a name this process invented would claim " +
+        "something no other screen agrees with.",
+    );
+  }
+
   const file = buildRegistrationFile({
-    name: "Nymspace Research",
-    description:
-      "Finds and ranks agents from live ERC 8004 registry data. Operated by nymspace.eth.",
+    name: `Nymspace ${identity.name}`,
+    description: `${identity.description} Operated by ${deployed.parentLabel}.eth.`,
     ensName,
     mcpEndpoint,
     // Only what is actually true. `supportedTrusts` naming a scheme nobody
