@@ -158,9 +158,21 @@ export function unknownToken(requested: string, configured: string | null): neve
   });
 }
 
+/**
+ * The agent has no `financial_authority` reference, so nothing signs for it.
+ *
+ * The message states the fact and stops. It used to end in "Run
+ * `pnpm provision:wallet`", which is a repository command reaching a console
+ * over HTTP: the operator reading it is looking at a deployed web app, has no
+ * checkout and no database URL, and the one place that instruction is
+ * actionable — a developer's terminal — is the one place this message does not
+ * appear. Provisioning is `docs/22`'s runbook; a 409 body is not a runbook.
+ */
 export function walletNotProvisioned(id: string): never {
   throw new HTTPException(409, {
-    message: `agent ${id} has no wallet. Run \`pnpm provision:wallet\`.`,
+    message:
+      `agent ${id} has no wallet. Wallet provisioning has not run against this deployment, so there ` +
+      `is no signer and no spend policy — nothing to preview an amount against and nothing to send it with.`,
   });
 }
 
