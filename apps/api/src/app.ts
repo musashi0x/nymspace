@@ -10,6 +10,7 @@ import { agentMcp } from "./routes/agent-mcp";
 import { agents } from "./routes/agents";
 import { mcpConnect } from "./routes/mcp";
 import { consoleMcp } from "./routes/console-mcp";
+import { GUARDED_WRITE_PREFIXES, requireWriteToken } from "./write-gate";
 import { chat } from "./routes/chat";
 import { discover } from "./routes/discover";
 import { github } from "./routes/github";
@@ -121,6 +122,24 @@ export function createApp(config: ApiConfig, deps?: Deps, sink: Sink = stdoutSin
   for (const path of DEPENDENT_ROUTES) {
     app.use(path, withDeps(deps));
     app.use(`${path}/*`, withDeps(deps));
+  }
+
+  /*
+    The token gate, after `withDeps` and before the routes.
+
+    After, because the 401 body carries a request id from `c.var`. Before the
+    routes, because a refusal that arrives once the handler has already
+    registered a subname is not a refusal.
+
+    Mounted here rather than per-route: `agents.ts` is one chained expression by
+    Hono's own rule — an extracted handler loses its path parameter type — so
+    threading a guard through it would mean touching every handler, and the one
+    somebody forgot would be the open one. A prefix list in a single place can
+    be read in full.
+  */
+  for (const path of GUARDED_WRITE_PREFIXES) {
+    app.use(path, requireWriteToken);
+    app.use(`${path}/*`, requireWriteToken);
   }
 
   const routes = app

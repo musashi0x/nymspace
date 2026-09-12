@@ -245,6 +245,20 @@ export default defineRailway(() => {
       NEXT_PUBLIC_SEPOLIA_RPC_URL: preserve(),
       NEXT_PUBLIC_PRIVY_APP_ID: preserve(),
       NEXT_PUBLIC_API_URL: "https://${{api.RAILWAY_PUBLIC_DOMAIN}}",
+
+      /*
+        The write token, on the web service as well as the api.
+
+        Deliberately not `NEXT_PUBLIC_`: Next inlines those into the client
+        bundle, and a credential in the bundle is a credential in view source.
+        This one is read only inside `app/api/gateway/[...path]/route.ts`, which
+        runs on the server and adds it to writes on their way to the API — the
+        browser never sees it and never needs to.
+
+        The same value as the api's, because it authorizes the same capability.
+        Two tokens would be two things to rotate and one of them forgotten.
+      */
+      CONSOLE_MCP_TOKEN: preserve(),
       /**
        * Read at request time by the agent page, never inlined into the client.
        * The permission proof writes the MCP endpoint derived from the same

@@ -28,7 +28,43 @@ import { hc, type InferRequestType } from "hono/client";
 export const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3112";
 
-export const api = hc<AppType>(apiBaseUrl);
+/**
+ * Writes go to this app; reads go straight to the API.
+ *
+ * Every route that spends the organization's money needs a bearer token now
+ * (`apps/api/src/write-gate.ts`), and the browser must not hold one — a
+ * credential in client JavaScript is a credential in view source. So a `POST`
+ * is rewritten to `/api/gateway/<path>` on this origin, where a route handler
+ * adds the token server-side and forwards it.
+ *
+ * `hc` keeps its `AppType`, so the call sites below are still typed against the
+ * API's own routes and a renamed route is still a compile error. Only the
+ * transport moved.
+ *
+ * Reads are left alone on purpose. They answer anyone by design — the product's
+ * argument is that its claims are checkable — and sending them through this app
+ * would add a hop that proves nothing and hides which origin actually served
+ * the data.
+ *
+ * Server-side callers skip the rewrite: `window` is undefined there, the token
+ * is already in the environment, and a server component calling its own route
+ * handler over HTTP would be a request to itself for no reason.
+ */
+function gatewayFetch(input: RequestInfo | URL, init?: RequestInit) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const inBrowser = typeof window !== "undefined";
+
+  if (method !== "POST" || !inBrowser) return fetch(input, init);
+
+  const url = new URL(typeof input === "string" ? input : input.toString());
+  const proxied = new URL(
+    `/api/gateway${url.pathname}${url.search}`,
+    window.location.origin,
+  );
+  return fetch(proxied, init);
+}
+
+export const api = hc<AppType>(apiBaseUrl, { fetch: gatewayFetch });
 
 /**
  * Every call checks `res.ok` inline rather than through a shared unwrap helper.

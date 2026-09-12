@@ -346,11 +346,30 @@ describe("POST /v1/mcp/connect", () => {
     );
   }
 
+  /*
+    Carries the write token. A connect dials somebody else's server and records
+    an activity row, so `write-gate.ts` puts it behind the same credential as
+    the routes that spend gas — the cost here is reputational rather than
+    financial, but an open endpoint that makes this deployment dial arbitrary
+    published endpoints on request is the same shape of hole.
+  */
+  const WRITE_TOKEN = "test-write-token";
+
+  beforeAll(() => {
+    process.env["CONSOLE_MCP_TOKEN"] = WRITE_TOKEN;
+  });
+  afterAll(() => {
+    delete process.env["CONSOLE_MCP_TOKEN"];
+  });
+
   const post = (app: ReturnType<typeof createApp>, body: unknown) =>
     app.fetch(
       new Request("http://api.test/v1/mcp/connect", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${WRITE_TOKEN}`,
+        },
         body: JSON.stringify(body),
       }),
     );

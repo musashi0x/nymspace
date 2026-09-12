@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Hono } from "hono";
 import type { Deps, DepsEnv } from "./deps";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp, errorHandler, notFoundHandler } from "./app";
 import type { ApiConfig } from "./config";
 
@@ -20,8 +20,38 @@ const config: ApiConfig = {
 
 const app = createApp(config);
 
-const get = (path: string, init?: RequestInit) =>
-  app.fetch(new Request(`http://api.test${path}`, init));
+/**
+ * The token every spending route now requires (`write-gate.ts`).
+ *
+ * Set for the whole file rather than per test, because the subject of these
+ * tests is what the handlers do once a request reaches them — the gate itself
+ * has its own suite. A POST here that arrives without it would be asserting on
+ * a 401 while claiming to assert on a payment.
+ */
+const WRITE_TOKEN = "test-write-token";
+
+beforeAll(() => {
+  process.env["CONSOLE_MCP_TOKEN"] = WRITE_TOKEN;
+});
+afterAll(() => {
+  delete process.env["CONSOLE_MCP_TOKEN"];
+});
+
+/**
+ * Every request, with the write token attached to the ones that need it.
+ *
+ * Attached here rather than at each call site: there are ten POSTs across this
+ * file and the one somebody forgot would fail with a 401 that reads like a
+ * broken handler.
+ */
+const get = (path: string, init?: RequestInit) => {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers = new Headers(init?.headers);
+  if (method === "POST" && !headers.has("authorization")) {
+    headers.set("authorization", `Bearer ${WRITE_TOKEN}`);
+  }
+  return app.fetch(new Request(`http://api.test${path}`, { ...init, headers }));
+};
 
 const preflight = (origin: string) =>
   get("/health", {
@@ -50,8 +80,30 @@ describe("the product routes, against injected dependencies", () => {
    * `undefined` at runtime. Only the members each test exercises are filled in;
    * the cast is confined to this helper so no test carries one.
    */
+  /**
+   * An app whose POSTs carry the write token.
+   *
+   * The gate in `write-gate.ts` refuses a spending route without one, and these
+   * tests are about what the handlers do once a request reaches them — a 401
+   * here would be asserting on the gate while claiming to assert on a payment.
+   * Wrapped at the single place every test gets its app, rather than at the
+   * dozen call sites that build a `Request` by hand.
+   *
+   * A request that already carries an `authorization` header is left alone, so
+   * a test can still exercise the refusal deliberately.
+   */
   function appWith(overrides: Partial<Deps>) {
-    return createApp(config, overrides as Deps);
+    const app = createApp(config, overrides as Deps);
+    return {
+      fetch: (request: Request) => {
+        if (request.method !== "POST" || request.headers.has("authorization")) {
+          return app.fetch(request);
+        }
+        const headers = new Headers(request.headers);
+        headers.set("authorization", `Bearer ${WRITE_TOKEN}`);
+        return app.fetch(new Request(request, { headers }));
+      },
+    };
   }
 
   const agent = {
@@ -930,11 +982,16 @@ describe("creating an agent", () => {
     };
   }
 
+  // Carries the write token, like every other POST in this file: creating an
+  // agent spends gas, so `write-gate.ts` refuses it without one.
   const post = (app: ReturnType<typeof createApp>, payload: unknown) =>
     app.fetch(
       new Request("http://api.test/v1/agents", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${WRITE_TOKEN}`,
+        },
         body: JSON.stringify(payload),
       }),
     );
