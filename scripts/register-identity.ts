@@ -60,6 +60,25 @@ const ORGANIZATION_ID = "nymspace";
 const AGENT_SLUG = process.env["REGISTER_AGENT_SLUG"] ?? "research";
 const AGENT_DB_ID = `agent-${AGENT_SLUG}`;
 
+/**
+ * Adopt an existing registration instead of creating one.
+ *
+ * The reuse check below reads `store.getAgent().erc8004AgentId`, so against a
+ * store that does not know the id — a database restored from elsewhere,
+ * recreated for local work, or simply a different deployment than the one the
+ * registration was made from — this script does not adopt. It registers again,
+ * and the organization ends up paying for a second agent id claiming the same
+ * ENS name, with the store pointing at the newer one and the subgraph holding
+ * both. Exactly the failure `bind-wallet.ts` exists to undo for wallets.
+ *
+ * It cannot be discovered: the registry is keyed by agent id, so there is no
+ * name-to-id lookup on chain, and resolving it through the subgraph's text
+ * search would make an identity binding depend on a fuzzy match. So it is
+ * supplied, and then *verified* — the id is only written to the store once the
+ * registration on chain is read back and found to claim this exact name.
+ */
+const ADOPT_AGENT_ID = process.env["REGISTER_AGENT_ID"];
+
 /** Base Sepolia. The registry address is identical to Sepolia's. */
 const REGISTRATION_CHAIN_ID = 84532;
 
@@ -197,7 +216,44 @@ async function main(): Promise<void> {
 
   let agentId = existing.erc8004AgentId;
 
-  if (agentId) {
+  /*
+    An id supplied by hand is checked against the chain before it is believed.
+
+    The registration file is the authority on which name a registration claims,
+    so adopting is "read it and see". A mismatch throws rather than warning:
+    writing the wrong id into the store would point this agent's ENSIP 25 key
+    at somebody else's registration, and the verification in 3.13 would then
+    fail for a reason that looks nothing like its cause.
+  */
+  if (!agentId && ADOPT_AGENT_ID) {
+    const adopted = await erc8004.registrationFile(ADOPT_AGENT_ID);
+    const adoptedClaim = adopted ? claimedEnsName(adopted) : undefined;
+
+    if (adoptedClaim?.toLowerCase() !== ensName.toLowerCase()) {
+      throw new Error(
+        `REGISTER_AGENT_ID=${ADOPT_AGENT_ID} claims ` +
+          `${adoptedClaim ?? "no ENS name"}, not ${ensName}. Refusing to bind a ` +
+          "registration that names something else.",
+      );
+    }
+
+    agentId = ADOPT_AGENT_ID;
+    await store.upsertAgent({
+      id: AGENT_DB_ID,
+      organizationId: ORGANIZATION_ID,
+      slug: AGENT_SLUG,
+      ensName,
+      controllerAddress: ensClient.controller,
+      erc8004AgentId: agentId,
+      erc8004Registry: registry,
+    });
+
+    step({
+      what: "3.8 ERC 8004 registration",
+      ok: true,
+      detail: `adopted agent ${agentId} — its registration claims ${adoptedClaim}`,
+    });
+  } else if (agentId) {
     step({
       what: "3.8 ERC 8004 registration",
       ok: true,
