@@ -130,6 +130,36 @@ async function main() {
   );
 
   /*
+    An orphaned *policy* is the same problem as an orphaned wallet.
+
+    This script exists because provisioning mints beside what it cannot see.
+    Creating unconditionally here repeated that one level down: the wallet it
+    adopts usually carries the policy a previous run of this very script
+    attached, so a rerun left a second policy expressing the identical limit and
+    silently detached the first. Two runs, three policies, and the only way to
+    tell which one governs is to read the wallet.
+
+    So an attached policy that already caps at exactly this limit is reused. Not
+    matched by name — a name is a label anyone can reuse — but by the number
+    `getPolicyLimit` reads back out of it, which is the same call Treasury
+    renders from. Anything that fails to parse as a limit is skipped rather than
+    trusted, which covers `PRIVY_POLICY_ID`'s conditionless policy landing on a
+    wallet by an earlier hand.
+  */
+  let attached: { policyId: string; name: string; ruleName: string } | undefined;
+  for (const policyId of wallet.policyIds) {
+    const candidate = await privy.getPolicyLimit(policyId).catch(() => undefined);
+    if (candidate?.maxAmount === limit.toString() && candidate.token === null) {
+      attached = {
+        policyId,
+        name: candidate.name,
+        ruleName: candidate.ruleName,
+      };
+      break;
+    }
+  }
+
+  /*
     A new policy rather than `PRIVY_POLICY_ID`.
 
     That variable currently names a policy with no `lte` condition on an
@@ -137,14 +167,21 @@ async function main() {
     that constrains nothing must not be displayed as one that does. Attaching it
     would put a wallet on screen as governed while nothing caps it.
   */
-  const created = await privy.createAmountPolicy({
-    name: `nymspace ${agent.slug} max transfer`,
-    maxValueWei: limit,
-  });
-  console.log(`  policy   ${created.policyId} — ${created.ruleName}`);
+  const created =
+    attached ??
+    (await privy.createAmountPolicy({
+      name: `nymspace ${agent.slug} max transfer`,
+      maxValueWei: limit,
+    }));
+  console.log(
+    `  policy   ${created.policyId} — ${created.ruleName}` +
+      (attached ? "  (already attached at this limit — reused)" : "  (created)"),
+  );
 
-  await privy.setWalletPolicies(wallet.id, [created.policyId]);
-  console.log(`  attached to ${wallet.id}`);
+  if (!attached) {
+    await privy.setWalletPolicies(wallet.id, [created.policyId]);
+    console.log(`  attached to ${wallet.id}`);
+  }
 
   await store.putFinancialAuthority({
     agentId: AGENT_DB_ID,
