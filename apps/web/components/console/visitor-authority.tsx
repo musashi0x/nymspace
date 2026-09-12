@@ -7,9 +7,9 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useClipboard } from "@astryxdesign/core/hooks";
 import { useEffect, useState } from "react";
-import { fetchPermissions } from "@/lib/api";
+import { fetchPermissions, fetchSigners } from "@/lib/api";
 import { AuthorityMatrix, type AuthorityRow } from "./authority-matrix";
-import { Absent, Outcome, Provenance } from "./primitives";
+import { Absent, Badge, Outcome, Provenance } from "./primitives";
 import { useVisitor } from "./visitor";
 
 /**
@@ -200,8 +200,90 @@ export function VisitorAuthority({ agentId }: { agentId: string }) {
               "This wallet holds at least one role on this name. If that is unexpected, it is the same address as the organization or the agent controller."
             : "Every capability denied, and the column beside it allowed for the same capabilities in the same request. That difference is the authority boundary, computed by the resolver rather than by this page."}
         </Text>
+        {/*
+          Name the role, because the address alone does not explain the answer.
+
+          A reader seeing forty-two hex characters and a column of Denied has to
+          work out *why* — and the reason is not a property of the address, it
+          is that this address is neither of the two the namespace grants to.
+          Saying which of the three it is turns the table from a result into an
+          explanation, and it costs one comparison against `/v1/signers`, which
+          this page already knows.
+        */}
+        <Standing address={read.controller} />
         <Provenance source="ensv2" readAt={read.readAt} />
       </VStack>
     </VStack>
+  );
+}
+
+/**
+ * Which of this deployment's three roles the connected address holds.
+ *
+ * The organization owns `nymspace.eth`; the agent controller is the key it
+ * delegated specific record permissions to; everyone else is a visitor. Those
+ * are the only three standings that exist here, and which one a reader has is
+ * the entire explanation for the column above.
+ *
+ * Read from `/v1/signers`, which is the deployment reporting its own configured
+ * addresses — not a guess, and not a second copy of them compiled into the
+ * browser where it could drift from what the API actually signs with.
+ */
+function Standing({ address }: { address: string }) {
+  const [signers, setSigners] = useState<
+    { organization: string; controller: string } | undefined
+  >(undefined);
+
+  useEffect(() => {
+    let current = true;
+    fetchSigners().then(
+      (answer) => {
+        if (current) setSigners(answer);
+      },
+      // Silent: this labels an answer the reader already has. A failed lookup
+      // should remove the label, never replace the table with an error.
+      () => {},
+    );
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  if (!signers) return null;
+
+  const same = (other: string) =>
+    other.toLowerCase() === address.toLowerCase();
+
+  if (same(signers.organization)) {
+    return (
+      <HStack gap={2} align="center" wrap="wrap">
+        <Badge tone="good">the organization</Badge>
+        <Text type="supporting">
+          This is the account that owns nymspace.eth, so it holds every role by
+          definition.
+        </Text>
+      </HStack>
+    );
+  }
+
+  if (same(signers.controller)) {
+    return (
+      <HStack gap={2} align="center" wrap="wrap">
+        <Badge tone="warn">the agent controller</Badge>
+        <Text type="supporting">
+          The delegated key. Its permissions are the ones in the column above.
+        </Text>
+      </HStack>
+    );
+  }
+
+  return (
+    <HStack gap={2} align="center" wrap="wrap">
+      <Badge tone="neutral">a visitor</Badge>
+      <Text type="supporting">
+        Neither the organization nor the delegated controller, which is why
+        every answer is no.
+      </Text>
+    </HStack>
   );
 }

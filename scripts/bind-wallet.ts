@@ -91,8 +91,12 @@ async function main() {
   if (existing?.policyId) {
     console.log(
       `${agent.ensName} already points at wallet ${existing.privyWalletId} ` +
-        `under policy ${existing.policyId}. Nothing to bind.`,
+        `under policy ${existing.policyId}.`,
     );
+    // Idempotent on the track too, so a rerun repairs a store where the
+    // authority row survived and the provisioning track did not.
+    await store.setProvisioning(AGENT_DB_ID, { financial: "policy_configured" });
+    console.log("  financial track set to policy_configured. Nothing else to bind.");
     await closeDatabase();
     return;
   }
@@ -149,7 +153,22 @@ async function main() {
     policyId: created.policyId,
     policyLabel: created.name,
   });
-  console.log(`  bound in the store\n`);
+
+  /*
+    The provisioning track too, not just the authority row. They are two
+    different records of the same fact and two different screens read them:
+    Treasury resolves `financial_authority` and reads the live policy, while the
+    fleet table renders `provisioning.financial`. Writing only the first left
+    the console saying this agent was capped at 0.001 ETH on one screen and had
+    "no wallet" on the other, which is worse than either being wrong alone —
+    a reader with no way to tell which screen to believe stops believing both.
+
+    `policy_configured` rather than `financially_active`: a policy is attached
+    and enforced, and nothing has been spent through it yet. The fifth state is
+    for a wallet that has actually transacted.
+  */
+  await store.setProvisioning(AGENT_DB_ID, { financial: "policy_configured" });
+  console.log(`  bound in the store, financial track set to policy_configured\n`);
 
   // Read it back through the same call the console uses, so this prints what
   // the screen will print rather than what was just sent.
