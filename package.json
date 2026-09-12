@@ -19,7 +19,8 @@
     "test:matrix-live": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-matrix-live.ts",
     "verify:acceptance": "tsx --env-file-if-exists=.env --conditions=react-server scripts/verify-acceptance.ts",
     "audit:secrets": "tsx --env-file-if-exists=.env --conditions=react-server scripts/audit-secrets.ts",
-    "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts"
+    "check:addresses": "tsx --env-file-if-exists=.env --conditions=react-server scripts/check-addresses.ts",
+    "sync:fleet": "tsx --env-file-if-exists=.env --conditions=react-server scripts/sync-fleet.ts"
   },
   "devDependencies": {
     "@nymspace/api": "workspace:*",
