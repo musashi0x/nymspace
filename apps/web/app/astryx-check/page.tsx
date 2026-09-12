@@ -218,10 +218,17 @@ export default function AstryxCheck() {
         <Outcome
           tone="proof"
           title="Write denied by the resolver"
-          detail="0x45DaD5…d1F2 on agent-context reverted: Unauthorized(resource, account)"
+          // Shortened the way the console shortens, from the zero address, so
+          // the shape is right and the account is nobody. It read `0x45DaD5…`
+          // — the real permissioned resolver's own prefix — in a sentence
+          // describing a denial that never happened.
+          detail="0x0000…0000 on agent-context reverted: Unauthorized(resource, account)"
           action="This is the expected result. The same code path returned allowed for the control account in this request."
         />
-        <Outcome tone="waiting" title="Registering" detail="tx 0x9f2c…" />
+        {/* No transaction hash, invented or otherwise: a hash is a thing a
+            reader can paste into a block explorer, and one that resolves to
+            nothing is a worse answer than none. */}
+        <Outcome tone="waiting" title="Registering" detail="tx not broadcast — static demo" />
         <Outcome tone="fault" title="Could not reach the resolver" detail="RPC timeout after 10s" />
       </Frame>
 
