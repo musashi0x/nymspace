@@ -109,14 +109,37 @@ Working demo and source code.
 
 ### Nymspace proof
 
-| Requirement | Implementation |
+Every row below names one arrangement, never a choice between two. A table
+reading "wallet **or** organization wallet" tells a judge which options were
+available, not which one they are looking at.
+
+| Requirement | What Nymspace does | Where |
+| --- | --- | --- |
+| Privy core | Server wallets over the REST API at `api.privy.io/v1`, no SDK and no browser key. Payments, policy reads and escalation all run through it | `packages/privy/src/wallet.ts` |
+| Wallet | An organization owned wallet, bound to one agent in `financial_authority` and created already governed — `createWallet({ policyIds })`, never create then attach. The schema is per agent; the script provisions one | `scripts/provision-wallet.ts` |
+| B2B | An organization operates a fleet; each agent is a restricted signer on a wallet the organization owns, never a keyholder | `docs/08_PRIVY_INTEGRATION.md` |
+| Workflow | Two, both reachable from the console: an agent service payment, and wallet administration across the fleet | `POST /v1/agents/:id/payments`, `GET /v1/treasury` |
+| Control | Four, not one: a transfer limit policy, a key quorum, per signer `override_policy_ids`, and ECDSA P 256 authorization signatures over RFC 8785 canonical JSON | `wallet.ts` `createKeyQuorum`, `authorization.ts` `authorizationSignature` |
+| Functional | The same request executes under a raised limit and is refused under the seeded one. Both answer HTTP 200; the refusal is a product state | `pnpm --filter @nymspace/privy verify:policy` |
+
+### Provisioning state
+
+The mapping above describes code that exists and is tested. It is not yet a
+claim about a live Privy account, and the difference matters more than the
+table does.
+
+| Fact | Status |
 | --- | --- |
-| Privy core | Financial authority panel and execution path |
-| Wallet | One agent wallet or organization wallet |
-| B2B | Organization controlled autonomous agent |
-| Workflow | Agent service payment |
-| Control | Transfer limit or restricted signer |
-| Functional | Allowed and denied actions |
+| Privy client, policy reads, payment and escalation paths | Written, unit tested |
+| Treasury screen reading live policy limits | Written; reads `no_wallet` for every agent today |
+| A provisioned wallet with a seeded policy | **Not yet run** — `pnpm provision:wallet` needs the four `PRIVY_*` credentials |
+| Gate C evidence file | **Not yet produced** — `packages/privy/evidence/gate-c.json` |
+| Executed and refused transaction hashes | **Not yet obtained** |
+
+Fill the second table in with the wallet address, the policy id and its limit,
+the two signer ids and both transaction hashes once the scripts have run. Until
+then it says so, because a submission that overstates this is worse than one
+that is short.
 
 ## Build category warning
 
