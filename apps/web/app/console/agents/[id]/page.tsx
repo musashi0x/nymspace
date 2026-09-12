@@ -18,6 +18,7 @@ import { ConnectFromClaude } from "@/components/console/connect-from-claude";
 import { McpConnect } from "@/components/console/mcp-connect";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
+import { VisitorAuthority } from "@/components/console/visitor-authority";
 import {
   Absent,
   Badge,
@@ -224,6 +225,22 @@ export default async function AgentPage({
               recordPermissions={permissions.recordPermissions}
               registryPermissions={permissions.registryPermissions}
             />
+
+            {/*
+              The same read, about whoever is looking.
+
+              Everything above is answered for an address this deployment
+              configured, which makes it believable rather than checkable. This
+              runs the identical `hasRoles` query against a wallet the reader
+              connected — no transaction, no gas — and the denials it returns
+              are ones they chose the subject of.
+            */}
+            <Frame
+              title="you"
+              subtitle="The authority boundary, computed for an address you control rather than one this deployment configured."
+            >
+              <VisitorAuthority agentId={id} />
+            </Frame>
 
             {/*
               Task 7.7. A wrong resource derivation and a genuine denial are the

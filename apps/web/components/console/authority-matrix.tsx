@@ -26,19 +26,30 @@ export interface AuthorityRow extends Record<string, unknown> {
   allowed: boolean;
 }
 
-const COLUMNS: TableColumn<AuthorityRow>[] = [
-  { key: "capability", header: "capability", width: proportional(3) },
-  {
-    key: "allowed",
-    header: "agent controller",
-    width: proportional(1),
-    renderCell: (row) => (
-      <Badge tone={row.allowed ? "good" : "bad"}>
-        {row.allowed ? "Allowed" : "Denied"}
-      </Badge>
-    ),
-  },
-];
+/**
+ * Built per call rather than defined once, because the decision column's header
+ * names whose authority was read.
+ *
+ * `VisitorAuthority` renders this same table for a wallet the reader connected,
+ * and a column still headed "agent controller" over the reader's own answers
+ * would attribute the denials to the wrong account — on the one table whose
+ * argument is that the account is what changes the answer.
+ */
+function columns(header: string): TableColumn<AuthorityRow>[] {
+  return [
+    { key: "capability", header: "capability", width: proportional(3) },
+    {
+      key: "allowed",
+      header,
+      width: proportional(1),
+      renderCell: (row) => (
+        <Badge tone={row.allowed ? "good" : "bad"}>
+          {row.allowed ? "Allowed" : "Denied"}
+        </Badge>
+      ),
+    },
+  ];
+}
 
 /**
  * The two permission maps arrive as plain data and are flattened here.
@@ -50,28 +61,40 @@ const COLUMNS: TableColumn<AuthorityRow>[] = [
  * server". Passing the records through as props keeps the boundary where React
  * actually draws it.
  */
-export function AuthorityMatrix({
-  recordPermissions,
-  registryPermissions,
-}: {
-  recordPermissions: Record<string, boolean>;
-  registryPermissions: Record<string, boolean>;
-}) {
-  const rows: AuthorityRow[] = [
-    ...Object.entries(recordPermissions).map(([capability, allowed]) => ({
-      capability,
-      allowed,
-    })),
-    ...Object.entries(registryPermissions).map(([capability, allowed]) => ({
-      capability: `${capability} (registry)`,
-      allowed,
-    })),
-  ];
+export function AuthorityMatrix(
+  props:
+    | {
+        recordPermissions: Record<string, boolean>;
+        registryPermissions: Record<string, boolean>;
+        header?: string;
+      }
+    /*
+      Already-flattened rows, for the client-side read against a connected
+      wallet. That caller holds the same two records but has flattened them to
+      build its own loading and failure states around, and re-splitting them
+      here to re-join them would be two shapes of one list.
+    */
+    | { rows: AuthorityRow[]; header?: string },
+) {
+  const rows: AuthorityRow[] =
+    "rows" in props
+      ? props.rows
+      : [
+          ...Object.entries(props.recordPermissions).map(
+            ([capability, allowed]) => ({ capability, allowed }),
+          ),
+          ...Object.entries(props.registryPermissions).map(
+            ([capability, allowed]) => ({
+              capability: `${capability} (registry)`,
+              allowed,
+            }),
+          ),
+        ];
 
   return (
     <Table
       data={rows}
-      columns={COLUMNS}
+      columns={columns(props.header ?? "agent controller")}
       idKey="capability"
       density="compact"
       dividers="none"
