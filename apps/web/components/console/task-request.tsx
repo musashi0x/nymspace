@@ -226,6 +226,34 @@ export function TaskRequest({
       </Grid>
 
       {/*
+        The destination, chosen rather than assumed.
+
+        Options are the rest of the fleet plus the organization. An agent's
+        wallet address where it has one, because that is where the funds
+        actually land — the controller key is its identity, not its account.
+      */}
+      <Selector
+        label="Pay"
+        value={payee}
+        onChange={setPayee}
+        options={[
+          ...peers.map((peer) => ({
+            value: peer.walletAddress ?? peer.controllerAddress,
+            label: peer.ensName,
+            description: peer.walletAddress
+              ? "another agent in this fleet"
+              : "another agent — no wallet yet, this is its controller key",
+          })),
+          {
+            value: recipient,
+            label: "the organization",
+            description: "the account that owns this name",
+          },
+        ]}
+      />
+
+
+      {/*
         The cap, next to the field it caps.
 
         This screen is entirely about a limit and the limit was not on it — the
@@ -254,33 +282,6 @@ export function TaskRequest({
             : "Nothing here decides it — Privy is asked on the signing path."}
         </Text>
       </HStack>
-
-      {/*
-        The destination, chosen rather than assumed.
-
-        Options are the rest of the fleet plus the organization. An agent's
-        wallet address where it has one, because that is where the funds
-        actually land — the controller key is its identity, not its account.
-      */}
-      <Selector
-        label="Pay"
-        value={payee}
-        onChange={setPayee}
-        options={[
-          ...peers.map((peer) => ({
-            value: peer.walletAddress ?? peer.controllerAddress,
-            label: peer.ensName,
-            description: peer.walletAddress
-              ? "another agent in this fleet"
-              : "another agent — no wallet yet, this is its controller key",
-          })),
-          {
-            value: recipient,
-            label: "the organization",
-            description: "the account that owns this name",
-          },
-        ]}
-      />
 
       {/*
         Who pays whom, in words above the addresses.
