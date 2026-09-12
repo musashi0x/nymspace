@@ -61,7 +61,7 @@ export interface TreasuryRow extends Record<string, unknown> {
         } | null;
       }
     | { status: "no_wallet" }
-    | { status: "unavailable"; reason: string };
+    | { status: "unavailable"; address: string; reason: string };
   readAt: string;
 }
 
@@ -90,18 +90,22 @@ function walletBadge(wallet: TreasuryRow["wallet"]) {
 
 const COLUMNS: TableColumn<TreasuryRow>[] = [
   {
+    /*
+      The name alone. `controllerAddress` is on the row and the fleet table
+      shows it, but the controller is the identity key and this screen is about
+      money — the address that matters here is the wallet's, one column over.
+      Printing both put two 42-character strings in one row, and the narrower
+      one wrapped to three lines with a two-character orphan on the last.
+    */
     key: "ensName",
     header: "agent",
-    width: proportional(2),
+    // Three: `research.nymspace.eth` is twenty-one characters and broke after
+    // the twentieth at two, leaving a lone "h" on the second line.
+    width: proportional(3),
     renderCell: (row) => (
-      <VStack gap={0.5}>
-        <Link href={`/console/agents/${row.id}`}>
-          <Text type="code">{row.ensName}</Text>
-        </Link>
-        <Text type="code" size="2xs" color="secondary" wordBreak="break-all">
-          {row.controllerAddress}
-        </Text>
-      </VStack>
+      <Link href={`/console/agents/${row.id}`}>
+        <Text type="code">{row.ensName}</Text>
+      </Link>
     ),
   },
   {
@@ -115,18 +119,29 @@ const COLUMNS: TableColumn<TreasuryRow>[] = [
     renderCell: (row) => walletBadge(row.wallet),
   },
   {
+    /*
+      An address whenever one exists, which includes `unavailable` — the store
+      answered and only the policy read failed, so the wallet is as real there
+      as it is in `provisioned`.
+
+      Only `no_wallet` is absent, and the sentence names the remedy rather than
+      restating the badge beside it. Three cells saying "not provisioned" three
+      different ways is what this row looked like first, and none of the three
+      told the reader what to do about it.
+    */
     key: "address",
     header: "wallet",
-    width: proportional(2),
+    // Three, because this column holds a 42-character address once anything is
+    // provisioned, and at two it wrapped even the placeholder sentence to a
+    // one-word second line.
+    width: proportional(3),
     renderCell: (row) =>
-      row.wallet.status === "provisioned" ? (
+      row.wallet.status === "no_wallet" ? (
+        <Absent what="provisioning has not run" />
+      ) : (
         <Text type="code" size="2xs" wordBreak="break-all">
           {row.wallet.address}
         </Text>
-      ) : row.wallet.status === "unavailable" ? (
-        <Absent what="the wallet exists; its policy could not be read" />
-      ) : (
-        <Absent what="no wallet provisioned" />
       ),
   },
   {
@@ -135,11 +150,16 @@ const COLUMNS: TableColumn<TreasuryRow>[] = [
     width: proportional(2),
     renderCell: (row) => {
       if (row.wallet.status === "no_wallet") {
-        return <Absent what="no policy, so no limit" />;
+        return <Absent what="no policy until a wallet exists" />;
       }
       if (row.wallet.status === "unavailable") {
-        // Unknown, not absent. The distinction is the whole point of the state.
-        return <Absent what="Privy did not answer — the limit is unknown" />;
+        /*
+          Unknown, not absent — the distinction is the whole point of the state,
+          and this is the cell where it costs something. The reason lands here
+          rather than in the wallet column because it explains a missing
+          *number*, which is the one kind of blank that gets misread as zero.
+        */
+        return <Absent what={`Privy did not answer: ${row.wallet.reason}`} />;
       }
       if (!row.wallet.policy) {
         return <Absent what="nothing constrains this wallet" />;
