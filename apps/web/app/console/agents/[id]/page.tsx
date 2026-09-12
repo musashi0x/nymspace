@@ -14,6 +14,7 @@ import {
   type VerificationState,
 } from "@/lib/console/state";
 import { AuthorityMatrix } from "@/components/console/authority-matrix";
+import { ConnectFromClaude } from "@/components/console/connect-from-claude";
 import { McpConnect } from "@/components/console/mcp-connect";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
@@ -142,7 +143,14 @@ export default async function AgentPage({
           ever answer "no_endpoint" would be an action with nothing behind it.
         */}
         {identity.records.mcp ? (
-          <McpConnect target={{ kind: "fleet", agentId: id }} />
+          <>
+            <McpConnect target={{ kind: "fleet", agentId: id }} />
+            <ConnectFromClaude
+              ensName={identity.ensName}
+              label={identity.label}
+              endpoint={identity.records.mcp}
+            />
+          </>
         ) : null}
         <Field
           label={identity.recordKeys.a2a}

@@ -22,7 +22,9 @@ import {
   type ActivityEvidence,
   type ActivityFilter,
   type ActivitySource,
+  type ActivitySourceCounts,
   type ActivityStatus,
+  type ActivitySummary,
   type ActivityType,
   type Agent,
   type AgentIdentityFields,
@@ -463,6 +465,56 @@ export class Store {
       .limit(Math.min(filter.limit ?? 100, 500));
 
     return rows.map(toActivityEvent);
+  }
+
+  /**
+   * The log counted by source and outcome, over every event.
+   *
+   * One grouped query rather than a count per source: separate reads could
+   * straddle a write and hand back a total that does not add up. Pivoted here
+   * so the caller gets one row per source with every status present, and does
+   * no arithmetic that could disagree with the database.
+   */
+  async summarizeActivity(
+    filter: Pick<ActivityFilter, "organizationId"> = {},
+  ): Promise<ActivitySummary> {
+    const rows = await this.db
+      .select({
+        source: activityEvents.source,
+        status: activityEvents.status,
+        count: sql<string>`count(*)`,
+      })
+      .from(activityEvents)
+      .where(
+        filter.organizationId
+          ? eq(activityEvents.organizationId, filter.organizationId)
+          : undefined,
+      )
+      .groupBy(activityEvents.source, activityEvents.status);
+
+    const bySource = new Map<string, ActivitySourceCounts>();
+    for (const row of rows) {
+      const counts = bySource.get(row.source) ?? {
+        source: row.source as ActivitySource,
+        pending: 0,
+        success: 0,
+        denied: 0,
+        failed: 0,
+        total: 0,
+      };
+      const n = Number(row.count);
+      counts[row.status as ActivityStatus] += n;
+      counts.total += n;
+      bySource.set(row.source, counts);
+    }
+
+    const sources = [...bySource.values()].sort(
+      (a, b) => b.total - a.total || a.source.localeCompare(b.source),
+    );
+    return {
+      bySource: sources,
+      total: sources.reduce((sum, s) => sum + s.total, 0),
+    };
   }
 
   ////////////////////////////////////////////////////////////////////////////

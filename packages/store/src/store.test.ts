@@ -487,6 +487,75 @@ describe("activity is one log with per-source provenance", () => {
       }),
     ).rejects.toThrow(/secret-shaped key/);
   });
+
+  it("summarises by source and status, every status present, largest first", async () => {
+    const ens = (status: "success" | "denied") => ({
+      ...base,
+      source: "ens" as const,
+      type: "ens.record.updated" as const,
+      status,
+      summary: `ens ${status}`,
+      evidence: {
+        source: "ens" as const,
+        txHash: `0x${"d".repeat(64)}` as const,
+        contractAddress: "0x45DaD53A7ad21fd62709DFa46e65C7501ed7C6eC" as const,
+      },
+    });
+    const privy = (status: "success" | "denied") => ({
+      ...base,
+      source: "privy" as const,
+      type: "privy.payment.executed" as const,
+      status,
+      summary: `privy ${status}`,
+      evidence: { source: "privy" as const, requestId: randomUUID() },
+    });
+
+    for (const event of [
+      ens("success"),
+      ens("denied"),
+      privy("success"),
+      privy("success"),
+      privy("denied"),
+    ]) {
+      await store.recordEvent(event);
+    }
+
+    expect(await store.summarizeActivity({ organizationId: ORG_ID })).toEqual({
+      bySource: [
+        { source: "privy", pending: 0, success: 2, denied: 1, failed: 0, total: 3 },
+        { source: "ens", pending: 0, success: 1, denied: 1, failed: 0, total: 2 },
+      ],
+      total: 5,
+    });
+  });
+
+  /**
+   * The reason the summary exists. The timeline route caps at 500, so a count
+   * taken from its rows stops at 500 however large the log grows.
+   */
+  it("counts every event, past the timeline's page limit", async () => {
+    const occurredAt = new Date().toISOString();
+    await db.execute(sql`
+      insert into activity_events (id, organization_id, source, type, status, occurred_at, summary, evidence)
+      select gen_random_uuid()::text, ${ORG_ID}, 'app', 'agent.created', 'success', ${occurredAt}, 'bulk',
+             '{"source":"app"}'::jsonb
+      from generate_series(1, 520)
+    `);
+
+    const summary = await store.summarizeActivity({ organizationId: ORG_ID });
+    expect(await store.listActivity({ organizationId: ORG_ID, limit: 1000 })).toHaveLength(500);
+    expect(summary.total).toBe(520);
+    expect(summary.bySource).toEqual([
+      { source: "app", pending: 0, success: 520, denied: 0, failed: 0, total: 520 },
+    ]);
+  });
+
+  it("summarises an empty log as nothing, not as zeroes", async () => {
+    expect(await store.summarizeActivity({ organizationId: ORG_ID })).toEqual({
+      bySource: [],
+      total: 0,
+    });
+  });
 });
 
 describe("page views", () => {

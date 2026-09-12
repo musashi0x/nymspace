@@ -1,5 +1,5 @@
 import type { AppType } from "@nymspace/api/app";
-import { hc } from "hono/client";
+import { hc, type InferRequestType } from "hono/client";
 
 /**
  * The typed client for `@nymspace/api`.
@@ -211,15 +211,57 @@ export async function discover(body: {
   return res.json();
 }
 
+/**
+ * The activity route's filter, as the API's own schema declares it.
+ *
+ * Derived rather than restated. The hand-written union this replaced had
+ * already drifted — it omitted `mcp`, which the API accepts — and a restated
+ * union drifts silently, where a derived one fails typecheck.
+ */
+type ActivityQuery = InferRequestType<typeof api.v1.activity.$get>["query"];
+
+export type ActivitySourceFilter = NonNullable<ActivityQuery["source"]>;
+export type ActivityStatusFilter = NonNullable<ActivityQuery["status"]>;
+
+/**
+ * A list that must name every member of `T`.
+ *
+ * A missing member makes the argument require a `missing` property naming it,
+ * so the next source the API accepts fails typecheck here instead of being
+ * silently unreachable from the console's filter controls.
+ */
+const everyOf =
+  <T extends string>() =>
+  <const L extends readonly T[]>(
+    list: L & ([Exclude<T, L[number]>] extends [never] ? unknown : { missing: Exclude<T, L[number]> }),
+  ): L =>
+    list;
+
+/**
+ * The values a URL may filter the timeline by. Here rather than beside the
+ * chart: exports of a `"use client"` module reach a server component as client
+ * references, not values, and the page validates `searchParams` against these.
+ */
+export const ACTIVITY_SOURCES = everyOf<ActivitySourceFilter>()([
+  "ens",
+  "erc8004",
+  "graph",
+  "privy",
+  "app",
+  "mcp",
+]);
+
+/** In stacking order: what went through, then what was stopped. */
+export const ACTIVITY_STATUSES = everyOf<ActivityStatusFilter>()([
+  "success",
+  "denied",
+  "failed",
+  "pending",
+]);
+
 /** The activity timeline, filterable by agent, source, type and status. */
 export async function fetchActivity(
-  filter: {
-    agent?: string;
-    source?: "ens" | "erc8004" | "graph" | "privy" | "app";
-    type?: string;
-    status?: "pending" | "success" | "denied" | "failed";
-    limit?: number;
-  } = {},
+  filter: Omit<ActivityQuery, "limit"> & { limit?: number } = {},
 ) {
   const res = await api.v1.activity.$get({
     query: {
@@ -229,6 +271,16 @@ export async function fetchActivity(
       limit: filter.limit === undefined ? undefined : String(filter.limit),
     },
   });
+  if (!res.ok) throw requestFailed(res.status);
+  return res.json();
+}
+
+/**
+ * The whole log counted by source and outcome — never a page of it. The
+ * timeline's rows are capped, and counting them would undercount in silence.
+ */
+export async function fetchActivitySummary() {
+  const res = await api.v1.activity.summary.$get();
   if (!res.ok) throw requestFailed(res.status);
   return res.json();
 }
