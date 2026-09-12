@@ -15,6 +15,7 @@ import type {
   LensNode,
   LensPlan,
   LensTone,
+  LensUnanswered,
   PlanStep,
 } from "@nymspace/core";
 import { ORGANIZATION_ID, REGISTRATION_CHAIN_ID, type DepsEnv } from "../deps";
@@ -251,7 +252,7 @@ async function matchPlan(
   text: string,
   original: string,
   deps: Deps,
-): Promise<LensPlan | undefined> {
+): Promise<LensPlan | LensUnanswered | undefined> {
   // 1. Onboard.
   const created = /\b(create|onboard|add|register)\b.*\bagent\b/.test(text)
     ? /\b(?:create|onboard|add|register)\s+(?:a|an|the)?\s*([a-z0-9][a-z0-9-]{1,30})\s+agent\b/.exec(text)?.[1]
@@ -418,9 +419,49 @@ async function paymentPlan(
   amountWei: string,
   text: string,
   deps: Deps,
-): Promise<LensPlan | undefined> {
+): Promise<LensPlan | LensUnanswered | undefined> {
   const agent = await deps.store.getAgent(id);
   if (!agent) return undefined;
+
+  /**
+   * No wallet, no plan — the precondition is checked here rather than left to
+   * the routes.
+   *
+   * Both steps read the same `financial_authority` reference and both 409
+   * without it, so an unprovisioned agent got a plan promising to check a
+   * policy and send a payment, followed by two identical red failures telling
+   * an operator on a deployed console to run a `pnpm` script. The plan was
+   * never true: the summary described a wallet that does not exist, and
+   * "Send the payment" is not an offer this deployment can keep.
+   *
+   * It is also the console failing one of its own {@link CONSOLE_SUGGESTIONS},
+   * which that list's comment calls a promise. A promise the matcher cannot
+   * keep has to be withdrawn before it is made, not after — the same argument
+   * `docs/03` makes about a screen that shows an action it cannot perform.
+   *
+   * Unanswered rather than a plan, because nothing here is a denial: a denial
+   * is the policy refusing an amount, and this is an agent with no policy to
+   * refuse with. Rendering them the same way would put the absence of the
+   * control plane on the same screen as the control plane working.
+   */
+  const authority = await deps.store.getFinancialAuthority(id);
+  if (!authority?.policyId) {
+    return {
+      kind: "unanswered",
+      message: authority
+        ? `${agent.ensName} has a wallet but no spend policy, so there is no limit to check an amount against ` +
+          `and nothing that would cap it. Until a policy is attached, a payment from this agent would be ` +
+          `governed by nothing — the console will not offer one.`
+        : `${agent.ensName} has no wallet. Nothing signs for it and no Privy policy caps it, so there is no ` +
+          `payment to preview and none to send. Wallet provisioning has not run against this deployment's ` +
+          `store — Treasury shows the same thing for every agent it has not run for.`,
+      suggestions: [
+        "show me the fleet",
+        `show ${agent.slug}`,
+        `show the audit trail for ${agent.slug}`,
+      ],
+    };
+  }
 
   const recipient = /0x[0-9a-fA-F]{40}/.exec(text)?.[0] ?? agent.controllerAddress;
 
