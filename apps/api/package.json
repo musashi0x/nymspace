@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./app": "./src/app.ts",
-    "./provisioning": "./src/provisioning.ts"
+    "./provisioning": "./src/provisioning.ts",
+    "./financial": "./src/financial.ts"
   },
   "scripts": {
     "dev": "tsx watch --exclude \"**/evidence/**\" --env-file-if-exists=../../.env --conditions=react-server src/index.ts",

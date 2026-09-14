@@ -57,6 +57,8 @@ interface StepRow extends Record<string, unknown> {
   status: string;
   state: RowState;
   txHash: string | null;
+  /** Null for the deployment's ENS chain; set for a registry step. */
+  chainId: number | null;
   readBack: string | null;
 }
 
@@ -68,7 +70,20 @@ const ENDPOINT_KEY = {
 
 const CONTEXT_KEY = "agent-context";
 
-type PlanKind = "register" | "resolver" | "record" | "grant";
+/**
+ * The ENSIP 25 key's fixed prefix. The rest embeds the id the registry mints,
+ * so the plan cannot name the key in advance — only recognise it.
+ */
+const BINDING_KEY_PREFIX = "agent-registration[";
+
+type PlanKind =
+  | "register"
+  | "resolver"
+  | "record"
+  | "grant"
+  | "registry"
+  | "binding"
+  | "verify";
 
 interface PlanRow {
   id: string;
@@ -117,6 +132,11 @@ function planFor(input: {
           what: `Grant SET_TEXT on ${ENDPOINT_KEY[protocol]}`,
         }))
       : []),
+    // After identity, in the same run: `provisionAgent` registers only once
+    // the name has been read back.
+    { kind: "registry", key: null, what: "Register on ERC 8004" },
+    { kind: "binding", key: null, what: "Write the ENSIP 25 record" },
+    { kind: "verify", key: null, what: "Verify the ENSIP 25 binding" },
   ];
 
   return rows.map((row, index) => ({ ...row, id: `plan-${index}` }));
@@ -135,11 +155,25 @@ const KIND_OF: Record<string, PlanKind | undefined> = {
   "ens.record.updated": "record",
   "ens.permission.granted": "grant",
   "ens.action.denied": "grant",
+  "erc8004.registered": "registry",
+  "ensip25.verified": "verify",
+  "ensip25.failed": "verify",
 };
+
+/** The ENSIP 25 record is a record write like any other, told apart by key. */
+function kindOf(step: Step): PlanKind | undefined {
+  if (
+    step.type === "ens.record.updated" &&
+    step.key?.startsWith(BINDING_KEY_PREFIX)
+  ) {
+    return "binding";
+  }
+  return KIND_OF[step.type];
+}
 
 function matches(plan: PlanRow, step: Step): boolean {
   return (
-    KIND_OF[step.type] === plan.kind &&
+    kindOf(step) === plan.kind &&
     (plan.key === null || plan.key === step.key)
   );
 }
@@ -166,6 +200,7 @@ function rowsFor(
     status: step.status,
     state: "done",
     txHash: step.txHash,
+    chainId: step.chainId,
     readBack: step.readBack,
   });
 
@@ -187,6 +222,7 @@ function rowsFor(
         // ENS track's answer, not this row's.
         state: complete ? "unspent" : "queued",
         txHash: null,
+        chainId: null,
         readBack: null,
       };
     }
@@ -287,10 +323,10 @@ const STEP_COLUMNS: TableColumn<StepRow>[] = [
     key: "txHash",
     header: "transaction",
     width: proportional(1),
-    // Provisioning steps are always ENS writes (`provisioning.ts` only ever
-    // produces `source: "ens"` evidence), so the chain is the one this
-    // deployment is configured for — never `REGISTRATION_CHAIN_ID`, which is
-    // where the registry and financial tracks write instead.
+    // Two chains in one list. ENS steps are on the chain this deployment is
+    // configured for; registry steps carry their own chain id, because the
+    // registration lives on `REGISTRATION_CHAIN_ID` and a link built from the
+    // ENS chain would open somebody else's transaction.
     renderCell: (row) => {
       // A planned row has no transaction *yet*, which is not the same claim as
       // a run that sent none — so it says nothing rather than "no transaction".
@@ -302,7 +338,7 @@ const STEP_COLUMNS: TableColumn<StepRow>[] = [
         );
       const url =
         row.txHash && !/^0x0+$/.test(row.txHash)
-          ? explorerTxUrl(publicEnv().chainId, row.txHash)
+          ? explorerTxUrl(row.chainId ?? publicEnv().chainId, row.txHash)
           : null;
       return row.txHash && !/^0x0+$/.test(row.txHash) ? (
         url ? (
@@ -470,7 +506,7 @@ export function CreateAgent({ parentName }: { parentName: string }) {
     <VStack gap={6} width="100%" className="min-w-0">
       <Frame
         title="new agent"
-        subtitle={`A subname under ${parentName}, its records, and — if you delegate — one grant per endpoint key. Signed by the organization.`}
+        subtitle={`A subname under ${parentName}, its records, and — if you delegate — one grant per endpoint key. Then an ERC 8004 registration, bound back to the name. Signed by the organization.`}
       >
         <VStack gap={4}>
           {/*
@@ -632,9 +668,10 @@ export function CreateAgent({ parentName }: { parentName: string }) {
             </HStack>
 
             <Text type="supporting" as="p">
-              Creation advances identity only. Registration, verification,
-              indexing and the wallet are separate tracks with their own
-              systems — an agent without them is unfinished, not broken.
+              Creation advances identity, then registers the agent on ERC 8004
+              and verifies the binding. Indexing and the wallet are separate
+              tracks with their own systems — an agent without them is
+              unfinished, not broken.
             </Text>
 
             {complete && progress ? (

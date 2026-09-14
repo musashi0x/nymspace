@@ -1116,6 +1116,31 @@ export function createBend(
 
   let selecting = false;
 
+  /**
+   * An `<input>` or `<textarea>` the caret lookup landed inside.
+   *
+   * `caretPositionFromPoint` answers inside a text control with the control
+   * itself and a character index into its value — not a child index. The
+   * Selection API reads that pair as "child 6 of an element with no children"
+   * and throws `IndexSizeError`, which is how a click on a filled-in field
+   * crashed the page. The control's own selection is the one that can hold
+   * that position.
+   */
+  function textControl(node: Node): HTMLInputElement | HTMLTextAreaElement | null {
+    return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement
+      ? node
+      : null;
+  }
+
+  /**
+   * The largest offset `node` accepts as a selection boundary: characters for
+   * text, children for everything else. Clamped to rather than trusted, since
+   * the two lookups disagree across engines about which one they return.
+   */
+  function boundaryLimit(node: Node): number {
+    return node instanceof CharacterData ? node.length : node.childNodes.length;
+  }
+
   function onMouseDown(event: MouseEvent) {
     if (forwarding || !covered || event.button !== 0) return;
     const m = remapped(event);
@@ -1123,10 +1148,25 @@ export function createBend(
     event.preventDefault();
     const caret = caretAt(m.x, m.y);
     if (!caret || !content.contains(caret.node)) return;
+
+    const control = textControl(caret.node);
+    if (control) {
+      // Focus uncovers the page (`onFocusIn`), so from here the field's own
+      // caret is drawn by the browser where the operator clicked.
+      control.focus();
+      try {
+        control.setSelectionRange(caret.offset, caret.offset);
+      } catch {
+        // `number`, `email` and friends have no text selection to set; the
+        // focus alone is the right outcome for them.
+      }
+      return;
+    }
+
     const sel = window.getSelection();
     if (!sel) return;
     sel.removeAllRanges();
-    sel.collapse(caret.node, caret.offset);
+    sel.collapse(caret.node, Math.min(caret.offset, boundaryLimit(caret.node)));
     selecting = true;
   }
 
@@ -1139,8 +1179,16 @@ export function createBend(
     const m = remapped(event);
     const caret = m ? caretAt(m.x, m.y) : null;
     const sel = window.getSelection();
-    if (caret && sel && sel.anchorNode && content.contains(caret.node)) {
-      sel.extend(caret.node, caret.offset);
+    if (
+      caret &&
+      sel &&
+      sel.anchorNode &&
+      content.contains(caret.node) &&
+      // Dragging a document selection into a field cannot extend into it: the
+      // field's text is not part of the document's selection model.
+      !textControl(caret.node)
+    ) {
+      sel.extend(caret.node, Math.min(caret.offset, boundaryLimit(caret.node)));
     }
   }
 

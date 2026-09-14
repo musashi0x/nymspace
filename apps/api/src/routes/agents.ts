@@ -21,11 +21,14 @@ import {
 import {
   agentIdFor,
   assertLabelAvailable,
+  checkIndexing,
+  isSettled,
   LabelUnavailableError,
   PROVISIONING_PHASE,
   provisionAgent,
   type ProvisionContext,
 } from "../provisioning";
+import { funderFrom, provisionWallet } from "../financial";
 import { errorFields } from "../log";
 import {
   agentCreateSchema,
@@ -219,10 +222,11 @@ export const agents = new Hono<DepsEnv>()
    * already being written with their transaction hashes, and reading them back
    * is what makes a reload mid-provision rebuild rather than restart.
    *
-   * `complete` is false while the ENS track is still moving. The other four
-   * tracks are not part of that answer — an agent with a verified binding and
-   * no wallet is not failed, it is financially unprovisioned, and creation
-   * never claimed to touch those.
+   * `complete` is false while any track the run touches is still moving:
+   * identity, then registration and verification. Discovery and the wallet
+   * are not part of that answer — an agent with a verified binding and no
+   * wallet is not failed, it is financially unprovisioned, and creation never
+   * claimed to touch those.
    */
   .get("/:id/provisioning", async (c) => {
     const { store } = c.var.deps;
@@ -258,8 +262,15 @@ export const agents = new Hono<DepsEnv>()
         type: event.type,
         key: keyOf(event.metadata),
         // Narrowed rather than asserted: `ActivityEvidence` is a union per
-        // source, and a provisioning step's evidence is always an ENS one.
-        txHash: event.evidence.source === "ens" ? event.evidence.txHash : null,
+        // source, and a provisioning step's evidence is an ENS or a registry one.
+        txHash:
+          event.evidence.source === "ens" || event.evidence.source === "erc8004"
+            ? event.evidence.txHash
+            : null,
+        // Null means the deployment's ENS chain. A registry step is on the
+        // registry's chain, and an explorer link built from the wrong one
+        // opens somebody else's transaction or none.
+        chainId: event.evidence.source === "erc8004" ? event.evidence.chainId : null,
         readBack: readBackOf(event.metadata),
         occurredAt: event.occurredAt,
       }));
@@ -269,7 +280,7 @@ export const agents = new Hono<DepsEnv>()
       ensName: agent.ensName,
       tracks: agent.provisioning,
       steps,
-      complete: agent.provisioning.ens === "active" || agent.provisioning.ens === "failed",
+      complete: isSettled(agent.provisioning),
       source: "store" as const,
       readAt: readAt(),
     });
@@ -570,6 +581,125 @@ export const agents = new Hono<DepsEnv>()
 
     await store.setProvisioning(agent.id, { ensip25: result.status });
     return c.json({ ...result, recordKey: result.key ?? null });
+  })
+
+  //////////////////////////////////////////////////////////////////////////
+  // Re-check — the two tracks that change without anyone writing
+  //////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Verification and discovery, read again and written back.
+   *
+   * Both move on their own: indexing lands minutes after a registration, and
+   * an ENSIP 25 binding goes stale when a name changes hands. Nothing advanced
+   * either after the run that first set it, so a chip could read `not indexed`
+   * for an agent the subgraph had been returning for days.
+   *
+   * A POST, and so behind the write token, although it signs nothing: it
+   * writes the store, and each call is a paid subgraph query.
+   */
+  .post("/:id/refresh", async (c) => {
+    const { store, ens, erc8004, graph } = c.var.deps;
+    const id = c.req.param("id");
+    const agent = await store.getAgent(id);
+    if (!agent) agentNotFound(id);
+
+    if (!agent.erc8004AgentId || !agent.erc8004Registry) {
+      return c.json({
+        id: agent.id,
+        tracks: agent.provisioning,
+        steps: [],
+        reason: "No ERC 8004 registration, so there is nothing to verify or index." as
+          | string
+          | null,
+        readAt: readAt(),
+      });
+    }
+
+    await store.setProvisioning(agent.id, { ensip25: "checking" });
+    const verification = await verifyEnsip25({
+      ensName: agent.ensName,
+      agentId: agent.erc8004AgentId,
+      registry: agent.erc8004Registry,
+      chainId: REGISTRATION_CHAIN_ID,
+      erc8004,
+      readText: (name, key) => ens.readText(name, key),
+    });
+    await store.setProvisioning(agent.id, { ensip25: verification.status });
+
+    const indexing = await checkIndexing(
+      { store, graph, organizationId: agent.organizationId },
+      {
+        agentId: agent.id,
+        erc8004AgentId: agent.erc8004AgentId,
+        chainId: REGISTRATION_CHAIN_ID,
+      },
+    );
+
+    const after = await store.getAgent(agent.id);
+    return c.json({
+      id: agent.id,
+      tracks: after?.provisioning ?? agent.provisioning,
+      steps: [
+        {
+          what: `verify ENSIP 25 for ${agent.ensName}`,
+          ok: verification.status === "verified",
+          skipped: false,
+          detail: `${verification.status}, read at ${verification.readAt}${verification.error ? `: ${verification.error}` : ""}`,
+          readBack: verification.status as string | undefined,
+        },
+        indexing.step,
+      ],
+      reason: null,
+      readAt: readAt(),
+    });
+  })
+
+  //////////////////////////////////////////////////////////////////////////
+  // Financial authority — an operator's action, never a side effect
+  //////////////////////////////////////////////////////////////////////////
+
+  /**
+   * A policy, a wallet governed by it, and gas: `provisionWallet`.
+   *
+   * Its own route rather than a step of creation. Registering a name spends
+   * gas to say who an agent is; this hands the agent money, and the operator
+   * asks for it by name. Idempotent, so a click after a partial failure
+   * repairs rather than duplicates, and gas is topped up only to what the
+   * wallet is short.
+   *
+   * Synchronous, unlike creation: two Privy calls and at most one Base Sepolia
+   * transfer, on a two-second block time, fit inside a request.
+   */
+  .post("/:id/wallet", async (c) => {
+    const deps = c.var.deps;
+    const id = c.req.param("id");
+    const agent = await deps.store.getAgent(id);
+    if (!agent) agentNotFound(id);
+
+    const result = await provisionWallet(
+      {
+        privy: deps.privy,
+        store: deps.store,
+        organizationId: agent.organizationId,
+        token: deps.paymentToken,
+        // Keyless deployments still get a wallet and a policy; the gas step
+        // says the wallet went unfunded rather than failing the request.
+        ...(deps.registrationChain.canSign && {
+          funder: funderFrom(deps.registrationChain),
+        }),
+      },
+      agent.id,
+    );
+
+    return c.json({
+      id: agent.id,
+      financial: result.financial,
+      address: result.address ?? null,
+      policyId: result.policyId ?? null,
+      steps: result.steps,
+      readAt: readAt(),
+    });
   })
 
   //////////////////////////////////////////////////////////////////////////
@@ -1099,6 +1229,9 @@ const PROVISIONING_TYPES: ReadonlySet<string> = new Set([
   "ens.record.updated",
   "ens.permission.granted",
   "ens.action.denied",
+  "erc8004.registered",
+  "ensip25.verified",
+  "ensip25.failed",
 ]);
 
 function phaseOf(metadata: unknown): string | null {
@@ -1129,5 +1262,9 @@ function provisionContext(deps: Deps): ProvisionContext {
     registry: deps.registry,
     resolver: deps.resolver,
     organization: deps.organization,
+    // Present, so a created agent is registered and bound in the same run.
+    erc8004: deps.erc8004,
+    // And asked about, so its discovery track moves off `not_indexed`.
+    graph: deps.graph,
   };
 }

@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Address, Hex } from "@nymspace/core";
-import { AGENT_CONTEXT_KEY, agentEndpointKey } from "@nymspace/ens";
+import {
+  AGENT_CONTEXT_KEY,
+  agentEndpointKey,
+  agentRegistrationKey,
+  claimedEnsName,
+  type RegistrationFile,
+} from "@nymspace/ens";
 import {
   LabelUnavailableError,
+  isSettled,
   isValidLabel,
   provisionAgent,
   type ProvisionContext,
@@ -183,5 +190,268 @@ describe("provisionAgent", () => {
 
     expect(result.ens).toBe("failed");
     expect(result.steps.at(-1)?.ok).toBe(false);
+  });
+});
+
+//////////////////////////////////////////////////////////////////////////////
+// With a registry — the registration and its ENSIP 25 binding
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The same property as above, carried across a second chain: the registry is
+ * the one place a re-run would mint something new rather than overwrite
+ * something old, so "did not register twice" is the assertion that matters.
+ */
+
+const REGISTRATION_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address;
+const REGISTRATION_CHAIN = 84532;
+const ENS_NAME = "research.nymspace.eth";
+
+function withRegistry(
+  chain: FakeChain,
+  options: {
+    registerFails?: boolean;
+    /** What Agent0 answers. Absent: no graph in the context at all. */
+    graph?: "indexed" | "pending" | "error";
+  } = {},
+) {
+  const { context: base, calls } = fakes(chain);
+  const registrations: RegistrationFile[] = [];
+  const events: string[] = [];
+  const trackWrites: Record<string, string>[] = [];
+
+  // Just enough of a row for `bindRegistration`: it reads the stored id to
+  // decide whether to register, and the upsert is where that id lands.
+  const row = {
+    id: "agent-research",
+    organizationId: "nymspace",
+    slug: "research",
+    ensName: ENS_NAME,
+    controllerAddress: CONTROLLER,
+    erc8004AgentId: undefined as string | undefined,
+    provisioning: {
+      ens: "draft",
+      erc8004: "unregistered",
+      ensip25: "unchecked",
+      graph: "not_indexed",
+      financial: "no_wallet",
+    } as Record<string, string>,
+  };
+
+  const store = {
+    getAgent: async () => row,
+    upsertAgent: async (agent: { erc8004AgentId?: string }) => {
+      if (agent.erc8004AgentId) row.erc8004AgentId = agent.erc8004AgentId;
+    },
+    recordEvent: async (event: { type: string; status: string }) => {
+      events.push(`${event.type}:${event.status}`);
+    },
+    setProvisioning: async (_id: string, patch: Record<string, string>) => {
+      trackWrites.push(patch);
+      Object.assign(row.provisioning, patch);
+      return row.provisioning;
+    },
+  };
+
+  const files = new Map<string, RegistrationFile>();
+  let nextId = 7;
+  const erc8004 = {
+    registry: REGISTRATION_REGISTRY,
+    chainId: REGISTRATION_CHAIN,
+    register: async ({ file }: { file: RegistrationFile }) => {
+      registrations.push(file);
+      if (options.registerFails) throw new Error("insufficient funds for gas");
+      const agentId = String(nextId++);
+      files.set(agentId, file);
+      return { agentId, agentURI: "", owner: ORGANIZATION, transactionHash: HASH };
+    },
+    registrationFile: async (id: string) => files.get(String(id)),
+    claimsEnsName: async (id: string, name: string) => {
+      const file = files.get(String(id));
+      const claimed = file ? claimedEnsName(file) : undefined;
+      return {
+        claims: claimed?.toLowerCase() === name.toLowerCase(),
+        ...(claimed && { claimed }),
+      };
+    },
+  };
+
+  const graph = {
+    agentProfile: async (key: string) => {
+      if (options.graph === "error") throw new Error("subgraph unavailable");
+      if (options.graph !== "indexed") return undefined;
+      return {
+        graphAgentKey: key,
+        claimedEnsName: ENS_NAME,
+        provenance: {
+          provider: "agent0",
+          chainId: REGISTRATION_CHAIN,
+          subgraphId: "subgraph",
+          queriedAt: "2026-09-14T00:00:00.000Z",
+        },
+      };
+    },
+  };
+
+  const context = {
+    ...base,
+    store,
+    erc8004,
+    ...(options.graph && { graph }),
+  } as unknown as ProvisionContext;
+  return { context, calls, registrations, events, trackWrites, row };
+}
+
+const fresh = (): FakeChain => ({
+  owner: ZERO,
+  resolver: ZERO,
+  text: {},
+  granted: new Set(),
+});
+
+describe("provisionAgent with a registry", () => {
+  const bindingKey = agentRegistrationKey({
+    chainId: REGISTRATION_CHAIN,
+    registry: REGISTRATION_REGISTRY,
+    agentId: "7",
+  });
+
+  it("registers once identity is confirmed, then binds and verifies", async () => {
+    const { context, calls, registrations, row } = withRegistry(fresh());
+
+    const result = await provisionAgent(context, target);
+
+    expect(result.ens).toBe("active");
+    expect(result.registration?.erc8004).toBe("registered");
+    expect(result.registration?.ensip25).toBe("verified");
+    expect(registrations).toHaveLength(1);
+    expect(claimedEnsName(registrations[0]!)).toBe(ENS_NAME);
+    // The ENSIP 25 record is the last write, after the name's own records.
+    expect(calls.writes).toEqual([AGENT_CONTEXT_KEY, MCP_KEY, bindingKey]);
+    expect(row.erc8004AgentId).toBe("7");
+    expect(row.provisioning).toMatchObject({ erc8004: "registered", ensip25: "verified" });
+    expect(result.steps.every((s) => s.ok)).toBe(true);
+  });
+
+  it("settles identity and opens registration in one write", async () => {
+    const { context, trackWrites } = withRegistry(fresh());
+
+    await provisionAgent(context, target);
+
+    // Two writes would leave a poll that sees identity done and registration
+    // not begun, and the create screen would stop there.
+    expect(trackWrites).toContainEqual({ ens: "active", erc8004: "pending" });
+  });
+
+  it("does not register twice on a re-run", async () => {
+    const { context, calls, registrations } = withRegistry(fresh());
+
+    await provisionAgent(context, target);
+    const writes = [...calls.writes];
+
+    const again = await provisionAgent(context, target);
+
+    expect(registrations).toHaveLength(1);
+    expect(calls.writes).toEqual(writes);
+    expect(again.registration?.ensip25).toBe("verified");
+    expect(again.registration?.steps.filter((s) => s.skipped)).toHaveLength(2);
+  });
+
+  it("leaves a non-https endpoint out of the registration file", async () => {
+    const { context, registrations } = withRegistry(fresh());
+
+    const result = await provisionAgent(context, {
+      ...target,
+      endpoints: { mcp: MCP, a2a: "http://localhost:4000/a2a" },
+      delegate: false,
+    });
+
+    expect(registrations[0]!.services.map((s) => s.name)).toEqual(["ens", "mcp"]);
+    expect(result.registration?.steps[0]?.detail).toContain("a2a not https");
+  });
+
+  it("fails the registry track, not identity, when registration reverts", async () => {
+    const { context, calls, events, row } = withRegistry(fresh(), {
+      registerFails: true,
+    });
+
+    const result = await provisionAgent(context, target);
+
+    expect(result.ens).toBe("active");
+    expect(result.registration?.erc8004).toBe("failed");
+    expect(row.provisioning).toMatchObject({ ens: "active", erc8004: "failed" });
+    // Nothing is bound to a registration that does not exist.
+    expect(calls.writes).not.toContain(bindingKey);
+    expect(events).toContain("erc8004.registered:failed");
+  });
+
+  it("does not register a name whose identity was not confirmed", async () => {
+    const { context, registrations } = withRegistry({
+      owner: ORGANIZATION,
+      resolver: ZERO,
+      text: {},
+      granted: new Set(),
+    });
+
+    const result = await provisionAgent(context, target);
+
+    expect(result.ens).toBe("failed");
+    expect(result.registration).toBeUndefined();
+    expect(registrations).toHaveLength(0);
+  });
+
+  it.each([
+    ["a full run", {}],
+    ["a run whose registration reverts", { registerFails: true }],
+  ] as const)("never looks finished to a poll before its last write: %s", async (_name, options) => {
+    const { context, trackWrites } = withRegistry(fresh(), {
+      ...options,
+      graph: "indexed",
+    });
+
+    await provisionAgent(context, target);
+
+    /*
+      Every track write the run made, replayed in order — which is what
+      successive polls of `GET /:id/provisioning` see. The create screen stops
+      at the first settled state, so one before the last write is a screen that
+      stopped with steps still to come. Found that way: registration done and
+      verification untouched read as finished, twenty seconds early.
+    */
+    const tracks = { ens: "draft", erc8004: "unregistered", ensip25: "unchecked" };
+    const settled = trackWrites.map((patch) => isSettled(Object.assign(tracks, patch)));
+
+    expect(settled.slice(0, -1)).not.toContain(true);
+    expect(settled.at(-1)).toBe(true);
+  });
+
+  it("asks Agent0 after verifying, and logs the index once", async () => {
+    const { context, events, row } = withRegistry(fresh(), { graph: "indexed" });
+
+    await provisionAgent(context, target);
+    await provisionAgent(context, target);
+
+    expect(row.provisioning.graph).toBe("indexed");
+    // The second run found it indexed again and learned nothing new.
+    expect(events.filter((e) => e.startsWith("graph.indexed"))).toHaveLength(1);
+  });
+
+  it("reads pending while indexing lags, and does not call that a failure", async () => {
+    const { context, row } = withRegistry(fresh(), { graph: "pending" });
+
+    const result = await provisionAgent(context, target);
+
+    expect(row.provisioning.graph).toBe("pending");
+    expect(result.steps.at(-1)).toMatchObject({ ok: true, readBack: "pending" });
+  });
+
+  it("reports a subgraph outage as provider_error, never not_indexed", async () => {
+    const { context, row } = withRegistry(fresh(), { graph: "error" });
+
+    const result = await provisionAgent(context, target);
+
+    expect(row.provisioning.graph).toBe("provider_error");
+    // Identity and the binding stand; only the question went unanswered.
+    expect(result.registration?.ensip25).toBe("verified");
   });
 });

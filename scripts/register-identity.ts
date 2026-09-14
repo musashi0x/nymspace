@@ -1,6 +1,6 @@
 /**
- * Bind the research agent's ENS name to an ERC 8004 registration — tasks 3.8,
- * 3.9, 3.11 and 3.12.
+ * Bind an agent's ENS name to an ERC 8004 registration — tasks 3.8 through
+ * 3.13, and 4.6.
  *
  * Run: pnpm register:identity
  *
@@ -10,19 +10,23 @@
  * downstream (design.md D14). The ENSIP 25 key carries the difference and
  * nothing else does: chain reference `0x014a34` rather than `0xaa36a7`.
  *
- * The four steps, in the order that makes each one meaningful:
+ * The registration itself — 3.8 register, 3.9 read the claim back, 3.11 write
+ * the ENSIP 25 record, 3.13 verify, 4.6 ask the subgraph whether it is indexed
+ * yet — is `bindRegistration`, the same function `POST /v1/agents` runs once it
+ * has provisioned a name. Two copies of those steps would diverge on the first
+ * fix. What stays here is what only a script holding both keys does:
  *
- *   3.8  register on Base Sepolia, with the ENS name claimed in the file
- *   3.9  read the registration back and confirm the claim
- *   3.11 write the ENSIP 25 record on Sepolia, from the organization key
- *   3.12 attempt the same write from the controller, and require a revert
+ *   adopt an existing registration by id, instead of paying for a second one
+ *   3.10 assert the key is canonical, against live values
+ *   3.12 attempt the ENSIP 25 write from the controller, and require a revert
  *
- * 3.12 comes last because it is only a proof once 3.11 has succeeded. A write
- * that reverts before anyone has shown the same write can succeed is a write
- * that might be failing for any reason at all.
+ * 3.12 runs only once verification has passed. A write that reverts before
+ * anyone has shown the same write can succeed is a write that might be failing
+ * for any reason at all.
  */
 
 import { formatEther } from "viem";
+import { bindRegistration } from "@nymspace/api/provisioning";
 import { requireServerEnv } from "@nymspace/core/env";
 import {
   fleetAgent,
@@ -33,14 +37,10 @@ import {
 import {
   EnsService,
   Erc8004Service,
-  agentRegistrationKey,
-  buildRegistrationFile,
   chainConfig,
   claimedEnsName,
   createViemChainClient,
-  encodeRegistrationFileUri,
   requireDeployed,
-  verifyEnsip25,
   type ViemChainClient,
 } from "@nymspace/ens";
 import { Agent0Client } from "@nymspace/graph";
@@ -63,13 +63,14 @@ const AGENT_DB_ID = `agent-${AGENT_SLUG}`;
 /**
  * Adopt an existing registration instead of creating one.
  *
- * The reuse check below reads `store.getAgent().erc8004AgentId`, so against a
- * store that does not know the id — a database restored from elsewhere,
- * recreated for local work, or simply a different deployment than the one the
- * registration was made from — this script does not adopt. It registers again,
- * and the organization ends up paying for a second agent id claiming the same
- * ENS name, with the store pointing at the newer one and the subgraph holding
- * both. Exactly the failure `bind-wallet.ts` exists to undo for wallets.
+ * `bindRegistration` reads `store.getAgent().erc8004AgentId` to decide whether
+ * to register, so against a store that does not know the id — a database
+ * restored from elsewhere, recreated for local work, or simply a different
+ * deployment than the one the registration was made from — it does not adopt.
+ * It registers again, and the organization ends up paying for a second agent
+ * id claiming the same ENS name, with the store pointing at the newer one and
+ * the subgraph holding both. Exactly the failure `bind-wallet.ts` exists to
+ * undo for wallets.
  *
  * It cannot be discovered: the registry is keyed by agent id, so there is no
  * name-to-id lookup on chain, and resolving it through the subgraph's text
@@ -81,6 +82,8 @@ const ADOPT_AGENT_ID = process.env["REGISTER_AGENT_ID"];
 
 /** Base Sepolia. The registry address is identical to Sepolia's. */
 const REGISTRATION_CHAIN_ID = 84532;
+
+const ZERO_HASH = `0x${"0".repeat(64)}` as Hex;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -180,10 +183,6 @@ async function main(): Promise<void> {
     );
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // 3.8 — register on Base Sepolia
-  ////////////////////////////////////////////////////////////////////////////
-
   /*
     Name and description from `FLEET`, not from a literal here.
 
@@ -199,33 +198,23 @@ async function main(): Promise<void> {
     throw new Error(
       `${AGENT_SLUG} is not in FLEET. Add it to packages/core/src/fleet.ts first — ` +
         "a registration published from a name this process invented would claim " +
-        "something no other screen agrees with.",
+        "something no other screen agrees with. An agent created in the console " +
+        "is registered by `POST /v1/agents` itself; re-post its label to repair it.",
     );
   }
 
-  const file = buildRegistrationFile({
-    name: `Nymspace ${identity.name}`,
-    description: `${identity.description} Operated by ${deployed.parentLabel}.eth.`,
-    ensName,
-    mcpEndpoint,
-    // Only what is actually true. `supportedTrusts` naming a scheme nobody
-    // implements would be a claim the agent cannot back, which is the same
-    // failure as an endpoint that does not answer.
-    supportedTrusts: [],
-  });
-
-  let agentId = existing.erc8004AgentId;
+  ////////////////////////////////////////////////////////////////////////////
+  // Adopt — an id supplied by hand, believed only once the chain agrees
+  ////////////////////////////////////////////////////////////////////////////
 
   /*
-    An id supplied by hand is checked against the chain before it is believed.
-
     The registration file is the authority on which name a registration claims,
     so adopting is "read it and see". A mismatch throws rather than warning:
     writing the wrong id into the store would point this agent's ENSIP 25 key
     at somebody else's registration, and the verification in 3.13 would then
     fail for a reason that looks nothing like its cause.
   */
-  if (!agentId && ADOPT_AGENT_ID) {
+  if (!existing.erc8004AgentId && ADOPT_AGENT_ID) {
     const adopted = await erc8004.registrationFile(ADOPT_AGENT_ID);
     const adoptedClaim = adopted ? claimedEnsName(adopted) : undefined;
 
@@ -237,154 +226,71 @@ async function main(): Promise<void> {
       );
     }
 
-    agentId = ADOPT_AGENT_ID;
     await store.upsertAgent({
       id: AGENT_DB_ID,
       organizationId: ORGANIZATION_ID,
       slug: AGENT_SLUG,
       ensName,
       controllerAddress: ensClient.controller,
-      erc8004AgentId: agentId,
+      erc8004AgentId: ADOPT_AGENT_ID,
       erc8004Registry: registry,
     });
 
     step({
-      what: "3.8 ERC 8004 registration",
+      what: "adopt ERC 8004 registration",
       ok: true,
-      detail: `adopted agent ${agentId} — its registration claims ${adoptedClaim}`,
-    });
-  } else if (agentId) {
-    step({
-      what: "3.8 ERC 8004 registration",
-      ok: true,
-      detail: `already registered as agent ${agentId}, not re-registering`,
-    });
-  } else {
-    const uri = encodeRegistrationFileUri(file);
-    console.log(`      agentURI is ${uri.length} bytes of calldata\n`);
-
-    const registration = await erc8004.register({ file, as: "organization" });
-    agentId = registration.agentId;
-
-    step({
-      what: "3.8 ERC 8004 registration",
-      ok: true,
-      detail: `agent ${agentId}, tx ${registration.transactionHash}`,
-      txHash: registration.transactionHash,
-    });
-
-    await store.upsertAgent({
-      id: AGENT_DB_ID,
-      organizationId: ORGANIZATION_ID,
-      slug: AGENT_SLUG,
-      ensName,
-      controllerAddress: ensClient.controller,
-      erc8004AgentId: agentId,
-      erc8004Registry: registry,
-    });
-
-    await store.recordEvent({
-      organizationId: ORGANIZATION_ID,
-      agentId: AGENT_DB_ID,
-      source: "erc8004",
-      type: "erc8004.registered",
-      status: "success",
-      occurredAt: new Date().toISOString(),
-      actor: registrationClient.organization,
-      txHash: registration.transactionHash,
-      externalId: `${REGISTRATION_CHAIN_ID}:${agentId}`,
-      summary: `Registered ${ensName} as ERC 8004 agent ${agentId} on Base Sepolia`,
-      evidence: {
-        source: "erc8004",
-        txHash: registration.transactionHash,
-        contractAddress: registry,
-        chainId: REGISTRATION_CHAIN_ID,
-      },
+      detail: `agent ${ADOPT_AGENT_ID} — its registration claims ${adoptedClaim}`,
     });
   }
 
-  await store.setProvisioning(AGENT_DB_ID, { erc8004: "registered" });
-
   ////////////////////////////////////////////////////////////////////////////
-  // 3.9 — the registration claims the ENS name
+  // 3.8, 3.9, 3.11, 3.13 — the steps `POST /v1/agents` runs too
   ////////////////////////////////////////////////////////////////////////////
 
-  const onChainFile = await erc8004.registrationFile(agentId);
-  const claim = onChainFile ? claimedEnsName(onChainFile) : undefined;
+  const result = await bindRegistration(
+    {
+      ens,
+      erc8004,
+      store,
+      organizationId: ORGANIZATION_ID,
+      resolver: deployed.permissionedResolver,
+      organization: ensClient.organization,
+      graph: new Agent0Client(),
+    },
+    {
+      agentId: AGENT_DB_ID,
+      ensName,
+      name: `Nymspace ${identity.name}`,
+      description: `${identity.description} Operated by ${deployed.parentLabel}.eth.`,
+      endpoints: { mcp: mcpEndpoint },
+    },
+  );
 
-  step({
-    what: "3.9 registration claims the ENS name",
-    ok: claim?.toLowerCase() === ensName.toLowerCase(),
-    detail: claim
-      ? `services[ens] = ${claim}`
-      : "the registration file carries no ens service entry",
-  });
+  for (const entry of result.steps) {
+    step({
+      what: entry.what,
+      ok: entry.ok,
+      detail: entry.skipped ? `${entry.detail} (no spend)` : entry.detail,
+      ...(entry.txHash && { txHash: entry.txHash }),
+    });
+  }
+
+  const agentId = result.erc8004AgentId;
+  const key = result.key;
 
   ////////////////////////////////////////////////////////////////////////////
   // 3.10 — the key, asserted against the live values rather than a fixture
   ////////////////////////////////////////////////////////////////////////////
 
-  const key = agentRegistrationKey({
-    chainId: REGISTRATION_CHAIN_ID,
-    registry,
-    agentId,
-  });
-
-  step({
-    what: "3.10 ENSIP 25 key is canonical",
-    ok:
-      key === key.toLowerCase() &&
-      !/\s/.test(key) &&
-      key.includes("014a34") &&
-      key.endsWith(`][${agentId}]`),
-    detail: key,
-  });
-
-  ////////////////////////////////////////////////////////////////////////////
-  // 3.11 — write it, from the organization key
-  ////////////////////////////////////////////////////////////////////////////
-
-  const before = await ens.readText(ensName, key);
-  if (before.length > 0) {
+  if (agentId && key) {
     step({
-      what: "3.11 organization writes the record",
-      ok: true,
-      detail: `already set to ${JSON.stringify(before)}`,
-    });
-  } else {
-    const hash = await ens.writeText({
-      name: ensName,
-      key,
-      // ENSIP 25: clients MUST NOT depend on the value beyond it being
-      // non-empty. "1" is the published convention and carries no meaning.
-      value: "1",
-      as: "organization",
-    });
-    const receipt = await ens.waitForReceipt(hash);
-    const after = await ens.readText(ensName, key);
-
-    step({
-      what: "3.11 organization writes the record",
-      ok: receipt.status === "success" && after === "1" && after !== before,
-      detail: `${hash}, read back ${JSON.stringify(after)} (was ${JSON.stringify(before)})`,
-      txHash: hash,
-    });
-
-    await store.recordEvent({
-      organizationId: ORGANIZATION_ID,
-      agentId: AGENT_DB_ID,
-      source: "ens",
-      type: "ens.record.updated",
-      status: "success",
-      occurredAt: new Date().toISOString(),
-      actor: ensClient.organization,
-      txHash: hash,
-      summary: `Wrote the ENSIP 25 registration record on ${ensName}`,
-      evidence: {
-        source: "ens",
-        txHash: hash,
-        contractAddress: deployed.permissionedResolver,
-      },
+      what: "3.10 ENSIP 25 key is canonical",
+      ok:
+        key === key.toLowerCase() &&
+        !/\s/.test(key) &&
+        key.includes("014a34") &&
+        key.endsWith(`][${agentId}]`),
+      detail: key,
     });
   }
 
@@ -401,167 +307,71 @@ async function main(): Promise<void> {
    * to the pinned ABI. Without them viem reports a bare selector and the
    * assertion degrades to "something went wrong".
    *
-   * The differential control is 3.11 immediately above: the identical write,
-   * to the identical key, on the identical name, succeeded from the other
-   * signer moments ago. The only variable is who signed.
+   * The differential control is verification passing: it read the identical
+   * key on the identical name back non-empty, so the organization's write of it
+   * succeeded. The only variable here is who signs.
    */
-  let denied = false;
-  let revertDetail = "the write succeeded — the boundary does not hold";
+  if (key && result.ensip25 === "verified") {
+    let denied = false;
+    let revertDetail = "the write succeeded — the boundary does not hold";
 
-  try {
-    await ens.writeText({
-      name: ensName,
-      key,
-      value: "controller-should-not-be-able-to-write-this",
-      as: "controller",
-    });
-  } catch (error) {
-    denied = true;
-    revertDetail = fullMessage(error);
-  }
+    try {
+      await ens.writeText({
+        name: ensName,
+        key,
+        value: "controller-should-not-be-able-to-write-this",
+        as: "controller",
+      });
+    } catch (error) {
+      denied = true;
+      revertDetail = fullMessage(error);
+    }
 
-  const namedTheRightError = revertDetail.includes(
-    "EACUnauthorizedAccountRoles",
-  );
-
-  step({
-    what: "3.12 controller is denied the ENSIP 25 key",
-    ok: denied && namedTheRightError,
-    detail: denied
-      ? namedTheRightError
-        ? "reverted with EACUnauthorizedAccountRoles"
-        : `reverted, but not with the resolver's own error: ${messageOf(revertDetail)}`
-      : revertDetail,
-  });
-
-  if (denied) {
-    await store.recordEvent({
-      organizationId: ORGANIZATION_ID,
-      agentId: AGENT_DB_ID,
-      source: "ens",
-      type: "ens.action.denied",
-      status: "denied",
-      occurredAt: new Date().toISOString(),
-      actor: ensClient.controller,
-      summary: `Controller was denied ${key} on ${ensName}`,
-      evidence: {
-        source: "ens",
-        // The denial never reached a block, so the evidence is the write that
-        // proves the same call succeeds for the organization.
-        txHash:
-          steps.find((s) => s.what === "3.11 organization writes the record")
-            ?.txHash ?? (`0x${"0".repeat(64)}` as Hex),
-        contractAddress: deployed.permissionedResolver,
-      },
-      metadata: {
-        deniedTo: ensClient.controller,
-        allowedFor: ensClient.organization,
-        revertReason: namedTheRightError
-          ? "EACUnauthorizedAccountRoles"
-          : "unknown",
-      },
-    });
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Verification, end to end
-  ////////////////////////////////////////////////////////////////////////////
-
-  const verification = await verifyEnsip25({
-    ensName,
-    agentId,
-    registry,
-    chainId: REGISTRATION_CHAIN_ID,
-    erc8004,
-    readText: (name, k) => ens.readText(name, k),
-  });
-
-  step({
-    what: "3.13 runtime verification",
-    ok: verification.status === "verified",
-    detail: `${verification.status}, read at ${verification.readAt}`,
-  });
-
-  await store.setProvisioning(AGENT_DB_ID, {
-    ensip25: verification.status,
-  });
-
-  if (verification.status === "verified") {
-    await store.recordEvent({
-      organizationId: ORGANIZATION_ID,
-      agentId: AGENT_DB_ID,
-      source: "erc8004",
-      type: "ensip25.verified",
-      status: "success",
-      occurredAt: verification.readAt,
-      summary: `${ensName} and agent ${agentId} confirm each other`,
-      evidence: {
-        source: "erc8004",
-        txHash:
-          steps.find((s) => s.what === "3.8 ERC 8004 registration")?.txHash ??
-          (`0x${"0".repeat(64)}` as Hex),
-        contractAddress: registry,
-        chainId: REGISTRATION_CHAIN_ID,
-      },
-    });
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  // 4.6 — is the registration indexed yet?
-  ////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * `docs/17` Risk 3 has no engineering mitigation, so the honest thing is to
-   * ask and record the answer rather than assume either way.
-   *
-   * The fleet card was reading `not_indexed` for an agent the subgraph was
-   * already returning, because nothing ever advanced the track after
-   * registration. A status that only ever moves in one direction is a status
-   * that stops describing the system.
-   */
-  try {
-    const graph = new Agent0Client();
-    const key = `${REGISTRATION_CHAIN_ID}:${agentId}`;
-    const indexed = await graph.agentProfile(key);
-
-    await store.setProvisioning(AGENT_DB_ID, {
-      graph: indexed ? "indexed" : "pending",
-    });
+    const namedTheRightError = revertDetail.includes(
+      "EACUnauthorizedAccountRoles",
+    );
 
     step({
-      what: "4.6 registration is indexed",
-      ok: true,
-      detail: indexed
-        ? `${key} returns ${indexed.claimedEnsName ?? "no ENS claim"} — discoverable`
-        : `${key} not indexed yet; the registration transaction stands as evidence meanwhile`,
+      what: "3.12 controller is denied the ENSIP 25 key",
+      ok: denied && namedTheRightError,
+      detail: denied
+        ? namedTheRightError
+          ? "reverted with EACUnauthorizedAccountRoles"
+          : `reverted, but not with the resolver's own error: ${messageOf(revertDetail)}`
+        : revertDetail,
     });
 
-    if (indexed) {
+    if (denied) {
       await store.recordEvent({
         organizationId: ORGANIZATION_ID,
         agentId: AGENT_DB_ID,
-        source: "graph",
-        type: "graph.indexed",
-        status: "success",
-        occurredAt: indexed.provenance.queriedAt,
-        summary: `${key} is indexed and claims ${indexed.claimedEnsName ?? "no name"}`,
+        source: "ens",
+        type: "ens.action.denied",
+        status: "denied",
+        occurredAt: new Date().toISOString(),
+        actor: ensClient.controller,
+        summary: `Controller was denied ${key} on ${ensName}`,
         evidence: {
-          source: "graph",
-          chainId: indexed.provenance.chainId,
-          subgraphId: indexed.provenance.subgraphId,
-          queriedAt: indexed.provenance.queriedAt,
-          graphEntityId: key,
+          source: "ens",
+          // The denial never reached a block, so the evidence is the write that
+          // proves the same call succeeds for the organization.
+          txHash: result.bindingTxHash ?? ZERO_HASH,
+          contractAddress: deployed.permissionedResolver,
+        },
+        metadata: {
+          deniedTo: ensClient.controller,
+          allowedFor: ensClient.organization,
+          revertReason: namedTheRightError
+            ? "EACUnauthorizedAccountRoles"
+            : "unknown",
         },
       });
     }
-  } catch (error) {
-    // A provider outage is not "not indexed" — it is not knowing, and the
-    // track says so rather than reporting an absence it did not establish.
-    await store.setProvisioning(AGENT_DB_ID, { graph: "provider_error" });
+  } else if (key) {
     step({
-      what: "4.6 registration is indexed",
+      what: "3.12 controller is denied the ENSIP 25 key",
       ok: false,
-      detail: `could not ask the subgraph: ${messageOf(error)}`,
+      detail: `not attempted: verification is ${result.ensip25}, so a revert would prove nothing`,
     });
   }
 

@@ -104,6 +104,31 @@ describe("the token policy", () => {
   });
 });
 
+describe("rule names", () => {
+  /**
+   * Privy refuses 50 characters or more, and a limit change keeps the name —
+   * so a name has to fit at any amount, and must not state one.
+   */
+  it("fit Privy's limit and state no amount, at any size", async () => {
+    const { fetchImpl, calls } = stub({ id: "pol", name: "cap" });
+    const client = new PrivyClient({ credentials: CREDENTIALS, fetchImpl });
+
+    await client.createAmountPolicy({ name: "cap", maxValueWei: 10n ** 22n });
+    await client.createTokenPolicy({
+      name: "cap",
+      token: BASE_SEPOLIA_USDC,
+      maxAmount: 10n ** 20n,
+    });
+
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      const [rule] = (call.body as { rules: { name: string }[] }).rules;
+      expect(rule!.name.length).toBeLessThan(50);
+      expect(rule!.name).not.toMatch(/\d/);
+    }
+  });
+});
+
 describe("reading the limit back", () => {
   it("denominates a token limit in the token's own units", async () => {
     const { fetchImpl } = stub(tokenPolicyBody("0x989680"));
