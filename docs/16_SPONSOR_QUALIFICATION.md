@@ -124,22 +124,30 @@ available, not which one they are looking at.
 
 ### Provisioning state
 
-The mapping above describes code that exists and is tested. It is not yet a
-claim about a live Privy account, and the difference matters more than the
-table does.
+The mapping above describes code that exists and is tested. Gate C proves the
+policy half of it against a live Privy account; the per signer split has not
+been proven live yet, and the table says which is which.
 
-| Fact | Status |
+Gate C ran on 2026 09 09 and passed 10 of 10 assertions
+(`packages/privy/evidence/gate-c.json`). Every value below is copied from that
+file. Both hashes were rechecked on Base Sepolia on 2026 09 14: each is a
+successful transfer from the wallet to the organization.
+
+| Fact | Value |
 | --- | --- |
-| Privy client, policy reads, payment and escalation paths | Written, unit tested |
-| Treasury screen reading live policy limits | Written; reads `no_wallet` for every agent today |
-| A provisioned wallet with a seeded policy | **Not yet run** — `pnpm provision:wallet` needs the four `PRIVY_*` credentials |
-| Gate C evidence file | **Not yet produced** — `packages/privy/evidence/gate-c.json` |
-| Executed and refused transaction hashes | **Not yet obtained** |
+| Wallet | `0x310207D93403aE037ee2DF7812d69d58D112C1ca`, Privy id `r9zlhocwx0167ahb12so428a`, bound to `agent-research` on Base Sepolia (`eip155:84532`) |
+| Policy | `p8ep2ucnuqvkpylmsu31koh0`, "nymspace research max transfer": native transfers capped at 0.001 ETH (`1000000000000000` wei) |
+| Payment inside the limit | 0.0001 ETH to the organization `0xB5e8e4b8543f2B1093bDCA55A3F7Fd16f56F55C9`, executed: `0x8fb1d4f69a5ab5a01b63a402a25079ca99e66c37d6649a8acaaf28a2916f50e6` |
+| Payment over the limit | 0.01 ETH, same wallet and recipient: `denied`, "RPC request denied due to policy violation". No hash, because nothing was broadcast |
+| Raise, then restore | Limit raised to 0.011 ETH: the identical request executed, `0x5eb3923cd3d2e04e531dc64a03c0e32a2c578ff4e80478dfa8accaf17dba61a8`. Limit restored to 0.001 ETH: denied again |
+| Tampered client limit | A client side preview said within limit; Privy still returned denied |
+| Policy change from the agent's path | Unauthenticated policy mutation returned HTTP 400; the limit stayed at 0.001 ETH |
+| Treasury screen | Reads the live policy limit for any agent with a mapped wallet; an agent without one shows `no_wallet` |
+| Per signer split | `pnpm provision:signers` exists, but no evidence file records its signer or key quorum ids. Not claimed live |
 
-Fill the second table in with the wallet address, the policy id and its limit,
-the two signer ids and both transaction hashes once the scripts have run. Until
-then it says so, because a submission that overstates this is worse than one
-that is short.
+When `provision:signers` runs against the live account, add its signer ids and
+key quorum id to this table. Until then the last row stays as it is, because a
+submission that overstates this is worse than one that is short.
 
 ## Build category warning
 
