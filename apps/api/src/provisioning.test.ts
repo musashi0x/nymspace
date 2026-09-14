@@ -9,6 +9,7 @@ import {
 } from "@nymspace/ens";
 import {
   LabelUnavailableError,
+  isSettled,
   isValidLabel,
   provisionAgent,
   type ProvisionContext,
@@ -397,6 +398,31 @@ describe("provisionAgent with a registry", () => {
     expect(result.ens).toBe("failed");
     expect(result.registration).toBeUndefined();
     expect(registrations).toHaveLength(0);
+  });
+
+  it.each([
+    ["a full run", {}],
+    ["a run whose registration reverts", { registerFails: true }],
+  ] as const)("never looks finished to a poll before its last write: %s", async (_name, options) => {
+    const { context, trackWrites } = withRegistry(fresh(), {
+      ...options,
+      graph: "indexed",
+    });
+
+    await provisionAgent(context, target);
+
+    /*
+      Every track write the run made, replayed in order — which is what
+      successive polls of `GET /:id/provisioning` see. The create screen stops
+      at the first settled state, so one before the last write is a screen that
+      stopped with steps still to come. Found that way: registration done and
+      verification untouched read as finished, twenty seconds early.
+    */
+    const tracks = { ens: "draft", erc8004: "unregistered", ensip25: "unchecked" };
+    const settled = trackWrites.map((patch) => isSettled(Object.assign(tracks, patch)));
+
+    expect(settled.slice(0, -1)).not.toContain(true);
+    expect(settled.at(-1)).toBe(true);
   });
 
   it("asks Agent0 after verifying, and logs the index once", async () => {

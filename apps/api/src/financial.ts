@@ -24,8 +24,18 @@ import type { ProvisionStep } from "./provisioning";
  * amount, so a re-run spends only what the wallet is short.
  */
 
-/** Ten of whatever the deployment pays in — the seed the script has always used. */
-export const SEED_LIMIT_UNITS = "10";
+/**
+ * The per-transaction limit a new policy starts at.
+ *
+ * 10 USDC when the deployment pays in a token, `docs/08`'s figure. 0.001 ETH
+ * on the native fallback, which is what the research agent's native policy has
+ * carried since Gate C first passed. It was "ten of whatever", and ten native
+ * ETH is a 10 ETH cap on a wallet funded with 0.01: a limit that constrains
+ * nothing, and whose twenty-digit rule name Privy refused.
+ */
+export function seedLimitFor(token: TokenSpec | null): bigint {
+  return toBaseUnits(token ? "10" : "0.001", token);
+}
 
 /** 0.01 ETH, the balance a top-up fills to. An ERC 20 transfer still costs gas. */
 export const GAS_TARGET_WEI = 10n ** 16n;
@@ -149,7 +159,7 @@ export async function provisionWallet(
       });
     } else {
       const name = `nymspace ${agent.slug} max transfer`;
-      const seed = toBaseUnits(SEED_LIMIT_UNITS, token);
+      const seed = seedLimitFor(token);
       limit = token
         ? await privy.createTokenPolicy({ name, token, maxAmount: seed })
         : await privy.createAmountPolicy({ name, maxValueWei: seed });

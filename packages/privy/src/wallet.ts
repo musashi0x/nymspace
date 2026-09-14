@@ -226,6 +226,23 @@ export interface PrivyClientOptions {
   tokens?: TokenSpec[];
 }
 
+/** Privy answers a rule name of 50 characters or more with `invalid_policy_format`. */
+const MAX_RULE_NAME = 49;
+
+/**
+ * A rule name that fits, and says what the rule does rather than how much.
+ *
+ * The amount used to be in it — "Restrict native transfers to <wei> wei" — and
+ * that broke two ways. A 10 ETH seed is twenty digits of wei, which pushed the
+ * name past Privy's limit and failed the create outright. And
+ * `updatePolicyLimit` moves the amount while keeping the name, so the first
+ * limit change left a rule stating a number it no longer enforces. The amount
+ * lives in the condition, which is where `readLimit` reads it.
+ */
+function ruleName(name: string): string {
+  return name.length > MAX_RULE_NAME ? name.slice(0, MAX_RULE_NAME) : name;
+}
+
 export class PrivyClient implements PrivyWalletPort {
   private readonly credentials: PrivyCredentials;
   private readonly fetchImpl: typeof fetch;
@@ -436,7 +453,7 @@ export class PrivyClient implements PrivyWalletPort {
     token: TokenSpec;
     maxAmount: bigint;
   }): Promise<PolicyLimit> {
-    const ruleName = `Transfer at most ${params.maxAmount} ${params.token.symbol} base units`;
+    const rule = ruleName(`${params.token.symbol} transfers to one contract, capped`);
 
     const body = await this.request<PolicyBody>("/policies", {
       method: "POST",
@@ -446,7 +463,7 @@ export class PrivyClient implements PrivyWalletPort {
         chain_type: "ethereum",
         rules: [
           {
-            name: ruleName,
+            name: rule,
             method: "eth_sendTransaction",
             conditions: [
               {
@@ -474,7 +491,7 @@ export class PrivyClient implements PrivyWalletPort {
       name: body.name,
       maxAmount: params.maxAmount.toString(10),
       token: params.token,
-      ruleName,
+      ruleName: rule,
     };
   }
 
@@ -488,7 +505,7 @@ export class PrivyClient implements PrivyWalletPort {
     name: string;
     maxValueWei: bigint;
   }): Promise<PolicyLimit> {
-    const ruleName = `Restrict native transfers to ${params.maxValueWei} wei`;
+    const rule = ruleName("Native transfers, capped per transaction");
 
     const body = await this.request<PolicyBody>("/policies", {
       method: "POST",
@@ -498,7 +515,7 @@ export class PrivyClient implements PrivyWalletPort {
         chain_type: "ethereum",
         rules: [
           {
-            name: ruleName,
+            name: rule,
             method: "eth_sendTransaction",
             conditions: [
               {
@@ -519,7 +536,7 @@ export class PrivyClient implements PrivyWalletPort {
       name: body.name,
       maxAmount: params.maxValueWei.toString(10),
       token: null,
-      ruleName,
+      ruleName: rule,
     };
   }
 

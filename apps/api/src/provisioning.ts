@@ -931,7 +931,19 @@ export async function bindRegistration(
     return { steps, erc8004: "failed", ensip25: ensip25Before, erc8004AgentId };
   }
 
-  await store.setProvisioning(agentId, { erc8004: "registered" });
+  /*
+    Verification opens in the same write that closes registration.
+
+    Written apart, the two left a poll reading registration done and
+    verification untouched — which {@link isSettled} calls finished. The
+    create screen stopped there, with the ENSIP 25 write still twenty seconds
+    from landing, and showed its last two rows as "no transaction" for work
+    the server went on to do.
+  */
+  await store.setProvisioning(agentId, {
+    erc8004: "registered",
+    ensip25: "checking",
+  });
 
   //////////////////////////////////////////////////////////////////////////
   // The ENSIP 25 record — organization-signed, like every record here
@@ -1015,8 +1027,6 @@ export async function bindRegistration(
   // Verify, from the registry's side — never assumed from the writes above
   //////////////////////////////////////////////////////////////////////////
 
-  await store.setProvisioning(agentId, { ensip25: "checking" });
-
   const verification = await verifyEnsip25({
     ensName,
     agentId: erc8004AgentId,
@@ -1034,8 +1044,6 @@ export async function bindRegistration(
     detail: `${verification.status}, read at ${verification.readAt}${verification.error ? ` — ${verification.error}` : ""}`,
     readBack: verification.status,
   });
-
-  await store.setProvisioning(agentId, { ensip25: verification.status });
 
   await store.recordEvent({
     organizationId: ctx.organizationId,
@@ -1066,6 +1074,10 @@ export async function bindRegistration(
     step(indexing.step);
   }
 
+  // Last, so verification reads `checking` until the run has nothing left to
+  // do — the indexing question included — and the screen keeps polling.
+  await store.setProvisioning(agentId, { ensip25: verification.status });
+
   return {
     steps,
     erc8004: "registered",
@@ -1074,6 +1086,34 @@ export async function bindRegistration(
     key,
     ...(bindingTxHash && { bindingTxHash }),
   };
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// When a run is over
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Whether a provisioning run has stopped moving — what
+ * `GET /:id/provisioning` answers `complete` from, and so where the create
+ * screen stops polling.
+ *
+ * Identity settled, and neither track the run goes on to still in flight.
+ * That only holds if every hand-off between tracks happens inside one write:
+ * `provisionAgent` makes identity active and registration pending together,
+ * and `bindRegistration` makes registration done and verification checking
+ * together. A hand-off split across two writes is a poll that sees a finished
+ * run in the gap.
+ */
+export function isSettled(tracks: {
+  ens: string;
+  erc8004: string;
+  ensip25: string;
+}): boolean {
+  return (
+    (tracks.ens === "active" || tracks.ens === "failed") &&
+    tracks.erc8004 !== "pending" &&
+    tracks.ensip25 !== "checking"
+  );
 }
 
 //////////////////////////////////////////////////////////////////////////////

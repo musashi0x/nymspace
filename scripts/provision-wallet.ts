@@ -22,12 +22,12 @@
  */
 
 import {
-  SEED_LIMIT_UNITS,
   funderFrom,
   provisionWallet,
+  seedLimitFor,
 } from "@nymspace/api/financial";
 import { requireServerEnv } from "@nymspace/core/env";
-import { formatAmount, toBaseUnits, type Address, type Hex } from "@nymspace/core";
+import { formatAmount, type Address, type Hex } from "@nymspace/core";
 import { chainConfig, createViemChainClient } from "@nymspace/ens";
 import { PrivyClient, agentSignerKey, demoToken } from "@nymspace/privy";
 import { Store, closeDatabase, database, migrate } from "@nymspace/store";
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
   const token = demoToken();
   const denied = BigInt(keys.DEMO_DENIED_PAYMENT_AMOUNT);
   const allowed = BigInt(keys.DEMO_ALLOWED_PAYMENT_AMOUNT);
-  const seedLimit = toBaseUnits(SEED_LIMIT_UNITS, token);
+  const seedLimit = seedLimitFor(token);
 
   /**
    * What one Gate C run consumes and must still have left over: the denied

@@ -8,18 +8,17 @@
  * check reads `store.getFinancialAuthority` — so it mints a second wallet and a
  * second policy beside a funded one, and `PRIVY_POLICY_ID` then names neither.
  *
- * ## The limit, and why the seed constant could not supply it
+ * ## The limit, and why it is not the seed
  *
- * `provision-wallet.ts` seeds `SEED_LIMIT_UNITS = "10"`, which `toBaseUnits`
- * turns into 10 USDC against a token and **10 ETH** against native — and its
- * own guard then refuses to run, because the demo amounts must bracket the
- * limit as `allowed <= limit < denied` and 10 ETH is not below a denied amount
- * of 0.01. The constant is right for the token arrangement `.env.example`
- * documents and wrong for the native-ETH one this deployment is configured for.
+ * `provision-wallet.ts` once seeded "ten of whatever the deployment pays in",
+ * which is 10 USDC against a token and **10 ETH** against native — a limit its
+ * own bracket guard refused, and a rule name Privy refused as too long. The
+ * seed is now `seedLimitFor` in `apps/api/src/financial.ts`: 10 USDC, or
+ * 0.001 ETH on native. That brackets the demo amounts this deployment ships
+ * with, and nothing guarantees it brackets whatever pair an operator sets.
  *
- * So the limit is derived from the two demo amounts rather than from a
- * constant: the geometric midpoint, which brackets by construction for any pair
- * an operator sets. A policy that does not sit between them proves nothing —
+ * So the limit here is derived from the two demo amounts rather than from the
+ * seed: the geometric midpoint, which brackets by construction for any pair. A policy that does not sit between them proves nothing —
  * it either allows both amounts or denies both, and Gate C's whole argument is
  * that the *same* request changes outcome when only the limit moves.
  */

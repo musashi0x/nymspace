@@ -125,11 +125,13 @@ function fakes(
 
 describe("provisionWallet", () => {
   it("creates the policy before the wallet, attaches it, and funds gas to the target", async () => {
-    const { context, order, sent, ref } = fakes();
+    const { context, order, sent, ref, policies } = fakes();
 
     const result = await provisionWallet(context, "agent-demo1");
 
     expect(order).toEqual(["policy", "wallet"]);
+    // 0.001 ETH on the native path, not ten of it.
+    expect(policies.get("pol-1")?.maxAmount).toBe(10n ** 15n);
     expect(result.financial).toBe("policy_configured");
     expect(result.address).toBe(WALLET_ADDRESS);
     expect(ref.current).toMatchObject({ privyWalletId: "wallet-1", policyId: "pol-1" });

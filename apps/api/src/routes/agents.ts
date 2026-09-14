@@ -22,6 +22,7 @@ import {
   agentIdFor,
   assertLabelAvailable,
   checkIndexing,
+  isSettled,
   LabelUnavailableError,
   PROVISIONING_PHASE,
   provisionAgent,
@@ -1266,20 +1267,4 @@ function provisionContext(deps: Deps): ProvisionContext {
     // And asked about, so its discovery track moves off `not_indexed`.
     graph: deps.graph,
   };
-}
-
-/**
- * Whether a provisioning run has stopped moving.
- *
- * Identity settled, and neither track the run goes on to still in flight.
- * Registration only starts on an active identity, and `provisionAgent` marks
- * it pending in the same write that makes identity active — so there is no
- * poll that sees identity done and registration not yet begun.
- */
-function isSettled(tracks: { ens: string; erc8004: string; ensip25: string }): boolean {
-  return (
-    (tracks.ens === "active" || tracks.ens === "failed") &&
-    tracks.erc8004 !== "pending" &&
-    tracks.ensip25 !== "checking"
-  );
 }
