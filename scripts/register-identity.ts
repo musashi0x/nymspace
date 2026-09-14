@@ -11,15 +11,14 @@
  * nothing else does: chain reference `0x014a34` rather than `0xaa36a7`.
  *
  * The registration itself — 3.8 register, 3.9 read the claim back, 3.11 write
- * the ENSIP 25 record, 3.13 verify — is `bindRegistration`, the same function
- * `POST /v1/agents` runs once it has provisioned a name. Two copies of those
- * steps would diverge on the first fix. What stays here is what only a script
- * holding both keys does:
+ * the ENSIP 25 record, 3.13 verify, 4.6 ask the subgraph whether it is indexed
+ * yet — is `bindRegistration`, the same function `POST /v1/agents` runs once it
+ * has provisioned a name. Two copies of those steps would diverge on the first
+ * fix. What stays here is what only a script holding both keys does:
  *
  *   adopt an existing registration by id, instead of paying for a second one
  *   3.10 assert the key is canonical, against live values
  *   3.12 attempt the ENSIP 25 write from the controller, and require a revert
- *   4.6  ask the subgraph whether the registration is indexed yet
  *
  * 3.12 runs only once verification has passed. A write that reverts before
  * anyone has shown the same write can succeed is a write that might be failing
@@ -256,6 +255,7 @@ async function main(): Promise<void> {
       organizationId: ORGANIZATION_ID,
       resolver: deployed.permissionedResolver,
       organization: ensClient.organization,
+      graph: new Agent0Client(),
     },
     {
       agentId: AGENT_DB_ID,
@@ -373,67 +373,6 @@ async function main(): Promise<void> {
       ok: false,
       detail: `not attempted: verification is ${result.ensip25}, so a revert would prove nothing`,
     });
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  // 4.6 — is the registration indexed yet?
-  ////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * `docs/17` Risk 3 has no engineering mitigation, so the honest thing is to
-   * ask and record the answer rather than assume either way.
-   *
-   * The fleet card was reading `not_indexed` for an agent the subgraph was
-   * already returning, because nothing ever advanced the track after
-   * registration. A status that only ever moves in one direction is a status
-   * that stops describing the system.
-   */
-  if (agentId) {
-    try {
-      const graph = new Agent0Client();
-      const graphKey = `${REGISTRATION_CHAIN_ID}:${agentId}`;
-      const indexed = await graph.agentProfile(graphKey);
-
-      await store.setProvisioning(AGENT_DB_ID, {
-        graph: indexed ? "indexed" : "pending",
-      });
-
-      step({
-        what: "4.6 registration is indexed",
-        ok: true,
-        detail: indexed
-          ? `${graphKey} returns ${indexed.claimedEnsName ?? "no ENS claim"} — discoverable`
-          : `${graphKey} not indexed yet; the registration transaction stands as evidence meanwhile`,
-      });
-
-      if (indexed) {
-        await store.recordEvent({
-          organizationId: ORGANIZATION_ID,
-          agentId: AGENT_DB_ID,
-          source: "graph",
-          type: "graph.indexed",
-          status: "success",
-          occurredAt: indexed.provenance.queriedAt,
-          summary: `${graphKey} is indexed and claims ${indexed.claimedEnsName ?? "no name"}`,
-          evidence: {
-            source: "graph",
-            chainId: indexed.provenance.chainId,
-            subgraphId: indexed.provenance.subgraphId,
-            queriedAt: indexed.provenance.queriedAt,
-            graphEntityId: graphKey,
-          },
-        });
-      }
-    } catch (error) {
-      // A provider outage is not "not indexed" — it is not knowing, and the
-      // track says so rather than reporting an absence it did not establish.
-      await store.setProvisioning(AGENT_DB_ID, { graph: "provider_error" });
-      step({
-        what: "4.6 registration is indexed",
-        ok: false,
-        detail: `could not ask the subgraph: ${messageOf(error)}`,
-      });
-    }
   }
 
   ////////////////////////////////////////////////////////////////////////////

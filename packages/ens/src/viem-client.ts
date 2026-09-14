@@ -86,6 +86,12 @@ export interface ViemChainClient extends ChainClient {
   addressOf(signer: Signer): Address;
   getCode(address: Address): Promise<Hex | undefined>;
   getBalance(address: Address): Promise<bigint>;
+  /**
+   * Native value from one of the two signers. Every other write in this
+   * product is a contract call; this is the gas top-up in
+   * `apps/api/src/financial.ts`, and nothing else.
+   */
+  sendValue(request: { to: Address; value: bigint; as?: Signer }): Promise<Hex>;
   readonly publicClient: PublicClient;
 }
 
@@ -234,6 +240,17 @@ export function createViemChainClient(
 
     async getBalance(address) {
       return publicClient.getBalance({ address });
+    },
+
+    async sendValue(request) {
+      const signer: Signer = request.as ?? "organization";
+      if (!accounts || !wallets) throw new NoSignerError(signer);
+      return wallets[signer].sendTransaction({
+        account: accounts[signer],
+        chain,
+        to: request.to,
+        value: request.value,
+      });
     },
   };
 }

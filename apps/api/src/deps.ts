@@ -120,6 +120,13 @@ export interface Deps {
    */
   readonly chatRouter: ChatRouter | undefined;
   chain: ViemChainClient;
+  /**
+   * Base Sepolia, with the same two signers. The ERC 8004 service already
+   * holds it; exposed for the one other thing that happens on that chain —
+   * topping up an agent wallet's gas, which is a transfer and not a contract
+   * call.
+   */
+  registrationChain: ViemChainClient;
   config: ChainConfig;
   organization: Address;
   controller: Address;
@@ -299,6 +306,7 @@ export async function buildDeps(): Promise<Deps> {
       return paymentToken;
     },
     chain,
+    registrationChain: registrationClient,
     config,
     organization: chain.organization,
     controller: chain.controller,

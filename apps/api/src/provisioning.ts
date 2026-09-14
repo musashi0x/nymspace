@@ -15,9 +15,11 @@ import {
   verifyEnsip25,
   type Erc8004Service,
 } from "@nymspace/ens";
+import type { Agent0Client } from "@nymspace/graph";
 import type {
   EnsProvisioning,
   Erc8004Provisioning,
+  GraphProvisioning,
   ProvisioningStatus,
   Store,
 } from "@nymspace/store";
@@ -112,6 +114,11 @@ export interface ProvisionContext {
    * `pnpm register:identity`, which also runs the proofs this module does not.
    */
   erc8004?: Erc8004Service;
+  /**
+   * Agent0, asked whether the registration is indexed yet. Absent, the
+   * discovery track is left alone — still the truth, since nobody asked.
+   */
+  graph?: Pick<Agent0Client, "agentProfile">;
 }
 
 /**
@@ -693,7 +700,7 @@ export async function provisionAgent(
  */
 export type RegistrationContext = Pick<
   ProvisionContext,
-  "ens" | "store" | "organizationId" | "resolver" | "organization"
+  "ens" | "store" | "organizationId" | "resolver" | "organization" | "graph"
 > & { erc8004: Erc8004Service };
 
 export interface RegistrationTarget {
@@ -1047,6 +1054,18 @@ export async function bindRegistration(
     metadata: { phase: PROVISIONING_PHASE, readBack: verification.status },
   });
 
+  //////////////////////////////////////////////////////////////////////////
+  // Discovery — asked, never assumed
+  //////////////////////////////////////////////////////////////////////////
+
+  if (ctx.graph) {
+    const indexing = await checkIndexing(
+      { store, graph: ctx.graph, organizationId: ctx.organizationId },
+      { agentId, erc8004AgentId, chainId: erc8004.chainId },
+    );
+    step(indexing.step);
+  }
+
   return {
     steps,
     erc8004: "registered",
@@ -1054,5 +1073,92 @@ export async function bindRegistration(
     erc8004AgentId,
     key,
     ...(bindingTxHash && { bindingTxHash }),
+  };
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Discovery — is the registration indexed yet?
+//////////////////////////////////////////////////////////////////////////////
+
+export interface IndexingContext {
+  store: Store;
+  graph: Pick<Agent0Client, "agentProfile">;
+  organizationId: string;
+}
+
+/**
+ * Ask Agent0 whether a registration is indexed, and move the discovery track
+ * to the answer.
+ *
+ * Step 4.6 of `scripts/register-identity.ts`, shared for the reason
+ * {@link bindRegistration} is. The track used to move only there, so every
+ * agent created in the console read `not indexed` while the subgraph was
+ * already returning it — a status that moves in one place stops describing the
+ * system everywhere else.
+ *
+ * `pending` is an answer rather than a failure: indexing lags a registration
+ * by minutes, and `POST /:id/refresh` asks again. A provider outage is
+ * `provider_error`, never `not_indexed`, because not knowing is not an absence.
+ */
+export async function checkIndexing(
+  ctx: IndexingContext,
+  target: { agentId: string; erc8004AgentId: string; chainId: number },
+): Promise<{ step: ProvisionStep; graph: GraphProvisioning }> {
+  const { store } = ctx;
+  const key = `${target.chainId}:${target.erc8004AgentId}`;
+  const what = `index ${key} on Agent0`;
+  const before = (await store.getAgent(target.agentId))?.provisioning.graph;
+
+  let indexed: Awaited<ReturnType<IndexingContext["graph"]["agentProfile"]>>;
+  try {
+    indexed = await ctx.graph.agentProfile(key);
+  } catch (error) {
+    await store.setProvisioning(target.agentId, { graph: "provider_error" });
+    return {
+      step: {
+        what,
+        ok: false,
+        skipped: false,
+        detail: `could not ask the subgraph: ${messageOf(error)}`,
+      },
+      graph: "provider_error",
+    };
+  }
+
+  const graph: GraphProvisioning = indexed ? "indexed" : "pending";
+  await store.setProvisioning(target.agentId, { graph });
+
+  // On the transition only. A refresh that finds it indexed again learned
+  // nothing new, and a row per click would bury the one that mattered.
+  if (indexed && before !== "indexed") {
+    await store.recordEvent({
+      organizationId: ctx.organizationId,
+      agentId: target.agentId,
+      source: "graph",
+      type: "graph.indexed",
+      status: "success",
+      occurredAt: indexed.provenance.queriedAt,
+      summary: `${key} is indexed and claims ${indexed.claimedEnsName ?? "no name"}`,
+      evidence: {
+        source: "graph",
+        chainId: indexed.provenance.chainId,
+        subgraphId: indexed.provenance.subgraphId,
+        queriedAt: indexed.provenance.queriedAt,
+        graphEntityId: key,
+      },
+    });
+  }
+
+  return {
+    step: {
+      what,
+      ok: true,
+      skipped: false,
+      detail: indexed
+        ? `returns ${indexed.claimedEnsName ?? "no ENS claim"}, discoverable`
+        : "not indexed yet; indexing lags the registration",
+      readBack: graph,
+    },
+    graph,
   };
 }

@@ -240,6 +240,27 @@ export async function verifyIdentity(id: string) {
   return res.json();
 }
 
+/**
+ * Verification and discovery, read again and written back to the tracks.
+ * Both move without anyone writing — indexing lands minutes after a
+ * registration — and nothing else asks a second time.
+ */
+export async function refreshAgent(id: string) {
+  const res = await api.v1.agents[":id"].refresh.$post({ param: { id } });
+  if (!res.ok) throw await requestFailed(res, "re-check");
+  return res.json();
+}
+
+/**
+ * A policy, a wallet under it, and gas topped up from the organization. The
+ * one console action that hands an agent money.
+ */
+export async function provisionAgentWallet(id: string) {
+  const res = await api.v1.agents[":id"].wallet.$post({ param: { id } });
+  if (!res.ok) throw await requestFailed(res, "wallet provisioning");
+  return res.json();
+}
+
 export async function fetchWallet(id: string) {
   const res = await api.v1.agents[":id"].wallet.$get({ param: { id } });
   if (!res.ok) throw await requestFailed(res);

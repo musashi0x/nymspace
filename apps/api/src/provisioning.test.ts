@@ -208,7 +208,11 @@ const ENS_NAME = "research.nymspace.eth";
 
 function withRegistry(
   chain: FakeChain,
-  options: { registerFails?: boolean } = {},
+  options: {
+    registerFails?: boolean;
+    /** What Agent0 answers. Absent: no graph in the context at all. */
+    graph?: "indexed" | "pending" | "error";
+  } = {},
 ) {
   const { context: base, calls } = fakes(chain);
   const registrations: RegistrationFile[] = [];
@@ -271,7 +275,29 @@ function withRegistry(
     },
   };
 
-  const context = { ...base, store, erc8004 } as unknown as ProvisionContext;
+  const graph = {
+    agentProfile: async (key: string) => {
+      if (options.graph === "error") throw new Error("subgraph unavailable");
+      if (options.graph !== "indexed") return undefined;
+      return {
+        graphAgentKey: key,
+        claimedEnsName: ENS_NAME,
+        provenance: {
+          provider: "agent0",
+          chainId: REGISTRATION_CHAIN,
+          subgraphId: "subgraph",
+          queriedAt: "2026-09-14T00:00:00.000Z",
+        },
+      };
+    },
+  };
+
+  const context = {
+    ...base,
+    store,
+    erc8004,
+    ...(options.graph && { graph }),
+  } as unknown as ProvisionContext;
   return { context, calls, registrations, events, trackWrites, row };
 }
 
@@ -371,5 +397,35 @@ describe("provisionAgent with a registry", () => {
     expect(result.ens).toBe("failed");
     expect(result.registration).toBeUndefined();
     expect(registrations).toHaveLength(0);
+  });
+
+  it("asks Agent0 after verifying, and logs the index once", async () => {
+    const { context, events, row } = withRegistry(fresh(), { graph: "indexed" });
+
+    await provisionAgent(context, target);
+    await provisionAgent(context, target);
+
+    expect(row.provisioning.graph).toBe("indexed");
+    // The second run found it indexed again and learned nothing new.
+    expect(events.filter((e) => e.startsWith("graph.indexed"))).toHaveLength(1);
+  });
+
+  it("reads pending while indexing lags, and does not call that a failure", async () => {
+    const { context, row } = withRegistry(fresh(), { graph: "pending" });
+
+    const result = await provisionAgent(context, target);
+
+    expect(row.provisioning.graph).toBe("pending");
+    expect(result.steps.at(-1)).toMatchObject({ ok: true, readBack: "pending" });
+  });
+
+  it("reports a subgraph outage as provider_error, never not_indexed", async () => {
+    const { context, row } = withRegistry(fresh(), { graph: "error" });
+
+    const result = await provisionAgent(context, target);
+
+    expect(row.provisioning.graph).toBe("provider_error");
+    // Identity and the binding stand; only the question went unanswered.
+    expect(result.registration?.ensip25).toBe("verified");
   });
 });

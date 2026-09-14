@@ -87,6 +87,25 @@ Response:
 }
 ```
 
+One run covers identity, then the ERC 8004 registration, the ENSIP 25 record,
+verification, and an Agent0 indexing check. `GET /v1/agents/:id/provisioning`
+reports `complete` only once registration and verification have settled.
+
+## POST `/v1/agents/:id/refresh`
+
+Re-reads ENSIP 25 verification and Agent0 indexing for a registered agent and
+writes both tracks back. No transaction. Answers with the tracks and one step
+per read; an agent with no registration answers with a `reason` and no steps.
+
+## POST `/v1/agents/:id/wallet`
+
+Creates a Privy policy, a wallet governed by it, and tops up the wallet's gas
+to 0.01 ETH on Base Sepolia from the organization. Idempotent: an agent with a
+policy and a wallet reuses both. Never called by creation; an operator asks for
+it. Answers with the `financial` track, the wallet address, and the steps.
+
+Both routes sit behind the write token (`apps/api/src/write-gate.ts`).
+
 If wallet signing occurs client side, the backend may instead return transaction call data.
 
 ## GET `/api/agents/:id/identity`

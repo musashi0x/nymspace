@@ -1231,6 +1231,157 @@ describe("creating an agent", () => {
   });
 });
 
+describe("operator actions on one agent", () => {
+  const post = (app: ReturnType<typeof createApp>, path: string) =>
+    app.fetch(
+      new Request(`http://api.test${path}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${WRITE_TOKEN}` },
+      }),
+    );
+
+  const tracks = () => ({
+    ens: "active",
+    erc8004: "registered",
+    ensip25: "unchecked",
+    graph: "not_indexed",
+    financial: "no_wallet",
+  });
+
+  it("re-reads verification and discovery, and writes both back", async () => {
+    const provisioning = tracks();
+    const agentRow = {
+      id: "agent-demo1",
+      organizationId: "nymspace",
+      ensName: "demo1.nymspace.eth",
+      erc8004AgentId: "9236",
+      erc8004Registry: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      provisioning,
+    };
+
+    const app = createApp(config, {
+      store: {
+        getAgent: async () => agentRow,
+        setProvisioning: async (_id: string, patch: Record<string, string>) => {
+          Object.assign(provisioning, patch);
+          return provisioning;
+        },
+        recordEvent: async () => undefined,
+      },
+      ens: { readText: async () => "1" },
+      erc8004: {
+        claimsEnsName: async () => ({ claims: true, claimed: "demo1.nymspace.eth" }),
+      },
+      graph: {
+        agentProfile: async (key: string) => ({
+          graphAgentKey: key,
+          claimedEnsName: "demo1.nymspace.eth",
+          provenance: {
+            provider: "agent0",
+            chainId: 84532,
+            subgraphId: "subgraph",
+            queriedAt: "2026-09-14T00:00:00.000Z",
+          },
+        }),
+      },
+    } as unknown as Deps);
+
+    const res = await post(app, "/v1/agents/agent-demo1/refresh");
+    expect(res.status).toBe(200);
+
+    const json = (await res.json()) as {
+      tracks: Record<string, string>;
+      steps: { ok: boolean }[];
+      reason: string | null;
+    };
+    expect(json.reason).toBeNull();
+    expect(json.tracks).toMatchObject({ ensip25: "verified", graph: "indexed" });
+    expect(json.steps).toHaveLength(2);
+    expect(json.steps.every((s) => s.ok)).toBe(true);
+  });
+
+  it("says why, and writes nothing, for an agent with no registration", async () => {
+    const app = createApp(config, {
+      store: {
+        getAgent: async () => ({
+          id: "agent-stalk",
+          organizationId: "nymspace",
+          ensName: "stalk.nymspace.eth",
+          provisioning: { ...tracks(), erc8004: "unregistered" },
+        }),
+        setProvisioning: async () => {
+          throw new Error("an unregistered agent must not have its tracks written");
+        },
+      },
+    } as unknown as Deps);
+
+    const res = await post(app, "/v1/agents/agent-stalk/refresh");
+    expect(res.status).toBe(200);
+
+    const json = (await res.json()) as { steps: unknown[]; reason: string | null };
+    expect(json.reason).toContain("No ERC 8004 registration");
+    expect(json.steps).toEqual([]);
+  });
+
+  it("provisions a wallet, and leaves gas unfunded on a keyless deployment", async () => {
+    const provisioning = tracks();
+    let ref: Record<string, unknown> | undefined;
+
+    const app = createApp(config, {
+      store: {
+        getAgent: async () => ({
+          id: "agent-demo1",
+          organizationId: "nymspace",
+          slug: "demo1",
+          ensName: "demo1.nymspace.eth",
+          controllerAddress: "0x2222222222222222222222222222222222222222",
+          provisioning,
+        }),
+        getFinancialAuthority: async () => ref,
+        putFinancialAuthority: async (value: Record<string, unknown>) => {
+          ref = value;
+          return value;
+        },
+        upsertAgent: async () => undefined,
+        setProvisioning: async (_id: string, patch: Record<string, string>) => {
+          Object.assign(provisioning, patch);
+          return provisioning;
+        },
+        recordEvent: async () => undefined,
+      },
+      privy: {
+        createAmountPolicy: async ({ name, maxValueWei }: { name: string; maxValueWei: bigint }) => ({
+          policyId: "pol-1",
+          name,
+          maxAmount: maxValueWei,
+          token: null,
+          ruleName: "native",
+        }),
+        createWallet: async ({ policyIds }: { policyIds: string[] }) => ({
+          id: "wallet-1",
+          address: "0x7777777777777777777777777777777777777777",
+          policyIds,
+        }),
+      },
+      paymentToken: null,
+      registrationChain: { canSign: false },
+    } as unknown as Deps);
+
+    const res = await post(app, "/v1/agents/agent-demo1/wallet");
+    expect(res.status).toBe(200);
+
+    const json = (await res.json()) as {
+      financial: string;
+      address: string | null;
+      steps: { what: string; ok: boolean; skipped: boolean }[];
+    };
+    expect(json.financial).toBe("policy_configured");
+    expect(json.address).toBe("0x7777777777777777777777777777777777777777");
+    expect(provisioning.financial).toBe("policy_configured");
+    expect(json.steps.at(-1)).toMatchObject({ what: "gas", ok: false, skipped: true });
+  });
+});
+
 describe("the signing accounts", () => {
   const ORGANIZATION = "0x1111111111111111111111111111111111111111";
   const CONTROLLER = "0x2222222222222222222222222222222222222222";

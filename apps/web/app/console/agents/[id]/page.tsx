@@ -26,6 +26,7 @@ import { ConnectFromClaude } from "@/components/console/connect-from-claude";
 import { McpConnect } from "@/components/console/mcp-connect";
 import { PermissionProof } from "@/components/console/permission-proof";
 import { TaskRequest } from "@/components/console/task-request";
+import { ProvisionWallet, RefreshTracks } from "@/components/console/agent-actions";
 import { VisitorAuthority } from "@/components/console/visitor-authority";
 import { GraphCheck, GraphTree } from "@/components/console/graphs";
 import {
@@ -345,6 +346,12 @@ export default async function AgentPage({
             detail="This agent has no registry entry, so there is no claim for ENS to confirm."
           />
         )}
+        {/*
+          Only with a registration: without one there is nothing to verify and
+          nothing Agent0 could have indexed, and the empty state above already
+          says so.
+        */}
+        {identity.registration ? <RefreshTracks agentId={id} /> : null}
       </Frame>
 
       {/* ── Authority ──────────────────────────────────────────────────── */}
@@ -537,10 +544,18 @@ export default async function AgentPage({
             )}
           </>
         ) : (
-          <Empty
-            title={EMPTY_STATES.noWallet.title}
-            detail={EMPTY_STATES.noWallet.detail}
-          />
+          <>
+            <Empty
+              title={EMPTY_STATES.noWallet.title}
+              detail={EMPTY_STATES.noWallet.detail}
+            />
+            {/*
+              Offered on a failed wallet read too. `provisionWallet` reuses the
+              store's reference, so asking for a wallet that exists repairs it
+              rather than creating a second one.
+            */}
+            <ProvisionWallet agentId={id} />
+          </>
         )}
       </Frame>
     </VStack>
