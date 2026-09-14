@@ -1169,6 +1169,66 @@ describe("creating an agent", () => {
     // The ENS track is still moving, so the screen keeps polling.
     expect(json.complete).toBe(false);
   });
+
+  it("keeps polling while registration is in flight, and names its chain", async () => {
+    const provisioning = {
+      ens: "active",
+      erc8004: "pending",
+      ensip25: "unchecked",
+      graph: "not_indexed",
+      financial: "no_wallet",
+    };
+
+    const app = createApp(config, {
+      store: {
+        getAgent: async () => ({
+          id: "agent-research",
+          ensName: "research.nymspace.eth",
+          provisioning,
+        }),
+        listActivity: async () => [
+          {
+            type: "erc8004.registered",
+            status: "success",
+            summary: "Registered research.nymspace.eth as ERC 8004 agent 7",
+            occurredAt: "2026-09-09T00:01:00.000Z",
+            evidence: {
+              source: "erc8004",
+              txHash: HASH,
+              contractAddress: REGISTRY,
+              chainId: 84532,
+            },
+            metadata: { phase: "provisioning", readBack: "7" },
+          },
+        ],
+      } as unknown as Deps["store"],
+    } as Deps);
+
+    const read = async () =>
+      (await (
+        await app.fetch(
+          new Request("http://api.test/v1/agents/agent-research/provisioning"),
+        )
+      ).json()) as {
+        complete: boolean;
+        steps: { txHash: string | null; chainId: number | null }[];
+      };
+
+    const during = await read();
+    // Identity is active, and that alone is not the end of the run.
+    expect(during.complete).toBe(false);
+    // A registry step links to the registry's chain, not the ENS one.
+    expect(during.steps).toEqual([
+      expect.objectContaining({ txHash: HASH, chainId: 84532 }),
+    ]);
+
+    provisioning.erc8004 = "registered";
+    provisioning.ensip25 = "checking";
+    expect((await read()).complete).toBe(false);
+
+    provisioning.ensip25 = "verified";
+    expect((await read()).complete).toBe(true);
+  });
 });
 
 describe("the signing accounts", () => {

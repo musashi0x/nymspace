@@ -219,10 +219,11 @@ export const agents = new Hono<DepsEnv>()
    * already being written with their transaction hashes, and reading them back
    * is what makes a reload mid-provision rebuild rather than restart.
    *
-   * `complete` is false while the ENS track is still moving. The other four
-   * tracks are not part of that answer — an agent with a verified binding and
-   * no wallet is not failed, it is financially unprovisioned, and creation
-   * never claimed to touch those.
+   * `complete` is false while any track the run touches is still moving:
+   * identity, then registration and verification. Discovery and the wallet
+   * are not part of that answer — an agent with a verified binding and no
+   * wallet is not failed, it is financially unprovisioned, and creation never
+   * claimed to touch those.
    */
   .get("/:id/provisioning", async (c) => {
     const { store } = c.var.deps;
@@ -258,8 +259,15 @@ export const agents = new Hono<DepsEnv>()
         type: event.type,
         key: keyOf(event.metadata),
         // Narrowed rather than asserted: `ActivityEvidence` is a union per
-        // source, and a provisioning step's evidence is always an ENS one.
-        txHash: event.evidence.source === "ens" ? event.evidence.txHash : null,
+        // source, and a provisioning step's evidence is an ENS or a registry one.
+        txHash:
+          event.evidence.source === "ens" || event.evidence.source === "erc8004"
+            ? event.evidence.txHash
+            : null,
+        // Null means the deployment's ENS chain. A registry step is on the
+        // registry's chain, and an explorer link built from the wrong one
+        // opens somebody else's transaction or none.
+        chainId: event.evidence.source === "erc8004" ? event.evidence.chainId : null,
         readBack: readBackOf(event.metadata),
         occurredAt: event.occurredAt,
       }));
@@ -269,7 +277,7 @@ export const agents = new Hono<DepsEnv>()
       ensName: agent.ensName,
       tracks: agent.provisioning,
       steps,
-      complete: agent.provisioning.ens === "active" || agent.provisioning.ens === "failed",
+      complete: isSettled(agent.provisioning),
       source: "store" as const,
       readAt: readAt(),
     });
@@ -1099,6 +1107,9 @@ const PROVISIONING_TYPES: ReadonlySet<string> = new Set([
   "ens.record.updated",
   "ens.permission.granted",
   "ens.action.denied",
+  "erc8004.registered",
+  "ensip25.verified",
+  "ensip25.failed",
 ]);
 
 function phaseOf(metadata: unknown): string | null {
@@ -1129,5 +1140,23 @@ function provisionContext(deps: Deps): ProvisionContext {
     registry: deps.registry,
     resolver: deps.resolver,
     organization: deps.organization,
+    // Present, so a created agent is registered and bound in the same run.
+    erc8004: deps.erc8004,
   };
+}
+
+/**
+ * Whether a provisioning run has stopped moving.
+ *
+ * Identity settled, and neither track the run goes on to still in flight.
+ * Registration only starts on an active identity, and `provisionAgent` marks
+ * it pending in the same write that makes identity active — so there is no
+ * poll that sees identity done and registration not yet begun.
+ */
+function isSettled(tracks: { ens: string; erc8004: string; ensip25: string }): boolean {
+  return (
+    (tracks.ens === "active" || tracks.ens === "failed") &&
+    tracks.erc8004 !== "pending" &&
+    tracks.ensip25 !== "checking"
+  );
 }

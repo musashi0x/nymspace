@@ -1,16 +1,26 @@
-import type { Address, Hex } from "@nymspace/core";
+import { isPublishableEndpoint, type Address, type Hex } from "@nymspace/core";
 import {
   AGENT_CONTEXT_KEY,
   AGENT_SUBNAME_OWNER_ROLES,
   EnsService,
   RESOLVER_ROLE,
   agentEndpointKey,
+  agentRegistrationKey,
   buildAgentContext,
+  buildRegistrationFile,
+  claimedEnsName,
   encodeAgentContext,
   encodeDnsName,
   textRecordResource,
+  verifyEnsip25,
+  type Erc8004Service,
 } from "@nymspace/ens";
-import type { EnsProvisioning, Store } from "@nymspace/store";
+import type {
+  EnsProvisioning,
+  Erc8004Provisioning,
+  ProvisioningStatus,
+  Store,
+} from "@nymspace/store";
 
 /**
  * One agent, provisioned onto ENSv2.
@@ -93,6 +103,15 @@ export interface ProvisionContext {
   registry: Address;
   resolver: Address;
   organization: Address;
+  /**
+   * The ERC 8004 registry, on its own chain — Base Sepolia, design.md D14.
+   *
+   * Absent means the run ends at identity. `POST /v1/agents` passes it, so a
+   * created agent is registered and bound in the same run.
+   * `scripts/provision-fleet.ts` does not: the fleet's registrations belong to
+   * `pnpm register:identity`, which also runs the proofs this module does not.
+   */
+  erc8004?: Erc8004Service;
 }
 
 /**
@@ -119,8 +138,10 @@ export interface ProvisionResult {
   agentId: string;
   ensName: string;
   steps: ProvisionStep[];
-  /** Where the ENS track ended up. Nothing else is touched here. */
+  /** Where the ENS track ended up. */
   ens: EnsProvisioning;
+  /** Present when the run went on to register — {@link bindRegistration}. */
+  registration?: RegistrationResult;
 }
 
 /**
@@ -625,7 +646,413 @@ export async function provisionAgent(
   });
 
   const ensTrack: EnsProvisioning = confirmed ? "active" : "failed";
-  await store.setProvisioning(agentId, { ens: ensTrack });
 
-  return { agentId, ensName, steps, ens: ensTrack };
+  /*
+    Registration follows identity in the same run, when there is a registry to
+    register with, and only on a confirmed identity: the registration file
+    claims the name, and claiming one whose read-back failed publishes a claim
+    nobody can confirm.
+
+    The registry track goes pending in the same write that settles identity.
+    As two writes there is a moment where identity reads settled and
+    registration has not started, and `GET /:id/provisioning` would call that
+    moment complete and stop the screen polling.
+  */
+  const { erc8004 } = ctx;
+  if (!confirmed || !erc8004) {
+    await store.setProvisioning(agentId, { ens: ensTrack });
+    return { agentId, ensName, steps, ens: ensTrack };
+  }
+
+  await store.setProvisioning(agentId, { ens: ensTrack, erc8004: "pending" });
+
+  const registration = await bindRegistration(
+    { ...ctx, erc8004 },
+    {
+      agentId,
+      ensName,
+      name: target.name,
+      // Worded the way `register:identity` words it, so a file published from
+      // either path names its operator the same way.
+      description: `${target.description} Operated by ${ctx.parentName}.`,
+      endpoints: target.endpoints,
+    },
+  );
+  steps.push(...registration.steps);
+
+  return { agentId, ensName, steps, ens: ensTrack, registration };
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// The registration — ERC 8004, bound back to the name by ENSIP 25
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The identity half of the context, plus the registry. The ENS parent's
+ * `registry` and `parentName` play no part in this.
+ */
+export type RegistrationContext = Pick<
+  ProvisionContext,
+  "ens" | "store" | "organizationId" | "resolver" | "organization"
+> & { erc8004: Erc8004Service };
+
+export interface RegistrationTarget {
+  /** The store id, `agent-<label>` — not the id the registry mints. */
+  agentId: string;
+  ensName: string;
+  /** Published in the registration file exactly as given. */
+  name: string;
+  description: string;
+  endpoints: Partial<Record<EndpointProtocol, string>>;
+}
+
+export interface RegistrationResult {
+  steps: ProvisionStep[];
+  erc8004: Erc8004Provisioning;
+  ensip25: ProvisioningStatus["ensip25"];
+  /** The id the registry minted, once there is one. */
+  erc8004AgentId?: string;
+  /** The ENSIP 25 key, once the id it is built from is known. */
+  key?: string;
+  /** The organization's write of that key, when this run made it. */
+  bindingTxHash?: Hex;
+}
+
+/**
+ * Register an agent on ERC 8004 and bind the registration back to its name.
+ *
+ * Steps 3.8, 3.9, 3.11 and 3.13 of `scripts/register-identity.ts`, moved here
+ * for the reason `provisionAgent` moved out of its script: the route needed
+ * the same steps, and two copies diverge on the first fix. The script keeps
+ * what is proof rather than provisioning — the controller's revert on the key,
+ * and the indexing check.
+ *
+ * Idempotent like the rest of this module, with one difference: the registry
+ * has no name-to-id lookup, so "already registered" is the store's answer
+ * rather than the chain's. A store that lost the id registers again, which is
+ * what `REGISTER_AGENT_ID` on the script exists to prevent.
+ *
+ * Failures land on the track they belong to and are returned, not thrown. The
+ * route calling this has already answered 202, and its fallback marks the ENS
+ * track failed — true of an exception from the ENS half, false of one from
+ * here.
+ */
+export async function bindRegistration(
+  ctx: RegistrationContext,
+  target: RegistrationTarget,
+): Promise<RegistrationResult> {
+  const { ens, erc8004, store } = ctx;
+  const { agentId, ensName } = target;
+  const steps: ProvisionStep[] = [];
+
+  const step = (entry: ProvisionStep): ProvisionStep => {
+    steps.push(entry);
+    return entry;
+  };
+
+  const now = () => new Date().toISOString();
+  const registryEvidence = (txHash: Hex) => ({
+    source: "erc8004" as const,
+    txHash,
+    contractAddress: erc8004.registry,
+    chainId: erc8004.chainId,
+  });
+
+  const existing = await store.getAgent(agentId);
+  if (!existing) {
+    throw new Error(`${agentId} is not in the store. Provision its name first.`);
+  }
+  const ensip25Before = existing.provisioning.ensip25;
+
+  await store.setProvisioning(agentId, { erc8004: "pending" });
+
+  //////////////////////////////////////////////////////////////////////////
+  // Register — skipped when the store already holds an id
+  //////////////////////////////////////////////////////////////////////////
+
+  /*
+    Only https endpoints go into the file. It is published to Agent0's index,
+    where a localhost URL is advertised to everyone and answers nobody — the
+    rule `publishableAgentMcpEndpoint` applies to the ENS record. Left out
+    rather than refused, and named in the step, so the registration says less
+    instead of saying something false.
+  */
+  const publishable = (protocol: EndpointProtocol): string | undefined => {
+    const value = target.endpoints[protocol];
+    return value && isPublishableEndpoint(value) ? value : undefined;
+  };
+  const withheld = ENDPOINT_PROTOCOLS.filter(
+    (protocol) => target.endpoints[protocol] && !publishable(protocol),
+  );
+
+  const registerWhat = `register ${ensName} on ERC 8004`;
+  let erc8004AgentId: string;
+  let registrationTxHash: Hex | undefined;
+
+  if (existing.erc8004AgentId) {
+    erc8004AgentId = existing.erc8004AgentId;
+    step({
+      what: registerWhat,
+      ok: true,
+      skipped: true,
+      detail: `already registered as agent ${erc8004AgentId}`,
+      readBack: erc8004AgentId,
+    });
+  } else {
+    try {
+      const registration = await erc8004.register({
+        file: buildRegistrationFile({
+          name: target.name,
+          description: target.description,
+          ensName,
+          mcpEndpoint: publishable("mcp"),
+          a2aEndpoint: publishable("a2a"),
+          // Only what is true. No trust scheme is implemented, so none is named.
+          supportedTrusts: [],
+        }),
+        as: "organization",
+      });
+      erc8004AgentId = registration.agentId;
+      registrationTxHash = registration.transactionHash;
+
+      // Before anything else. An id the chain minted and the store never
+      // heard of is exactly the double registration the skip above relies on
+      // never happening.
+      await store.upsertAgent({
+        id: existing.id,
+        organizationId: existing.organizationId,
+        slug: existing.slug,
+        ensName: existing.ensName,
+        controllerAddress: existing.controllerAddress,
+        erc8004AgentId,
+        erc8004Registry: erc8004.registry,
+      });
+
+      step({
+        what: registerWhat,
+        ok: true,
+        skipped: false,
+        detail:
+          withheld.length > 0
+            ? `agent ${erc8004AgentId}; ${withheld.join(", ")} not https, left out of the file`
+            : `agent ${erc8004AgentId}`,
+        txHash: registrationTxHash,
+        readBack: erc8004AgentId,
+      });
+
+      await store.recordEvent({
+        organizationId: ctx.organizationId,
+        agentId,
+        source: "erc8004",
+        type: "erc8004.registered",
+        status: "success",
+        occurredAt: now(),
+        actor: ctx.organization,
+        txHash: registrationTxHash,
+        externalId: `${erc8004.chainId}:${erc8004AgentId}`,
+        summary: `Registered ${ensName} as ERC 8004 agent ${erc8004AgentId}`,
+        evidence: registryEvidence(registrationTxHash),
+        metadata: {
+          phase: PROVISIONING_PHASE,
+          readBack: erc8004AgentId,
+          ...(withheld.length > 0 && { withheld }),
+        },
+      });
+    } catch (error) {
+      // `Erc8004Service.register` can throw after its transaction mined — no
+      // `Registered` event, or a URI still unreadable. Its message names the
+      // hash or the id, and this detail carries it, so the registration can
+      // be adopted with `REGISTER_AGENT_ID` rather than paid for twice.
+      step({ what: registerWhat, ok: false, skipped: false, detail: messageOf(error) });
+      await store.recordEvent({
+        organizationId: ctx.organizationId,
+        agentId,
+        source: "erc8004",
+        type: "erc8004.registered",
+        status: "failed",
+        occurredAt: now(),
+        actor: ctx.organization,
+        txHash: ZERO_HASH,
+        summary: `Registering ${ensName} on ERC 8004 failed`,
+        evidence: registryEvidence(ZERO_HASH),
+        metadata: { phase: PROVISIONING_PHASE, reason: messageOf(error) },
+      });
+      await store.setProvisioning(agentId, { erc8004: "failed" });
+      return { steps, erc8004: "failed", ensip25: ensip25Before };
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  // Read the claim back before binding anything to it
+  //////////////////////////////////////////////////////////////////////////
+
+  /*
+    Before the ENS write, not after it. A stored id naming somebody else's
+    registration would otherwise get an ENSIP 25 record pointing at it, and
+    verification would then fail for a reason that looks nothing like its
+    cause.
+  */
+  const claimWhat = `read back ERC 8004 agent ${erc8004AgentId}`;
+  let claim: string | undefined;
+  try {
+    const file = await erc8004.registrationFile(erc8004AgentId);
+    claim = file ? claimedEnsName(file) : undefined;
+  } catch (error) {
+    step({
+      what: claimWhat,
+      ok: false,
+      skipped: false,
+      detail: `could not read the registration: ${messageOf(error)}`,
+    });
+    await store.setProvisioning(agentId, { erc8004: "failed" });
+    return { steps, erc8004: "failed", ensip25: ensip25Before, erc8004AgentId };
+  }
+
+  const claims = claim?.toLowerCase() === ensName.toLowerCase();
+  step({
+    what: claimWhat,
+    ok: claims,
+    skipped: false,
+    detail: claim
+      ? `services[ens] = ${claim}`
+      : "the registration file carries no ens service entry",
+    ...(claim && { readBack: claim }),
+  });
+
+  if (!claims) {
+    await store.setProvisioning(agentId, { erc8004: "failed" });
+    return { steps, erc8004: "failed", ensip25: ensip25Before, erc8004AgentId };
+  }
+
+  await store.setProvisioning(agentId, { erc8004: "registered" });
+
+  //////////////////////////////////////////////////////////////////////////
+  // The ENSIP 25 record — organization-signed, like every record here
+  //////////////////////////////////////////////////////////////////////////
+
+  const key = agentRegistrationKey({
+    chainId: erc8004.chainId,
+    registry: erc8004.registry,
+    agentId: erc8004AgentId,
+  });
+  const bindWhat = `write ${key}`;
+  let bindingTxHash: Hex | undefined;
+
+  try {
+    const before = await ens.readText(ensName, key);
+    if (before.length > 0) {
+      step({
+        what: bindWhat,
+        ok: true,
+        skipped: true,
+        detail: "already set, not rewritten",
+        readBack: before,
+      });
+    } else {
+      const hash = await ens.writeText({
+        name: ensName,
+        key,
+        // ENSIP 25: clients MUST NOT depend on the value beyond it being
+        // non-empty. "1" is the published convention and carries no meaning.
+        value: "1",
+        as: "organization",
+      });
+      const receipt = await ens.waitForReceipt(hash);
+      const after = await ens.readText(ensName, key);
+      bindingTxHash = hash;
+
+      step({
+        what: bindWhat,
+        ok: receipt.status === "success" && after === "1",
+        skipped: false,
+        detail: hash,
+        txHash: hash,
+        readBack: after,
+      });
+
+      await store.recordEvent({
+        organizationId: ctx.organizationId,
+        agentId,
+        source: "ens",
+        type: "ens.record.updated",
+        status: "success",
+        occurredAt: now(),
+        actor: ctx.organization,
+        txHash: hash,
+        summary: `Wrote the ENSIP 25 registration record on ${ensName}`,
+        evidence: { source: "ens", txHash: hash, contractAddress: ctx.resolver },
+        metadata: { phase: PROVISIONING_PHASE, key, readBack: after },
+      });
+    }
+  } catch (error) {
+    // Not an early return. The registration stands; what did not happen is
+    // the ENS half of the binding, and the verification below reports exactly
+    // that — or reports that it could not read, which is also true.
+    step({ what: bindWhat, ok: false, skipped: false, detail: messageOf(error) });
+    await store.recordEvent({
+      organizationId: ctx.organizationId,
+      agentId,
+      source: "ens",
+      type: "ens.record.updated",
+      status: "failed",
+      occurredAt: now(),
+      actor: ctx.organization,
+      txHash: ZERO_HASH,
+      summary: `Writing the ENSIP 25 registration record on ${ensName} failed`,
+      evidence: { source: "ens", txHash: ZERO_HASH, contractAddress: ctx.resolver },
+      metadata: { phase: PROVISIONING_PHASE, key, reason: messageOf(error) },
+    });
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  // Verify, from the registry's side — never assumed from the writes above
+  //////////////////////////////////////////////////////////////////////////
+
+  await store.setProvisioning(agentId, { ensip25: "checking" });
+
+  const verification = await verifyEnsip25({
+    ensName,
+    agentId: erc8004AgentId,
+    registry: erc8004.registry,
+    chainId: erc8004.chainId,
+    erc8004,
+    readText: (name, k) => ens.readText(name, k),
+  });
+  const verified = verification.status === "verified";
+
+  step({
+    what: `verify ENSIP 25 for ${ensName}`,
+    ok: verified,
+    skipped: false,
+    detail: `${verification.status}, read at ${verification.readAt}${verification.error ? ` — ${verification.error}` : ""}`,
+    readBack: verification.status,
+  });
+
+  await store.setProvisioning(agentId, { ensip25: verification.status });
+
+  await store.recordEvent({
+    organizationId: ctx.organizationId,
+    agentId,
+    source: "erc8004",
+    type: verified ? "ensip25.verified" : "ensip25.failed",
+    status: verified ? "success" : "failed",
+    occurredAt: verification.readAt,
+    summary: verified
+      ? `${ensName} and agent ${erc8004AgentId} confirm each other`
+      : `${ensName} and agent ${erc8004AgentId} do not confirm each other: ${verification.status}`,
+    // A read has no transaction of its own. The evidence is the registration
+    // it read against, or zero when this run found it already made — which
+    // the create screen renders as "no transaction", true of a read.
+    evidence: registryEvidence(registrationTxHash ?? ZERO_HASH),
+    metadata: { phase: PROVISIONING_PHASE, readBack: verification.status },
+  });
+
+  return {
+    steps,
+    erc8004: "registered",
+    ensip25: verification.status,
+    erc8004AgentId,
+    key,
+    ...(bindingTxHash && { bindingTxHash }),
+  };
 }

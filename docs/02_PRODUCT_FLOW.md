@@ -74,6 +74,15 @@ Inputs:
 7. Grant record level resolver permission to the controller.
 8. Read the new EAC state back from chain.
 9. Persist app side metadata and transaction references.
+10. Once identity is confirmed, register the agent on ERC 8004 (Base Sepolia)
+    with a registration file whose `services[ens]` claims the name. Only
+    https endpoints go into the file.
+11. Read the registration back and confirm the claim.
+12. Write the ENSIP 25 record from the organization key.
+13. Verify the binding in the registry-to-ENS direction.
+
+Steps 10–13 are `bindRegistration` in `apps/api/src/provisioning.ts`, shared
+with `pnpm register:identity`.
 
 ### Completion condition
 
@@ -83,6 +92,10 @@ UI must not show `Active` until onchain reads confirm:
 * Resolver is set.
 * Controller has intended record permissions.
 * Controller does not have protected registry authority.
+
+The run is not complete while registration or verification is still in
+flight. Either may end failed without failing identity: an agent with an active
+name and no registration is partial, not broken.
 
 ## Flow 2: Controller updates agent endpoint
 
